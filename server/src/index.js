@@ -19,6 +19,11 @@ app.use(express.json());
  * Images are now handled by DigitalOcean Spaces via shopRoutes.
  */
 
+app.get("/api/ping", (req, res) => {
+  console.log("PING HIT");
+  res.json({ ok: true });
+});
+
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/shops', require('./routes/shopRoutes'));
