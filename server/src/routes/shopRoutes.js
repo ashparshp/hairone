@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
+const { S3Client } = require('@aws-sdk/client-s3');
+const multerS3 = require('multer-s3');
 const { protect } = require('../middleware/authMiddleware');
 
 const { 
@@ -16,13 +17,29 @@ const {
   getUserFavorites,
 } = require('../controllers/shopController'); 
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) { cb(null, 'uploads/'); },
-  filename: function (req, file, cb) { cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname)); }
+// 1. DigitalOcean Spaces Configuration from ENV
+const s3 = new S3Client({
+    endpoint: process.env.DO_SPACES_ENDPOINT,
+    region: "us-east-1", 
+    credentials: {
+        accessKeyId: process.env.DO_SPACES_KEY,
+        secretAccessKey: process.env.DO_SPACES_SECRET,
+    }
 });
-const upload = multer({ storage: storage });
 
-// Define Routes
+// 2. Cloud Storage Engine
+const upload = multer({
+    storage: multerS3({
+        s3: s3,
+        bucket: process.env.DO_SPACES_BUCKET,
+        acl: "public-read",
+        contentType: multerS3.AUTO_CONTENT_TYPE,
+        key: function (req, file, cb) {
+            cb(null, `shops/${Date.now()}-${file.originalname}`);
+        }
+    })
+});
+
 router.get('/', getAllShops);
 router.get('/favorites', protect, getUserFavorites);
 router.get('/:id', getShopDetails);

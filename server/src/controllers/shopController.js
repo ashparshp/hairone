@@ -53,14 +53,9 @@ exports.createShop = async (req, res) => {
     const { name, address } = req.body;
     const ownerId = req.user.id;
 
-    let imageUrl = '';
-    if (req.file) {
-      const protocol = req.protocol;
-      const host = req.get('host');
-      imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-    } else {
-      imageUrl = "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800";
-    }
+let imageUrl = req.file 
+      ? req.file.location 
+      : 'https://via.placeholder.com/150';
 
     const defaultServices = [
       { name: "Classic Haircut", price: 350, duration: 30 },

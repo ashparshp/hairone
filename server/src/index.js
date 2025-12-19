@@ -2,31 +2,34 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
-const path = require('path');
-const fs = require('fs');
 
+// Load environment variables
 dotenv.config();
+
+// Connect to MongoDB
 connectDB();
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir);
-    console.log('📂 Created uploads directory');
-}
+/** * NOTE: Local 'uploads' directory logic removed. 
+ * Images are now handled by DigitalOcean Spaces via shopRoutes.
+ */
 
-app.use('/uploads', express.static(uploadDir));
-
+// API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/shops', require('./routes/shopRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
+// Server Port Configuration
 const PORT = process.env.PORT || 8080;
 
+// Listen on all network interfaces for mobile access
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`☁️  Cloud Storage: DigitalOcean Spaces Active`);
 });
