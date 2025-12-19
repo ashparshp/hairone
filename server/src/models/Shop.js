@@ -11,7 +11,8 @@ const shopSchema = new mongoose.Schema({
   services: [{
     name: String,
     price: Number,
-    duration: Number // minutes
+    duration: Number, // minutes
+    isAvailable: { type: Boolean, default: true }
   }]
 });
 
