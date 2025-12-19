@@ -22,10 +22,6 @@ export default function TabLayout() {
       tabBarActiveTintColor: Colors.primary,
       headerShown: false
     }}>
-      <Tabs.Screen name="profile" options={{
-        title: 'Profile',
-        tabBarIcon: ({color}) => <User color={color} size={24} />
-      }} />
 
       {/* OWNER TABS */}
       <Tabs.Screen name="dashboard" options={{
@@ -47,6 +43,11 @@ export default function TabLayout() {
         title: 'Bookings',
         href: user?.role === 'owner' ? null : '/(tabs)/bookings',
         tabBarIcon: ({color}) => <Calendar color={color} size={24} />
+      }} />
+
+      <Tabs.Screen name="profile" options={{
+        title: 'Profile',
+        tabBarIcon: ({color}) => <User color={color} size={24} />
       }} />
     </Tabs>
   );
