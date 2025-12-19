@@ -1,12 +1,15 @@
 export interface User {
   _id: string;
   phone: string;
-  role: 'user' | 'owner' | 'admin';
+  role: "user" | "owner" | "admin";
   name?: string;
   myShopId?: string;
-  applicationStatus: 'none' | 'pending' | 'approved' | 'rejected';
+  applicationStatus: "none" | "pending" | "approved" | "rejected";
   businessName?: string;
   isPremium?: boolean;
+  email?: string;
+  favorites?: string[];
+  gender?: string;
 }
 
 export interface Service {
@@ -37,14 +40,14 @@ export interface Booking {
   _id: string;
   userId: string | User;
   shopId: string | Shop;
-  barberId: Barber; 
+  barberId: Barber;
   serviceNames: string[];
   totalPrice: number;
   totalDuration: number;
   date: string;
   startTime: string;
   endTime: string;
-  status: 'upcoming' | 'completed' | 'cancelled';
+  status: "upcoming" | "completed" | "cancelled";
   bookingKey?: string;
   createdAt?: string;
 }

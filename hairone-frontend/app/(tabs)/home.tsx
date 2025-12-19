@@ -74,13 +74,13 @@ export default function HomeScreen() {
           <MapPin size={14} color={Colors.textMuted} />
           <Text style={styles.addressText}>{item.address}</Text>
         </View>
-
+        
         {/* Next Available Slot Indicator */}
         <View style={[styles.rowMuted, { marginTop: 8 }]}>
            <Clock size={14} color={Colors.primary} />
            <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: 'bold' }}>
-              {item.nextAvailableSlot
-                ? `Earliest: ${item.nextAvailableSlot}`
+              {item.nextAvailableSlot 
+                ? `Earliest: ${item.nextAvailableSlot}` 
                 : 'No slots available today'}
            </Text>
         </View>
@@ -118,7 +118,7 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Filter by Time</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {timeOptions.map((opt, i) => (
-            <TouchableOpacity
+            <TouchableOpacity 
               key={i}
               style={[styles.filterChip, minTime === opt.value && styles.filterChipActive]}
               onPress={() => setMinTime(opt.value)}

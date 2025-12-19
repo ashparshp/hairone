@@ -5,12 +5,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard } from 'lucide-react-native';
+import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart } from 'lucide-react-native';
 
 export default function ShopDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, login, token } = useAuth(); // Added login & token
   
   const bookingContext = useBooking();
   const fetchBookings = bookingContext ? bookingContext.fetchBookings : null;
@@ -26,7 +26,7 @@ export default function ShopDetailsScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi'>('cash');
-  const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); // 'earliest' or 'schedule'
+  const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -36,13 +36,11 @@ export default function ShopDetailsScreen() {
   }, [id]);
 
   useEffect(() => {
-    // Fetch slots whenever parameters change in Step 2
     if (step === 2) {
         fetchSlots();
     }
   }, [step, selectedDate, selectedBarberId]);
 
-  // Auto-select earliest slot if booking type is 'earliest'
   useEffect(() => {
     if (bookingType === 'earliest' && slots.length > 0) {
         setSelectedTime(slots[0]);
@@ -64,15 +62,23 @@ export default function ShopDetailsScreen() {
     }
   };
 
-  // Helper: Calculate Total Duration
-  const calculateDuration = () => {
-      return selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  // --- FAVORITE LOGIC ---
+  const isFav = user?.favorites?.includes(id as string);
+
+  const toggleFavorite = async () => {
+    if (!user) return Alert.alert("Sign In Required", "Please login to save shops.");
+    try {
+      const res = await api.post('/auth/favorites', { shopId: id });
+      // Update local state
+      const updatedUser = { ...user, favorites: res.data };
+      if (token) login(token, updatedUser);
+    } catch (e) {
+      console.log("Fav Error", e);
+    }
   };
 
-  // Helper: Calculate Total Price
-  const calculateTotal = () => {
-      return selectedServices.reduce((sum, s) => sum + s.price, 0);
-  };
+  const calculateDuration = () => selectedServices.reduce((sum, s) => sum + s.duration, 0);
+  const calculateTotal = () => selectedServices.reduce((sum, s) => sum + s.price, 0);
 
   const fetchSlots = async () => {
     setLoadingSlots(true);
@@ -80,10 +86,7 @@ export default function ShopDetailsScreen() {
     setSlots([]); 
     try {
         const dateStr = selectedDate.toISOString().split('T')[0];
-        
-        // Pass duration so backend can check fit
         const duration = calculateDuration();
-        // If 'any', pass 'any' or null based on your API preference (shopController handles 'any')
         const bId = selectedBarberId; 
         
         const res = await api.post('/shops/slots', {
@@ -121,10 +124,10 @@ export default function ShopDetailsScreen() {
         await api.post('/bookings', {
             userId: user?._id,
             shopId: shop._id,
-            barberId: selectedBarberId, // Backend will handle 'any' logic
+            barberId: selectedBarberId, 
             serviceNames: selectedServices.map(s => s.name),
             totalPrice: calculateTotal(),
-            totalDuration: calculateDuration(), // Critical fix
+            totalDuration: calculateDuration(),
             date: dateStr,
             startTime: selectedTime,
             paymentMethod: paymentMethod
@@ -147,14 +150,22 @@ export default function ShopDetailsScreen() {
   return (
     <View style={styles.container}>
       
-      {/* --- HEADER IMAGE (Step 1) --- */}
+      {/* --- STEP 1 HEADER --- */}
       {step === 1 && (
         <View style={styles.headerImageContainer}>
              <Image source={{ uri: shop?.image }} style={styles.headerImage} />
              <View style={styles.overlay} />
+             
+             {/* Back Button */}
              <TouchableOpacity style={styles.backBtnAbsolute} onPress={() => router.back()}>
                 <ChevronLeft color="white" size={24} />
              </TouchableOpacity>
+
+             {/* Favorite Button (NEW) */}
+             <TouchableOpacity style={styles.favBtnAbsolute} onPress={toggleFavorite}>
+                <Heart size={24} color={isFav ? Colors.primary : "white"} fill={isFav ? Colors.primary : "transparent"} />
+             </TouchableOpacity>
+
              <View style={styles.shopMeta}>
                 <Text style={styles.shopTitle}>{shop?.name}</Text>
                 <Text style={styles.shopAddress}>{shop?.address}</Text>
@@ -204,7 +215,6 @@ export default function ShopDetailsScreen() {
       {/* --- STEP 2: BARBER & SLOT --- */}
       {step === 2 && (
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 100}}>
-            {/* 1. Choose Professional */}
             <Text style={styles.sectionTitle}>Choose Professional</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 <TouchableOpacity 
@@ -215,7 +225,6 @@ export default function ShopDetailsScreen() {
                        <Star size={16} color="black" fill="black"/>
                     </View>
                     <Text style={[styles.barberName, selectedBarberId === 'any' && {color: 'black', fontWeight:'bold'}]}>Any Pro</Text>
-                    <Text style={styles.barberSub}>Auto-assign</Text>
                 </TouchableOpacity>
 
                 {barbers.map((b: any) => (
@@ -224,16 +233,12 @@ export default function ShopDetailsScreen() {
                         style={[styles.barberChip, selectedBarberId === b._id && styles.barberChipActive]}
                         onPress={() => setSelectedBarberId(b._id)}
                     >
-                         <View style={styles.avatarCircle}>
-                            <User size={16} color="white"/>
-                         </View>
+                         <View style={styles.avatarCircle}><User size={16} color="white"/></View>
                          <Text style={[styles.barberName, selectedBarberId === b._id && {color: 'black', fontWeight:'bold'}]}>{b.name}</Text>
-                         <Text style={styles.barberSub}>Stylist</Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
 
-            {/* 2. Choose Date */}
             <Text style={styles.sectionTitle}>Select Date</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 {[0,1,2,3,4,5,6].map(days => {
@@ -253,31 +258,22 @@ export default function ShopDetailsScreen() {
                 })}
             </ScrollView>
 
-            {/* 3. Booking Option (Earliest vs Schedule) */}
             <Text style={styles.sectionTitle}>Booking Option</Text>
             <View style={styles.toggleContainer}>
-                <TouchableOpacity
+                <TouchableOpacity 
                     style={[styles.toggleBtn, bookingType === 'earliest' && styles.toggleBtnActive]}
                     onPress={() => setBookingType('earliest')}
                 >
                     <Text style={[styles.toggleText, bookingType === 'earliest' && { color: 'black' }]}>Earliest Available</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity 
                     style={[styles.toggleBtn, bookingType === 'schedule' && styles.toggleBtnActive]}
-                    onPress={() => {
-                        // Optional: Gate 'schedule' for premium users here if desired
-                        // if (!user?.isPremium) {
-                        //     Alert.alert("Premium Feature", "Custom scheduling is for premium members.");
-                        //     return;
-                        // }
-                        setBookingType('schedule');
-                    }}
+                    onPress={() => setBookingType('schedule')}
                 >
                     <Text style={[styles.toggleText, bookingType === 'schedule' && { color: 'black' }]}>Custom Schedule</Text>
                 </TouchableOpacity>
             </View>
 
-            {/* 4. Choose Time / Slots */}
             {bookingType === 'earliest' ? (
                 <View style={styles.earliestCard}>
                     {loadingSlots ? (
@@ -287,7 +283,6 @@ export default function ShopDetailsScreen() {
                              <Clock size={24} color={Colors.primary} />
                              <View>
                                  <Text style={{color:'white', fontWeight:'bold', fontSize:16}}>Next Available: {slots[0]}</Text>
-                                 <Text style={{color: Colors.textMuted, fontSize:12}}>We picked the earliest slot for you.</Text>
                              </View>
                          </View>
                     ) : (
@@ -298,22 +293,18 @@ export default function ShopDetailsScreen() {
                 <>
                     <Text style={styles.sectionTitle}>Select Time</Text>
                     {loadingSlots ? (
-                        <View style={{height: 100, justifyContent: 'center'}}><ActivityIndicator color={Colors.primary} /></View>
+                        <ActivityIndicator color={Colors.primary} />
                     ) : (
                         <View style={styles.slotsGrid}>
-                            {slots.length === 0 ? (
-                                <Text style={{color: Colors.textMuted}}>No slots available.</Text>
-                            ) : (
-                                slots.map((time, i) => (
-                                    <TouchableOpacity
-                                    key={i}
-                                    style={[styles.slotChip, selectedTime === time && styles.slotChipActive]}
-                                    onPress={() => setSelectedTime(time)}
-                                    >
-                                        <Text style={[styles.slotText, selectedTime === time && {color: 'black', fontWeight: 'bold'}]}>{time}</Text>
-                                    </TouchableOpacity>
-                                ))
-                            )}
+                            {slots.map((time, i) => (
+                                <TouchableOpacity 
+                                key={i} 
+                                style={[styles.slotChip, selectedTime === time && styles.slotChipActive]}
+                                onPress={() => setSelectedTime(time)}
+                                >
+                                    <Text style={[styles.slotText, selectedTime === time && {color: 'black', fontWeight: 'bold'}]}>{time}</Text>
+                                </TouchableOpacity>
+                            ))}
                         </View>
                     )}
                 </>
@@ -357,27 +348,17 @@ export default function ShopDetailsScreen() {
                 </View>
             </View>
 
-            {/* PAYMENT OPTIONS */}
             <Text style={styles.sectionTitle}>Payment Method</Text>
 
-            {/* Cash */}
-            <TouchableOpacity 
-                style={[styles.paymentCard, paymentMethod === 'cash' && styles.paymentCardActive]}
-                onPress={() => setPaymentMethod('cash')}
-            >
+            <TouchableOpacity style={[styles.paymentCard, paymentMethod === 'cash' && styles.paymentCardActive]} onPress={() => setPaymentMethod('cash')}>
                 <Banknote size={24} color={paymentMethod === 'cash' ? Colors.primary : 'white'} />
                 <View style={{flex: 1, marginLeft: 12}}>
                     <Text style={[styles.paymentTitle, paymentMethod === 'cash' && {color: Colors.primary}]}>Cash on Delivery</Text>
                     <Text style={styles.paymentSub}>Pay at the salon</Text>
                 </View>
-                <View style={paymentMethod === 'cash' ? styles.radioSelected : styles.radioUnselected} />
             </TouchableOpacity>
 
-            {/* UPI (Disabled) */}
-            <TouchableOpacity 
-                style={[styles.paymentCard, {opacity: 0.5}]}
-                disabled={true}
-            >
+            <TouchableOpacity style={[styles.paymentCard, {opacity: 0.5}]} disabled={true}>
                 <CreditCard size={24} color="white" />
                 <View style={{flex: 1, marginLeft: 12}}>
                     <Text style={styles.paymentTitle}>UPI / Online</Text>
@@ -388,7 +369,6 @@ export default function ShopDetailsScreen() {
          </ScrollView>
       )}
 
-      {/* --- BOTTOM ACTION BAR --- */}
       {selectedServices.length > 0 && (
           <View style={styles.footer}>
              <View>
@@ -422,6 +402,7 @@ const styles = StyleSheet.create({
   headerImage: { width: '100%', height: '100%' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   backBtnAbsolute: { position: 'absolute', top: 50, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
+  favBtnAbsolute: { position: 'absolute', top: 50, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: 8 },
   shopMeta: { position: 'absolute', bottom: 20, left: 20 },
   shopTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
   shopAddress: { color: '#cbd5e1', fontSize: 14, marginTop: 4 },
@@ -438,7 +419,6 @@ const styles = StyleSheet.create({
   barberChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   avatarCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   barberName: { color: 'white', fontSize: 12, fontWeight: '600' },
-  barberSub: { color: Colors.textMuted, fontSize: 10 },
   dateChip: { width: 60, height: 70, backgroundColor: Colors.card, borderRadius: 12, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
   dateChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   dayText: { color: Colors.textMuted, fontSize: 12, textTransform: 'uppercase' },
@@ -457,19 +437,13 @@ const styles = StyleSheet.create({
   footerSub: { color: Colors.textMuted, fontSize: 12 },
   nextBtn: { backgroundColor: Colors.primary, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12 },
   nextBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
-  
-  // Payment Styles
   paymentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
   paymentCardActive: { borderColor: Colors.primary, backgroundColor: 'rgba(234, 179, 8, 0.05)' },
   paymentTitle: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   paymentSub: { color: Colors.textMuted, fontSize: 12 },
-  radioSelected: { width: 20, height: 20, borderRadius: 10, borderWidth: 6, borderColor: Colors.primary },
-  radioUnselected: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.textMuted },
-
   toggleContainer: { flexDirection: 'row', backgroundColor: Colors.card, padding: 4, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: Colors.border },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
   toggleBtnActive: { backgroundColor: Colors.primary },
   toggleText: { color: Colors.textMuted, fontWeight: 'bold', fontSize: 14 },
-
   earliestCard: { backgroundColor: Colors.card, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary, marginBottom: 24 },
 });

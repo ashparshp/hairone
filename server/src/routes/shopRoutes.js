@@ -11,7 +11,9 @@ const {
   addBarber, 
   updateBarber, 
   getShopSlots,
-  addShopService
+  addShopService,
+  updateShop,
+  getUserFavorites // Imported
 } = require('../controllers/shopController'); 
 
 const storage = multer.diskStorage({
@@ -20,12 +22,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// Define Routes
 router.get('/', getAllShops);
+router.get('/favorites', protect, getUserFavorites);
 router.get('/:id', getShopDetails);
 router.post('/', protect, upload.single('image'), createShop);
 router.post('/barbers', protect, addBarber);
 router.put('/barbers/:id', protect, updateBarber);
 router.post('/slots', getShopSlots);
 router.post('/:id/services', protect, addShopService);
+router.put('/:id', protect, updateShop);
 
 module.exports = router;

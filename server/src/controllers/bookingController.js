@@ -9,34 +9,19 @@ const timeToMinutes = (timeStr) => {
   return hours * 60 + minutes;
 };
 
-// --- Helper: Strict Availability Check ---
-// Returns true if the barber is free for the entire duration starting at startStr
+// --- Helper: Availability Check ---
 const checkAvailability = async (barber, date, startStr, duration) => {
   const start = timeToMinutes(startStr);
   const end = start + duration;
 
-  // 1. Shift Check
-  // Service must start after shift start AND end before shift end
-  if (start < timeToMinutes(barber.startHour) || end > timeToMinutes(barber.endHour)) {
-    return false;
-  }
+  if (start < timeToMinutes(barber.startHour) || end > timeToMinutes(barber.endHour)) return false;
 
-  // 2. Break Check
-  // Service cannot overlap with any break
   if (barber.breaks) {
     for (const br of barber.breaks) {
-      const bStart = timeToMinutes(br.startTime);
-      const bEnd = timeToMinutes(br.endTime);
-      
-      // Conflict if: Service Start < Break End AND Service End > Break Start
-      if (start < bEnd && end > bStart) {
-        return false;
-      }
+      if (start < timeToMinutes(br.endTime) && end > timeToMinutes(br.startTime)) return false;
     }
   }
 
-  // 3. Existing Bookings Check
-  // Fetch only active bookings for this barber on this date
   const conflicts = await Booking.find({
     barberId: barber._id,
     date: date,
@@ -44,15 +29,8 @@ const checkAvailability = async (barber, date, startStr, duration) => {
   });
 
   for (const b of conflicts) {
-    const bStart = timeToMinutes(b.startTime);
-    const bEnd = timeToMinutes(b.endTime);
-    
-    // Conflict if: Service Start < Booking End AND Service End > Booking Start
-    if (start < bEnd && end > bStart) {
-      return false;
-    }
+    if (start < timeToMinutes(b.endTime) && end > timeToMinutes(b.startTime)) return false;
   }
-
   return true;
 };
 
@@ -65,7 +43,6 @@ exports.createBooking = async (req, res) => {
   } = req.body;
 
   try {
-    // Basic Validation
     if (!startTime || !totalDuration || !date) {
       return res.status(400).json({ message: "Missing required booking details." });
     }
@@ -73,66 +50,43 @@ exports.createBooking = async (req, res) => {
     let assignedBarberId = barberId;
     const durationInt = parseInt(totalDuration);
 
-    // --- LOGIC A: Auto-Assign ("Any") ---
+    // Auto-Assign ("Any")
     if (!barberId || barberId === 'any') {
-      // 1. Find all active barbers in this shop
       const allBarbers = await Barber.find({ shopId, isAvailable: true });
-      
-      // 2. Filter list: Keep only those free for this specific time slot
       const availableBarbers = [];
       for (const barber of allBarbers) {
-        const isFree = await checkAvailability(barber, date, startTime, durationInt);
-        if (isFree) {
+        if (await checkAvailability(barber, date, startTime, durationInt)) {
           availableBarbers.push(barber);
         }
       }
 
-      // 3. Handle no availability
-      if (availableBarbers.length === 0) {
-        return res.status(409).json({ message: "No barbers available for this slot." });
-      }
-
-      // 4. Random Assignment (Tie-breaker)
+      if (availableBarbers.length === 0) return res.status(409).json({ message: "Slot no longer available." });
+      
+      // Randomly pick one to balance load
       const randomIndex = Math.floor(Math.random() * availableBarbers.length);
       assignedBarberId = availableBarbers[randomIndex]._id;
-    } 
-    // --- LOGIC B: Specific Barber ---
-    else {
+    } else {
       const barber = await Barber.findById(barberId);
       if (!barber) return res.status(404).json({ message: "Barber not found" });
-      
-      const isFree = await checkAvailability(barber, date, startTime, durationInt);
-      if (!isFree) {
-        return res.status(409).json({ message: "Selected barber is no longer available." });
+      if (!(await checkAvailability(barber, date, startTime, durationInt))) {
+        return res.status(409).json({ message: "Barber unavailable." });
       }
     }
 
-    // --- Calculate End Time String ---
     const startObj = parse(startTime, 'HH:mm', new Date());
     const endObj = addMinutes(startObj, durationInt);
     const endTime = format(endObj, 'HH:mm');
 
-    // --- Save to Database ---
     const booking = await Booking.create({
-      userId,
-      shopId,
-      barberId: assignedBarberId,
-      serviceNames,
-      totalPrice,
-      totalDuration: durationInt,
-      date,
-      startTime,
-      endTime,
-      paymentMethod: paymentMethod || 'cash',
-      paymentStatus: 'pending', // Pending until fulfilled
-      status: 'upcoming',
-      bookingKey: Math.floor(1000 + Math.random() * 9000).toString()
+      userId, shopId, barberId: assignedBarberId, serviceNames, totalPrice, 
+      totalDuration: durationInt, date, startTime, endTime, 
+      paymentMethod: paymentMethod || 'cash', 
+      status: 'upcoming', bookingKey: Math.floor(1000 + Math.random() * 9000).toString()
     });
 
     res.status(201).json(booking);
-
   } catch (error) {
-    console.error("Create Booking Error:", error);
+    console.error(error);
     res.status(500).json({ message: "Booking failed on server" });
   }
 };
@@ -147,7 +101,39 @@ exports.getMyBookings = async (req, res) => {
       .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Failed to fetch bookings" });
+  }
+};
+
+// --- 3. Cancel Booking ---
+exports.cancelBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const booking = await Booking.findByIdAndUpdate(id, { status: 'cancelled' }, { new: true });
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    res.json(booking);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to cancel booking" });
+  }
+};
+
+// --- 4. Get Shop Bookings (Owner View) - ADDED THIS ---
+exports.getShopBookings = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { date } = req.query;
+
+    const query = { shopId, status: { $ne: 'cancelled' } };
+    if (date) query.date = date;
+
+    const bookings = await Booking.find(query)
+      .populate('userId', 'name phone')
+      .populate('barberId', 'name')
+      .sort({ startTime: 1 });
+
+    res.json(bookings);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to fetch shop bookings" });
   }
 };

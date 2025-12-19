@@ -46,3 +46,41 @@ exports.verifyOTP = async (req, res) => {
     res.status(500).json({ message: "Server Error" });
   }
 };
+
+// 3. Update Profile
+exports.updateProfile = async (req, res) => {
+  const { name, email, gender } = req.body;
+  
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { name, email, gender },
+      { new: true }
+    );
+    res.json(user);
+  } catch (e) {
+    res.status(500).json({ message: "Update failed" });
+  }
+};
+
+// 4. Toggle Favorite
+exports.toggleFavorite = async (req, res) => {
+  const { shopId } = req.body;
+  const userId = req.user.id;
+  
+  try {
+    const user = await User.findById(userId);
+    const index = user.favorites.indexOf(shopId);
+    
+    if (index === -1) {
+      user.favorites.push(shopId); // Add
+    } else {
+      user.favorites.splice(index, 1); // Remove
+    }
+    
+    await user.save();
+    res.json(user.favorites);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to update favorites" });
+  }
+};

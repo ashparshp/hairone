@@ -3,7 +3,7 @@ const Barber = require('../models/Barber');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 
-// --- HELPER: Convert "HH:mm" to minutes (e.g., "10:30" -> 630) ---
+// --- HELPER: Convert "HH:mm" to minutes ---
 const timeToMinutes = (timeStr) => {
   if (!timeStr) return 0;
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -17,8 +17,7 @@ const minutesToTime = (totalMinutes) => {
   return `${hours}:${minutes}`;
 };
 
-// --- HELPER: Check strict availability for a specific barber ---
-// Checks if the barber is free from 'startMinutes' for 'duration' minutes
+// --- HELPER: Check strict availability ---
 const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
   const endMinutes = startMinutes + duration;
 
@@ -26,7 +25,6 @@ const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
   const shiftStart = timeToMinutes(barber.startHour);
   const shiftEnd = timeToMinutes(barber.endHour);
   
-  // If the service starts before shift or ends after shift -> Not Free
   if (startMinutes < shiftStart || endMinutes > shiftEnd) return false;
 
   // 2. Break Check
@@ -34,33 +32,27 @@ const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
     for (const br of barber.breaks) {
       const brStart = timeToMinutes(br.startTime);
       const brEnd = timeToMinutes(br.endTime);
-
-      // Check Overlap:
-      // A conflict exists if the service time overlaps the break time.
-      // Logic: (Start < BreakEnd) AND (End > BreakStart)
+      // Conflict if Overlap
       if (startMinutes < brEnd && endMinutes > brStart) {
         return false;
       }
     }
   }
 
-  // 3. Existing Bookings Check (Busy Ranges)
-  // busyRanges = array of { start, end } in minutes
+  // 3. Busy Ranges (Bookings) Check
   const hasConflict = busyRanges.some(range => {
-    // Conflict if ranges overlap
     return startMinutes < range.end && endMinutes > range.start;
   });
 
   return !hasConflict;
 };
 
-// --- 1. Create Shop ---
+// --- 1. Create Shop (Fixed Role Update) ---
 exports.createShop = async (req, res) => {
   try {
     const { name, address } = req.body;
     const ownerId = req.user.id;
 
-    // Handle Image Upload
     let imageUrl = '';
     if (req.file) {
       const protocol = req.protocol;
@@ -82,11 +74,12 @@ exports.createShop = async (req, res) => {
       address, 
       image: imageUrl, 
       services: defaultServices,
-      rating: 5.0 
+      rating: 5.0,
+      type: 'unisex'
     });
     
-    // Link shop to owner
-    await User.findByIdAndUpdate(ownerId, { myShopId: shop._id });
+    // Update Role to 'owner' immediately
+    await User.findByIdAndUpdate(ownerId, { myShopId: shop._id, role: 'owner' });
 
     res.status(201).json(shop);
   } catch (e) {
@@ -95,24 +88,64 @@ exports.createShop = async (req, res) => {
   }
 };
 
-// --- HELPER: Find earliest slot for a shop ---
-const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
-  const date = new Date().toISOString().split('T')[0]; // Today
-  const serviceDuration = 30; // Default check duration
+// --- 2. Update Shop ---
+exports.updateShop = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { address, type } = req.body; 
 
-  // 1. Get Barbers
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { address, type },
+      { new: true }
+    );
+
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Update failed" });
+  }
+};
+
+// --- 3. Get All Shops ---
+exports.getAllShops = async (req, res) => {
+  try {
+    const { minTime } = req.query; 
+    const shops = await Shop.find().lean();
+
+    const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
+      const nextSlot = await findEarliestSlotForShop(shop._id, minTime);
+      return { ...shop, nextAvailableSlot: nextSlot };
+    }));
+
+    shopsWithSlots.sort((a, b) => {
+      if (!a.nextAvailableSlot) return 1;
+      if (!b.nextAvailableSlot) return -1;
+      return timeToMinutes(a.nextAvailableSlot) - timeToMinutes(b.nextAvailableSlot);
+    });
+
+    res.json(shopsWithSlots);
+  } catch (e) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Helper for Home Screen Card Slot
+const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
+  const date = new Date().toISOString().split('T')[0];
+  const serviceDuration = 30;
+
   const barbers = await Barber.find({ shopId, isAvailable: true });
   if (barbers.length === 0) return null;
 
-  // 2. Get Bookings
-  const barberIds = barbers.map(b => b._id);
   const bookings = await Booking.find({
-    barberId: { $in: barberIds },
+    barberId: { $in: barbers.map(b => b._id) },
     date: date,
     status: { $ne: 'cancelled' }
   });
 
-  // 3. Build Busy Map
   const bookingsMap = {};
   bookings.forEach(b => {
     if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
@@ -122,45 +155,137 @@ const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
     });
   });
 
-  // 4. Determine Search Window
   let minStart = 24 * 60;
   let maxEnd = 0;
-
   barbers.forEach(b => {
     const s = timeToMinutes(b.startHour);
     const e = timeToMinutes(b.endHour);
     if (s < minStart) minStart = s;
     if (e > maxEnd) maxEnd = e;
   });
+  if (minStart >= maxEnd) { minStart = 9 * 60; maxEnd = 20 * 60; }
 
-  if (minStart >= maxEnd) {
-     minStart = 9 * 60;
-     maxEnd = 20 * 60;
-  }
+  const minFilter = timeToMinutes(minTimeStr);
+  let current = Math.max(minStart, minFilter);
 
-  // Apply minTime filter if provided
-  const minTimeMinutes = timeToMinutes(minTimeStr);
-  let current = Math.max(minStart, minTimeMinutes);
-
-  // 5. Find First Slot
   while (current + serviceDuration <= maxEnd) {
     for (const barber of barbers) {
-      const busyRanges = bookingsMap[barber._id] || [];
-      if (isBarberFree(barber, current, serviceDuration, busyRanges)) {
+      if (isBarberFree(barber, current, serviceDuration, bookingsMap[barber._id] || [])) {
         return minutesToTime(current);
       }
     }
-    current += 15; // 15-minute granularity
+    current += 15;
   }
-
-  return null;
+  return null; 
 };
 
-// --- 7. Add Service ---
+// --- 4. Get Shop Details ---
+exports.getShopDetails = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+    const barbers = await Barber.find({ shopId: shop._id });
+    res.json({ shop, barbers });
+  } catch (e) {
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// --- 5. Add Barber ---
+exports.addBarber = async (req, res) => {
+  const { shopId, name, startHour, endHour, breaks } = req.body;
+  try {
+    const barber = await Barber.create({ shopId, name, startHour, endHour, breaks: breaks || [] });
+    res.status(201).json(barber);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to add barber" });
+  }
+};
+
+// --- 6. Update Barber ---
+exports.updateBarber = async (req, res) => {
+  const { id } = req.params;
+  const { startHour, endHour, breaks, isAvailable } = req.body;
+  try {
+    const barber = await Barber.findByIdAndUpdate(id, { startHour, endHour, breaks, isAvailable }, { new: true });
+    res.json(barber);
+  } catch (e) {
+    res.status(500).json({ message: "Update failed" });
+  }
+};
+
+// --- 7. Get Slots ---
+exports.getShopSlots = async (req, res) => {
+  const { shopId, barberId, date, duration } = req.body; 
+
+  try {
+    const serviceDuration = duration ? parseInt(duration) : 30;
+
+    let barbersToCheck = [];
+    if (barberId && barberId !== 'any') {
+      const b = await Barber.findById(barberId);
+      if (b) barbersToCheck = [b];
+    } else {
+      barbersToCheck = await Barber.find({ shopId, isAvailable: true });
+    }
+
+    if (barbersToCheck.length === 0) return res.json([]);
+
+    const bookings = await Booking.find({
+      barberId: { $in: barbersToCheck.map(b => b._id) },
+      date: date,
+      status: { $ne: 'cancelled' } 
+    });
+
+    const bookingsMap = {};
+    bookings.forEach(b => {
+      if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
+      bookingsMap[b.barberId].push({
+        start: timeToMinutes(b.startTime),
+        end: timeToMinutes(b.endTime)
+      });
+    });
+
+    let minStart = 24 * 60;
+    let maxEnd = 0;
+    barbersToCheck.forEach(b => {
+      const s = timeToMinutes(b.startHour);
+      const e = timeToMinutes(b.endHour);
+      if (s < minStart) minStart = s;
+      if (e > maxEnd) maxEnd = e;
+    });
+    if (minStart >= maxEnd) { minStart = 9 * 60; maxEnd = 20 * 60; }
+
+    const slots = [];
+    let current = minStart;
+
+    while (current + serviceDuration <= maxEnd) {
+      let isSlotAvailable = false;
+      for (const barber of barbersToCheck) {
+        const busyRanges = bookingsMap[barber._id] || [];
+        if (isBarberFree(barber, current, serviceDuration, busyRanges)) {
+          isSlotAvailable = true;
+          break; 
+        }
+      }
+
+      if (isSlotAvailable) slots.push(minutesToTime(current));
+      
+      current += 10; // 10 minute stepping
+    }
+
+    res.json(slots);
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Could not fetch slots" });
+  }
+};
+
+// --- 8. Add Service ---
 exports.addShopService = async (req, res) => {
   const { id } = req.params;
   const { name, price, duration } = req.body;
-
   try {
     const shop = await Shop.findByIdAndUpdate(
       id,
@@ -173,174 +298,13 @@ exports.addShopService = async (req, res) => {
   }
 };
 
-// --- 2. Get All Shops ---
-exports.getAllShops = async (req, res) => {
+// --- 9. NEW: Get User Favorites ---
+exports.getUserFavorites = async (req, res) => {
   try {
-    const { minTime } = req.query; // e.g., "14:00"
-    const shops = await Shop.find().lean(); // Use lean() to modify objects
-
-    // Calculate next available slot for each shop
-    const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
-      const nextSlot = await findEarliestSlotForShop(shop._id, minTime);
-      return { ...shop, nextAvailableSlot: nextSlot };
-    }));
-
-    // Filter out shops with no availability if a filter was strictly requested?
-    // The prompt says "show the shop which has earliest available after 2 in a order".
-    // It implies we should still show them, just sorted. Or maybe filter them out if they are closed.
-    // I'll keep them but sort them to the bottom if null.
-
-    shopsWithSlots.sort((a, b) => {
-      if (!a.nextAvailableSlot) return 1;
-      if (!b.nextAvailableSlot) return -1;
-      return timeToMinutes(a.nextAvailableSlot) - timeToMinutes(b.nextAvailableSlot);
-    });
-
-    res.json(shopsWithSlots);
+    const userId = req.user.id;
+    const user = await User.findById(userId).populate('favorites');
+    res.json(user.favorites || []);
   } catch (e) {
-    console.error("Get All Shops Error:", e);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-// --- 3. Get Shop Details ---
-exports.getShopDetails = async (req, res) => {
-  try {
-    const shop = await Shop.findById(req.params.id);
-    if (!shop) return res.status(404).json({ message: "Shop not found" });
-
-    const barbers = await Barber.find({ shopId: shop._id });
-
-    res.json({ shop, barbers });
-  } catch (e) {
-    console.error("Get Shop Details Error:", e);
-    res.status(500).json({ message: "Server Error" });
-  }
-};
-
-// --- 4. Add Barber ---
-exports.addBarber = async (req, res) => {
-  const { shopId, name, startHour, endHour, breaks } = req.body;
-  try {
-    const barber = await Barber.create({
-      shopId,
-      name,
-      startHour,
-      endHour,
-      breaks: breaks || []
-    });
-    res.status(201).json(barber);
-  } catch (e) {
-    res.status(500).json({ message: "Failed to add barber" });
-  }
-};
-
-// --- 5. Update Barber ---
-exports.updateBarber = async (req, res) => {
-  const { id } = req.params;
-  const { startHour, endHour, breaks, isAvailable } = req.body;
-  
-  try {
-    const barber = await Barber.findByIdAndUpdate(
-      id, 
-      { startHour, endHour, breaks, isAvailable },
-      { new: true }
-    );
-    res.json(barber);
-  } catch (e) {
-    res.status(500).json({ message: "Update failed" });
-  }
-};
-
-// --- 6. Get Available Slots (The Core Logic) ---
-exports.getShopSlots = async (req, res) => {
-  const { shopId, barberId, date, duration } = req.body; 
-
-  try {
-    // 1. Default Duration logic (fallback to 30 mins if not provided)
-    const serviceDuration = duration ? parseInt(duration) : 30;
-
-    // 2. Identify which barbers to check
-    let barbersToCheck = [];
-    if (barberId && barberId !== 'any') {
-      // Specific Barber
-      const b = await Barber.findById(barberId);
-      if (b) barbersToCheck = [b];
-    } else {
-      // "Any" logic: Check ALL available barbers in the shop
-      barbersToCheck = await Barber.find({ shopId, isAvailable: true });
-    }
-
-    if (barbersToCheck.length === 0) return res.json([]);
-
-    // 3. Fetch Bookings for these barbers on the specific date
-    const relevantBarberIds = barbersToCheck.map(b => b._id);
-    const bookings = await Booking.find({
-      barberId: { $in: relevantBarberIds },
-      date: date,
-      status: { $ne: 'cancelled' } 
-    });
-
-    // 4. Create a "Busy Map" for fast lookup
-    // Format: { 'barberId_1': [{start: 600, end: 630}, ...], 'barberId_2': ... }
-    const bookingsMap = {};
-    bookings.forEach(b => {
-      if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
-      bookingsMap[b.barberId].push({
-        start: timeToMinutes(b.startTime),
-        end: timeToMinutes(b.endTime)
-      });
-    });
-
-    // 5. Determine the shop's operating window
-    // We scan all barbers to find the earliest open time and latest close time.
-    let minStart = 24 * 60;
-    let maxEnd = 0;
-
-    barbersToCheck.forEach(b => {
-      const s = timeToMinutes(b.startHour);
-      const e = timeToMinutes(b.endHour);
-      if (s < minStart) minStart = s;
-      if (e > maxEnd) maxEnd = e;
-    });
-
-    // Fallback if data is missing
-    if (minStart >= maxEnd) {
-       minStart = 9 * 60; // 09:00
-       maxEnd = 20 * 60;  // 20:00
-    }
-
-    const slots = [];
-    let current = minStart;
-
-    // 6. Iterate through the day in 15-min increments
-    while (current + serviceDuration <= maxEnd) {
-      const slotStart = current;
-      
-      let isSlotAvailable = false;
-
-      // Check if AT LEAST ONE barber is free for this slot + duration
-      for (const barber of barbersToCheck) {
-        const busyRanges = bookingsMap[barber._id] || [];
-        
-        // Pass the requested duration to the helper
-        if (isBarberFree(barber, slotStart, serviceDuration, busyRanges)) {
-          isSlotAvailable = true;
-          break; // Found a match, no need to check other barbers for this time
-        }
-      }
-
-      if (isSlotAvailable) {
-        slots.push(minutesToTime(current));
-      }
-
-      current += 15; // Step forward by 15 mins
-    }
-
-    res.json(slots);
-
-  } catch (e) {
-    console.error("Slot Error:", e);
-    res.status(500).json({ message: "Could not fetch slots" });
+    res.status(500).json({ message: "Failed to fetch favorites" });
   }
 };
