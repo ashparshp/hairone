@@ -13,9 +13,10 @@ export interface User {
 }
 
 export interface Service {
+  _id: string;
   name: string;
   price: number;
-  duration: number; // in minutes
+  duration: number;
 }
 
 export interface Shop {

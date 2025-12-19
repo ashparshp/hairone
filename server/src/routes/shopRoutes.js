@@ -13,7 +13,7 @@ const {
   getShopSlots,
   addShopService,
   updateShop,
-  getUserFavorites // Imported
+  getUserFavorites,
 } = require('../controllers/shopController'); 
 
 const storage = multer.diskStorage({
