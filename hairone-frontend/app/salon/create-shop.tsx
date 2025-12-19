@@ -7,14 +7,15 @@ import {
   StyleSheet, 
   Alert, 
   ActivityIndicator, 
-  ScrollView 
+  ScrollView,
+  Switch
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store } from 'lucide-react-native';
+import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store, Trash2 } from 'lucide-react-native';
 
 export default function ManageServicesScreen() {
   const router = useRouter();
@@ -163,6 +164,41 @@ export default function ManageServicesScreen() {
     }
   };
 
+  const handleDeleteService = async (serviceId: string) => {
+    Alert.alert(
+      "Delete Service",
+      "Are you sure you want to delete this service?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const res = await api.delete(`/shops/${shop._id}/services/${serviceId}`);
+              setShop(res.data);
+              setServices(res.data.services);
+            } catch (e) {
+              Alert.alert("Error", "Failed to delete service");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleToggleService = async (serviceId: string, currentStatus: boolean) => {
+    try {
+      const res = await api.put(`/shops/${shop._id}/services/${serviceId}`, {
+        isAvailable: !currentStatus
+      });
+      setShop(res.data);
+      setServices(res.data.services);
+    } catch (e) {
+      Alert.alert("Error", "Failed to update status");
+    }
+  };
+
   if (loading) return <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>;
 
   return (
@@ -250,12 +286,12 @@ export default function ManageServicesScreen() {
                    <Text style={{color: Colors.textMuted, fontStyle: 'italic'}}>No services added yet.</Text>
                 ) : (
                    services.map((item, index) => (
-                      <View key={index} style={styles.serviceItem}>
-                          <View style={styles.serviceIcon}>
-                             <Scissors size={20} color={Colors.primary} />
+                      <View key={index} style={[styles.serviceItem, !item.isAvailable && {opacity: 0.6}]}>
+                          <View style={[styles.serviceIcon, !item.isAvailable && {backgroundColor: '#334155'}]}>
+                             <Scissors size={20} color={item.isAvailable ? Colors.primary : Colors.textMuted} />
                           </View>
                           <View style={{flex: 1}}>
-                              <Text style={styles.serviceName}>{item.name}</Text>
+                              <Text style={[styles.serviceName, !item.isAvailable && {color: Colors.textMuted, textDecorationLine: 'line-through'}]}>{item.name}</Text>
                               <View style={{flexDirection: 'row', gap: 12, marginTop: 4}}>
                                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
                                      <Clock size={12} color={Colors.textMuted} />
@@ -266,6 +302,19 @@ export default function ManageServicesScreen() {
                                      <Text style={styles.serviceDetails}>{item.price}</Text>
                                   </View>
                               </View>
+                          </View>
+
+                          {/* Actions */}
+                          <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+                             <Switch
+                                value={item.isAvailable !== false} // Default true if undefined
+                                onValueChange={() => handleToggleService(item._id, item.isAvailable !== false)}
+                                trackColor={{false: '#334155', true: Colors.primary}}
+                                thumbColor={item.isAvailable !== false ? "#0f172a" : "#94a3b8"}
+                             />
+                             <TouchableOpacity onPress={() => handleDeleteService(item._id)}>
+                                <Trash2 size={20} color="#ef4444" />
+                             </TouchableOpacity>
                           </View>
                       </View>
                    ))

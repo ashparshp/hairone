@@ -15,6 +15,8 @@ const {
   addShopService,
   updateShop,
   getUserFavorites,
+  deleteShopService,
+  updateShopService
 } = require('../controllers/shopController'); 
 
 // 1. DigitalOcean Spaces Configuration from ENV
@@ -48,6 +50,8 @@ router.post('/barbers', protect, addBarber);
 router.put('/barbers/:id', protect, updateBarber);
 router.post('/slots', getShopSlots);
 router.post('/:id/services', protect, addShopService);
+router.delete('/:id/services/:serviceId', protect, deleteShopService);
+router.put('/:id/services/:serviceId', protect, updateShopService);
 router.put('/:id', protect, updateShop);
 
 module.exports = router;

@@ -57,18 +57,13 @@ let imageUrl = req.file
       ? req.file.location 
       : 'https://via.placeholder.com/150';
 
-    const defaultServices = [
-      { name: "Classic Haircut", price: 350, duration: 30 },
-      { name: "Beard Trim", price: 150, duration: 20 },
-      { name: "Skin Fade", price: 500, duration: 45 }
-    ];
-
+    // REMOVED DEFAULT SERVICES
     const shop = await Shop.create({ 
       ownerId, 
       name, 
       address, 
       image: imageUrl, 
-      services: defaultServices,
+      services: [], // Empty array
       rating: 5.0,
       type: 'unisex'
     });
@@ -284,7 +279,7 @@ exports.addShopService = async (req, res) => {
   try {
     const shop = await Shop.findByIdAndUpdate(
       id,
-      { $push: { services: { name, price, duration: parseInt(duration) } } },
+      { $push: { services: { name, price, duration: parseInt(duration), isAvailable: true } } },
       { new: true }
     );
     res.json(shop);
@@ -293,7 +288,41 @@ exports.addShopService = async (req, res) => {
   }
 };
 
-// --- 9. NEW: Get User Favorites ---
+// --- 9. NEW: Delete Service ---
+exports.deleteShopService = async (req, res) => {
+  const { id, serviceId } = req.params;
+  try {
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $pull: { services: { _id: serviceId } } },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to delete service" });
+  }
+};
+
+// --- 10. NEW: Update Service (Toggle Availability) ---
+exports.updateShopService = async (req, res) => {
+  const { id, serviceId } = req.params;
+  const { isAvailable } = req.body;
+
+  try {
+    const shop = await Shop.findOneAndUpdate(
+      { _id: id, "services._id": serviceId },
+      { $set: { "services.$.isAvailable": isAvailable } },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to update service" });
+  }
+};
+
+// --- 11. NEW: Get User Favorites ---
 exports.getUserFavorites = async (req, res) => {
   try {
     const userId = req.user.id;
