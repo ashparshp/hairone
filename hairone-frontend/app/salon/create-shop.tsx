@@ -14,17 +14,18 @@ import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors } from 'lucide-react-native';
+import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store } from 'lucide-react-native';
 
 export default function ManageServicesScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, login, token } = useAuth();
   
   const [shop, setShop] = useState<any>(null);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Shop Details State
+  const [shopName, setShopName] = useState('');
   const [address, setAddress] = useState('');
   const [shopType, setShopType] = useState<'male'|'female'|'unisex'>('unisex');
   const [savingShop, setSavingShop] = useState(false);
@@ -41,12 +42,16 @@ export default function ManageServicesScreen() {
 
   const fetchShop = async () => {
     // @ts-ignore
-    if (!user?.myShopId) return;
+    if (!user?.myShopId) {
+      setLoading(false);
+      return;
+    }
     try {
       // @ts-ignore
       const res = await api.get(`/shops/${user.myShopId}`);
       const s = res.data.shop;
       setShop(s);
+      setShopName(s.name || '');
       setAddress(s.address);
       setShopType(s.type || 'unisex');
       setServices(s.services || []);
@@ -62,14 +67,40 @@ export default function ManageServicesScreen() {
       if (!address.trim()) return Alert.alert("Required", "Address cannot be empty");
       setSavingShop(true);
       try {
-          const res = await api.put(`/shops/${shop._id}`, {
+          if (shop && shop._id) {
+            // Update existing shop
+            const res = await api.put(`/shops/${shop._id}`, {
+                address,
+                type: shopType
+            });
+            setShop(res.data);
+            Alert.alert("Success", "Shop details updated!");
+          } else {
+            // Create new shop
+            if (!shopName.trim()) {
+              setSavingShop(false);
+              return Alert.alert("Required", "Shop Name cannot be empty");
+            }
+
+            const res = await api.post('/shops', {
+              name: shopName,
               address,
               type: shopType
-          });
-          setShop(res.data);
-          Alert.alert("Success", "Shop details updated!");
+            });
+
+            const newShop = res.data;
+            setShop(newShop);
+
+            // Update User Context
+            if (user && token) {
+              login(token, { ...user, role: 'owner', myShopId: newShop._id });
+            }
+
+            Alert.alert("Success", "Shop created successfully!");
+          }
       } catch (e) {
-          Alert.alert("Error", "Failed to update shop.");
+          console.log(e);
+          Alert.alert("Error", "Failed to save shop details.");
       } finally {
           setSavingShop(false);
       }
@@ -140,7 +171,7 @@ export default function ManageServicesScreen() {
          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
             <ChevronLeft size={24} color="white"/>
          </TouchableOpacity>
-         <Text style={styles.title}>Manage Shop</Text>
+         <Text style={styles.title}>{shop ? 'Manage Shop' : 'Create Shop'}</Text>
       </View>
       
       <ScrollView contentContainerStyle={{paddingBottom: 40}} showsVerticalScrollIndicator={false}>
@@ -149,6 +180,21 @@ export default function ManageServicesScreen() {
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>Shop Details</Text>
             <View style={styles.card}>
+
+                {/* Shop Name Input - Only if creating or just to show */}
+                <Text style={styles.label}>Shop Name</Text>
+                <View style={styles.inputContainer}>
+                   <Store size={18} color={Colors.textMuted} style={{marginLeft: 12}} />
+                   <TextInput
+                      style={[styles.input, shop && {color: Colors.textMuted}]}
+                      value={shopName}
+                      onChangeText={setShopName}
+                      placeholder="Enter shop name"
+                      placeholderTextColor="#64748b"
+                      editable={!shop} // Only editable during creation as per requirement? Or let them edit? Backend updateShop doesn't support name update. So disable if shop exists.
+                   />
+                </View>
+
                 <Text style={styles.label}>Shop Location</Text>
                 <View style={styles.inputContainer}>
                    <MapPin size={18} color={Colors.textMuted} style={{marginLeft: 12}} />
@@ -186,7 +232,7 @@ export default function ManageServicesScreen() {
                     {savingShop ? <ActivityIndicator color="#0f172a" /> : (
                         <>
                           <Save size={18} color="#0f172a" />
-                          <Text style={styles.saveBtnText}>Save Details</Text>
+                          <Text style={styles.saveBtnText}>{shop ? 'Save Details' : 'Create Shop'}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -194,87 +240,89 @@ export default function ManageServicesScreen() {
         </View>
 
         {/* --- SECTION 2: SERVICES --- */}
-        <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Services Menu ({services.length})</Text>
-            
-            {/* List of Services (Mapped instead of FlatList) */}
-            <View style={{marginBottom: 20}}>
-              {services.length === 0 ? (
-                 <Text style={{color: Colors.textMuted, fontStyle: 'italic'}}>No services added yet.</Text>
-              ) : (
-                 services.map((item, index) => (
-                    <View key={index} style={styles.serviceItem}>
-                        <View style={styles.serviceIcon}>
-                           <Scissors size={20} color={Colors.primary} />
-                        </View>
-                        <View style={{flex: 1}}>
-                            <Text style={styles.serviceName}>{item.name}</Text>
-                            <View style={{flexDirection: 'row', gap: 12, marginTop: 4}}>
-                                <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
-                                   <Clock size={12} color={Colors.textMuted} />
-                                   <Text style={styles.serviceDetails}>{item.duration} min</Text>
-                                </View>
-                                <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
-                                   <IndianRupee size={12} color={Colors.textMuted} />
-                                   <Text style={styles.serviceDetails}>{item.price}</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                 ))
-              )}
-            </View>
+        {shop && (
+          <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Services Menu ({services.length})</Text>
 
-            {/* Add Service Form */}
-            <View style={styles.addForm}>
-                <View style={styles.formHeader}>
-                   <Plus size={20} color={Colors.primary} />
-                   <Text style={{color: 'white', fontWeight:'bold', fontSize: 16}}>Add New Service</Text>
-                </View>
+              {/* List of Services (Mapped instead of FlatList) */}
+              <View style={{marginBottom: 20}}>
+                {services.length === 0 ? (
+                   <Text style={{color: Colors.textMuted, fontStyle: 'italic'}}>No services added yet.</Text>
+                ) : (
+                   services.map((item, index) => (
+                      <View key={index} style={styles.serviceItem}>
+                          <View style={styles.serviceIcon}>
+                             <Scissors size={20} color={Colors.primary} />
+                          </View>
+                          <View style={{flex: 1}}>
+                              <Text style={styles.serviceName}>{item.name}</Text>
+                              <View style={{flexDirection: 'row', gap: 12, marginTop: 4}}>
+                                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                                     <Clock size={12} color={Colors.textMuted} />
+                                     <Text style={styles.serviceDetails}>{item.duration} min</Text>
+                                  </View>
+                                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                                     <IndianRupee size={12} color={Colors.textMuted} />
+                                     <Text style={styles.serviceDetails}>{item.price}</Text>
+                                  </View>
+                              </View>
+                          </View>
+                      </View>
+                   ))
+                )}
+              </View>
 
-                <View style={styles.inputGroup}>
-                   <Text style={styles.label}>Service Name</Text>
-                   <TextInput 
-                      style={styles.formInput} 
-                      placeholder="e.g. Haircut & Wash" 
-                      placeholderTextColor="#64748b"
-                      value={newServiceName}
-                      onChangeText={setNewServiceName}
-                   />
-                </View>
+              {/* Add Service Form */}
+              <View style={styles.addForm}>
+                  <View style={styles.formHeader}>
+                     <Plus size={20} color={Colors.primary} />
+                     <Text style={{color: 'white', fontWeight:'bold', fontSize: 16}}>Add New Service</Text>
+                  </View>
 
-                <View style={{flexDirection:'row', gap: 12}}>
-                    <View style={[styles.inputGroup, {flex: 1}]}>
-                       <Text style={styles.label}>Price (₹)</Text>
-                       <TextInput 
-                          style={styles.formInput} 
-                          placeholder="350" 
-                          placeholderTextColor="#64748b"
-                          keyboardType="numeric"
-                          value={newServicePrice}
-                          onChangeText={setNewServicePrice}
-                       />
-                    </View>
-                    <View style={[styles.inputGroup, {flex: 1}]}>
-                       <Text style={styles.label}>Duration (min)</Text>
-                       <TextInput 
-                          style={styles.formInput} 
-                          placeholder="30" 
-                          placeholderTextColor="#64748b"
-                          keyboardType="numeric"
-                          value={newServiceDuration}
-                          onChangeText={setNewServiceDuration}
-                       />
-                    </View>
-                </View>
+                  <View style={styles.inputGroup}>
+                     <Text style={styles.label}>Service Name</Text>
+                     <TextInput
+                        style={styles.formInput}
+                        placeholder="e.g. Haircut & Wash"
+                        placeholderTextColor="#64748b"
+                        value={newServiceName}
+                        onChangeText={setNewServiceName}
+                     />
+                  </View>
 
-                <TouchableOpacity style={styles.addBtn} onPress={handleAddService} disabled={addingService}>
-                    {addingService ? <ActivityIndicator color="#0f172a"/> : (
-                        <Text style={styles.addBtnText}>Add Service</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
-        </View>
+                  <View style={{flexDirection:'row', gap: 12}}>
+                      <View style={[styles.inputGroup, {flex: 1}]}>
+                         <Text style={styles.label}>Price (₹)</Text>
+                         <TextInput
+                            style={styles.formInput}
+                            placeholder="350"
+                            placeholderTextColor="#64748b"
+                            keyboardType="numeric"
+                            value={newServicePrice}
+                            onChangeText={setNewServicePrice}
+                         />
+                      </View>
+                      <View style={[styles.inputGroup, {flex: 1}]}>
+                         <Text style={styles.label}>Duration (min)</Text>
+                         <TextInput
+                            style={styles.formInput}
+                            placeholder="30"
+                            placeholderTextColor="#64748b"
+                            keyboardType="numeric"
+                            value={newServiceDuration}
+                            onChangeText={setNewServiceDuration}
+                         />
+                      </View>
+                  </View>
+
+                  <TouchableOpacity style={styles.addBtn} onPress={handleAddService} disabled={addingService}>
+                      {addingService ? <ActivityIndicator color="#0f172a"/> : (
+                          <Text style={styles.addBtnText}>Add Service</Text>
+                      )}
+                  </TouchableOpacity>
+              </View>
+          </View>
+        )}
 
       </ScrollView>
     </View>
