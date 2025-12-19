@@ -95,12 +95,93 @@ exports.createShop = async (req, res) => {
   }
 };
 
+// --- HELPER: Find earliest slot for a shop ---
+const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
+  const date = new Date().toISOString().split('T')[0]; // Today
+  const serviceDuration = 30; // Default check duration
+
+  // 1. Get Barbers
+  const barbers = await Barber.find({ shopId, isAvailable: true });
+  if (barbers.length === 0) return null;
+
+  // 2. Get Bookings
+  const barberIds = barbers.map(b => b._id);
+  const bookings = await Booking.find({
+    barberId: { $in: barberIds },
+    date: date,
+    status: { $ne: 'cancelled' }
+  });
+
+  // 3. Build Busy Map
+  const bookingsMap = {};
+  bookings.forEach(b => {
+    if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
+    bookingsMap[b.barberId].push({
+      start: timeToMinutes(b.startTime),
+      end: timeToMinutes(b.endTime)
+    });
+  });
+
+  // 4. Determine Search Window
+  let minStart = 24 * 60;
+  let maxEnd = 0;
+
+  barbers.forEach(b => {
+    const s = timeToMinutes(b.startHour);
+    const e = timeToMinutes(b.endHour);
+    if (s < minStart) minStart = s;
+    if (e > maxEnd) maxEnd = e;
+  });
+
+  if (minStart >= maxEnd) {
+     minStart = 9 * 60;
+     maxEnd = 20 * 60;
+  }
+
+  // Apply minTime filter if provided
+  const minTimeMinutes = timeToMinutes(minTimeStr);
+  let current = Math.max(minStart, minTimeMinutes);
+
+  // 5. Find First Slot
+  while (current + serviceDuration <= maxEnd) {
+    for (const barber of barbers) {
+      const busyRanges = bookingsMap[barber._id] || [];
+      if (isBarberFree(barber, current, serviceDuration, busyRanges)) {
+        return minutesToTime(current);
+      }
+    }
+    current += 30;
+  }
+
+  return null;
+};
+
 // --- 2. Get All Shops ---
 exports.getAllShops = async (req, res) => {
   try {
-    const shops = await Shop.find();
-    res.json(shops);
+    const { minTime } = req.query; // e.g., "14:00"
+    const shops = await Shop.find().lean(); // Use lean() to modify objects
+
+    // Calculate next available slot for each shop
+    const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
+      const nextSlot = await findEarliestSlotForShop(shop._id, minTime);
+      return { ...shop, nextAvailableSlot: nextSlot };
+    }));
+
+    // Filter out shops with no availability if a filter was strictly requested?
+    // The prompt says "show the shop which has earliest available after 2 in a order".
+    // It implies we should still show them, just sorted. Or maybe filter them out if they are closed.
+    // I'll keep them but sort them to the bottom if null.
+
+    shopsWithSlots.sort((a, b) => {
+      if (!a.nextAvailableSlot) return 1;
+      if (!b.nextAvailableSlot) return -1;
+      return timeToMinutes(a.nextAvailableSlot) - timeToMinutes(b.nextAvailableSlot);
+    });
+
+    res.json(shopsWithSlots);
   } catch (e) {
+    console.error("Get All Shops Error:", e);
     res.status(500).json({ message: "Server Error" });
   }
 };

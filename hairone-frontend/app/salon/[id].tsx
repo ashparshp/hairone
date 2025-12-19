@@ -26,6 +26,7 @@ export default function ShopDetailsScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi'>('cash');
+  const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); // 'earliest' or 'schedule'
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -40,6 +41,15 @@ export default function ShopDetailsScreen() {
         fetchSlots();
     }
   }, [step, selectedDate, selectedBarberId]);
+
+  // Auto-select earliest slot if booking type is 'earliest'
+  useEffect(() => {
+    if (bookingType === 'earliest' && slots.length > 0) {
+        setSelectedTime(slots[0]);
+    } else if (bookingType === 'schedule') {
+        setSelectedTime(null);
+    }
+  }, [slots, bookingType]);
 
   const fetchShopDetails = async () => {
     try {
@@ -243,34 +253,70 @@ export default function ShopDetailsScreen() {
                 })}
             </ScrollView>
 
-            {/* 3. Choose Time (Premium Notice) */}
-            <Text style={styles.sectionTitle}>Available Slots</Text>
-            
-            {!user?.isPremium && (
-                 <View style={{padding: 16, backgroundColor: 'rgba(234, 179, 8, 0.1)', borderRadius: 12, marginBottom: 16}}>
-                    <Text style={{color: Colors.primary, fontWeight: 'bold'}}>Standard Booking</Text>
-                    <Text style={{color: Colors.textMuted, fontSize: 12}}>Premium custom scheduling coming soon.</Text>
-                 </View>
-            )}
+            {/* 3. Booking Option (Earliest vs Schedule) */}
+            <Text style={styles.sectionTitle}>Booking Option</Text>
+            <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                    style={[styles.toggleBtn, bookingType === 'earliest' && styles.toggleBtnActive]}
+                    onPress={() => setBookingType('earliest')}
+                >
+                    <Text style={[styles.toggleText, bookingType === 'earliest' && { color: 'black' }]}>Earliest Available</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.toggleBtn, bookingType === 'schedule' && styles.toggleBtnActive]}
+                    onPress={() => {
+                        // Optional: Gate 'schedule' for premium users here if desired
+                        // if (!user?.isPremium) {
+                        //     Alert.alert("Premium Feature", "Custom scheduling is for premium members.");
+                        //     return;
+                        // }
+                        setBookingType('schedule');
+                    }}
+                >
+                    <Text style={[styles.toggleText, bookingType === 'schedule' && { color: 'black' }]}>Custom Schedule</Text>
+                </TouchableOpacity>
+            </View>
 
-            {loadingSlots ? (
-                <View style={{height: 100, justifyContent: 'center'}}><ActivityIndicator color={Colors.primary} /></View>
-            ) : (
-                <View style={styles.slotsGrid}>
-                    {slots.length === 0 ? (
-                        <Text style={{color: Colors.textMuted}}>No slots available for this duration.</Text>
+            {/* 4. Choose Time / Slots */}
+            {bookingType === 'earliest' ? (
+                <View style={styles.earliestCard}>
+                    {loadingSlots ? (
+                         <ActivityIndicator color={Colors.primary} />
+                    ) : slots.length > 0 ? (
+                         <View style={{flexDirection:'row', alignItems:'center', gap: 12}}>
+                             <Clock size={24} color={Colors.primary} />
+                             <View>
+                                 <Text style={{color:'white', fontWeight:'bold', fontSize:16}}>Next Available: {slots[0]}</Text>
+                                 <Text style={{color: Colors.textMuted, fontSize:12}}>We picked the earliest slot for you.</Text>
+                             </View>
+                         </View>
                     ) : (
-                        slots.map((time, i) => (
-                            <TouchableOpacity 
-                            key={i} 
-                            style={[styles.slotChip, selectedTime === time && styles.slotChipActive]}
-                            onPress={() => setSelectedTime(time)}
-                            >
-                                <Text style={[styles.slotText, selectedTime === time && {color: 'black', fontWeight: 'bold'}]}>{time}</Text>
-                            </TouchableOpacity>
-                        ))
+                         <Text style={{color: Colors.textMuted}}>No slots available today.</Text>
                     )}
                 </View>
+            ) : (
+                <>
+                    <Text style={styles.sectionTitle}>Select Time</Text>
+                    {loadingSlots ? (
+                        <View style={{height: 100, justifyContent: 'center'}}><ActivityIndicator color={Colors.primary} /></View>
+                    ) : (
+                        <View style={styles.slotsGrid}>
+                            {slots.length === 0 ? (
+                                <Text style={{color: Colors.textMuted}}>No slots available.</Text>
+                            ) : (
+                                slots.map((time, i) => (
+                                    <TouchableOpacity
+                                    key={i}
+                                    style={[styles.slotChip, selectedTime === time && styles.slotChipActive]}
+                                    onPress={() => setSelectedTime(time)}
+                                    >
+                                        <Text style={[styles.slotText, selectedTime === time && {color: 'black', fontWeight: 'bold'}]}>{time}</Text>
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </View>
+                    )}
+                </>
             )}
         </ScrollView>
       )}
@@ -419,4 +465,11 @@ const styles = StyleSheet.create({
   paymentSub: { color: Colors.textMuted, fontSize: 12 },
   radioSelected: { width: 20, height: 20, borderRadius: 10, borderWidth: 6, borderColor: Colors.primary },
   radioUnselected: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.textMuted },
+
+  toggleContainer: { flexDirection: 'row', backgroundColor: Colors.card, padding: 4, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: Colors.border },
+  toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  toggleBtnActive: { backgroundColor: Colors.primary },
+  toggleText: { color: Colors.textMuted, fontWeight: 'bold', fontSize: 14 },
+
+  earliestCard: { backgroundColor: Colors.card, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary, marginBottom: 24 },
 });

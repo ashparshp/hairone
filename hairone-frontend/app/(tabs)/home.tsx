@@ -1,10 +1,11 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { AlertCircle, MapPin, Search, Star } from "lucide-react-native";
+import { AlertCircle, MapPin, Search, Star, Clock } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,34 +21,40 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [minTime, setMinTime] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [])
+    }, [minTime])
   );
 
   const fetchShops = async () => {
+    setLoading(true);
     try {
-      const res = await api.get("/shops");
+      const endpoint = minTime ? `/shops?minTime=${minTime}` : "/shops";
+      const res = await api.get(endpoint);
       console.log("Fetched Shops:", res.data); // Debugging Log
       setShops(res.data);
     } catch (e) {
       console.log("Error fetching shops:", e);
-      // Optional: Alert the user if connection fails
-      // Alert.alert("Error", "Could not load shops. Check your internet.");
     } finally {
       setLoading(false);
     }
   };
 
-// app/(tabs)/home.tsx
+  const timeOptions = [
+    { label: "Now", value: null },
+    { label: "After 12 PM", value: "12:00" },
+    { label: "After 2 PM", value: "14:00" },
+    { label: "After 4 PM", value: "16:00" },
+    { label: "After 6 PM", value: "18:00" },
+  ];
 
   const renderShop = ({ item }: { item: any }) => (
     <TouchableOpacity 
       style={styles.card} 
       activeOpacity={0.9}
-      // ✅ CHANGE THIS LINE: from '/shop/[id]' to '/salon/[id]'
       onPress={() => router.push(`/salon/${item._id}`)}
     >
       <Image 
@@ -66,6 +73,16 @@ export default function HomeScreen() {
         <View style={styles.rowMuted}>
           <MapPin size={14} color={Colors.textMuted} />
           <Text style={styles.addressText}>{item.address}</Text>
+        </View>
+
+        {/* Next Available Slot Indicator */}
+        <View style={[styles.rowMuted, { marginTop: 8 }]}>
+           <Clock size={14} color={Colors.primary} />
+           <Text style={{ color: Colors.primary, fontSize: 12, fontWeight: 'bold' }}>
+              {item.nextAvailableSlot
+                ? `Earliest: ${item.nextAvailableSlot}`
+                : 'No slots available today'}
+           </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -94,6 +111,24 @@ export default function HomeScreen() {
           placeholderTextColor={Colors.textMuted}
           style={styles.searchInput}
         />
+      </View>
+
+      {/* Time Filter */}
+      <View style={{ marginBottom: 20 }}>
+        <Text style={styles.sectionTitle}>Filter by Time</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {timeOptions.map((opt, i) => (
+            <TouchableOpacity
+              key={i}
+              style={[styles.filterChip, minTime === opt.value && styles.filterChipActive]}
+              onPress={() => setMinTime(opt.value)}
+            >
+              <Text style={[styles.filterText, minTime === opt.value && { color: 'black', fontWeight: 'bold' }]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Shop List */}
@@ -189,6 +224,11 @@ const styles = StyleSheet.create({
   ratingText: { fontSize: 12, fontWeight: "bold", color: "black" },
   rowMuted: { flexDirection: "row", alignItems: "center", gap: 6 },
   addressText: { color: Colors.textMuted, fontSize: 14 },
+
+  sectionTitle: { color: Colors.textMuted, fontSize: 12, fontWeight: 'bold', marginBottom: 8, textTransform: 'uppercase' },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.card, marginRight: 10, borderWidth: 1, borderColor: Colors.border },
+  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterText: { color: Colors.textMuted, fontSize: 12 },
 
   emptyState: { alignItems: "center", marginTop: 50, opacity: 0.7 },
   emptyText: {
