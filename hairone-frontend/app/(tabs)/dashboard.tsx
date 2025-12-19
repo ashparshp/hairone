@@ -101,8 +101,8 @@ export default function DashboardScreen() {
             <Text style={styles.sub}>Owner Dashboard</Text>
         </View>
         <View style={{flexDirection:'row', gap: 10}}>
-          <TouchableOpacity style={[styles.addBtn, {backgroundColor: '#334155'}]} onPress={() => router.push('/salon/shop-schedule' as any)}>
-             <Calendar size={24} color="white" />
+          <TouchableOpacity style={[styles.addBtn, {backgroundColor: '#334155'}]} onPress={() => router.push('/salon/manage-services' as any)}>
+             <Settings size={24} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/salon/manage-barber' as any)}>
              <Plus size={24} color="#0f172a" />

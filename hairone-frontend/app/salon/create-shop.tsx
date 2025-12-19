@@ -9,7 +9,7 @@ import { Camera, ChevronLeft } from 'lucide-react-native';
 
 export default function CreateShopScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, login, token } = useAuth();
   
   const [name, setName] = useState(user?.businessName || ''); 
   const [address, setAddress] = useState('');
@@ -63,6 +63,14 @@ export default function CreateShopScreen() {
       await api.post('/shops', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+
+      const createdShop = res.data;
+
+      // Update local user state
+      if (user && token) {
+        const updatedUser = { ...user, myShopId: createdShop._id, role: 'owner' };
+        login(token, updatedUser);
+      }
 
       Alert.alert("Success", "Shop Created Successfully!");
       router.replace('/(tabs)/dashboard' as any);

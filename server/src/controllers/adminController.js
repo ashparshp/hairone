@@ -2,14 +2,19 @@ const User = require('../models/User');
 
 // USER: Submit Application
 exports.submitApplication = async (req, res) => {
-  const { businessName } = req.body;
+  const { businessName, ownerName } = req.body; // Added ownerName
   const userId = req.user.id;
 
   try {
-    const user = await User.findByIdAndUpdate(userId, {
+    const updateData = {
       applicationStatus: 'pending',
       businessName: businessName || 'Untitled Shop'
-    }, { new: true });
+    };
+
+    // If ownerName is provided (e.g. user updates their name during application), save it
+    if (ownerName) updateData.name = ownerName;
+
+    const user = await User.findByIdAndUpdate(userId, updateData, { new: true });
     
     res.json(user);
   } catch (e) {
