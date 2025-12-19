@@ -150,10 +150,27 @@ const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
         return minutesToTime(current);
       }
     }
-    current += 30;
+    current += 15; // 15-minute granularity
   }
 
   return null;
+};
+
+// --- 7. Add Service ---
+exports.addShopService = async (req, res) => {
+  const { id } = req.params;
+  const { name, price, duration } = req.body;
+
+  try {
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $push: { services: { name, price, duration: parseInt(duration) } } },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to add service" });
+  }
 };
 
 // --- 2. Get All Shops ---
@@ -296,7 +313,7 @@ exports.getShopSlots = async (req, res) => {
     const slots = [];
     let current = minStart;
 
-    // 6. Iterate through the day in 30-min increments
+    // 6. Iterate through the day in 15-min increments
     while (current + serviceDuration <= maxEnd) {
       const slotStart = current;
       
@@ -317,7 +334,7 @@ exports.getShopSlots = async (req, res) => {
         slots.push(minutesToTime(current));
       }
 
-      current += 30; // Step forward by 30 mins
+      current += 15; // Step forward by 15 mins
     }
 
     res.json(slots);
