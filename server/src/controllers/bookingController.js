@@ -97,10 +97,22 @@ exports.getMyBookings = async (req, res) => {
     const { userId } = req.params;
     const bookings = await Booking.find({ userId })
       .populate('barberId', 'name')
-      .populate('shopId', 'name address image')
+      // --- START CHANGE ---
+      .populate({
+        path: 'shopId',
+        // 1. Fetch 'coordinates' and 'ownerId' alongside basic info
+        select: 'name address image coordinates ownerId',
+        // 2. Populate the 'ownerId' to get the phone number from the User model
+        populate: {
+          path: 'ownerId',
+          select: 'phone'
+        }
+      })
+      // --- END CHANGE ---
       .sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
+    console.error(error); // Log error for debugging
     res.status(500).json({ message: "Failed to fetch bookings" });
   }
 };

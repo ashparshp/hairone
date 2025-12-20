@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollView, View, Text, Image, StyleSheet, TouchableOpacity, Modal, Linking, Platform } from 'react-native';
-import { useBooking } from '../../context/BookingContext';
+import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Colors from '../../constants/Colors';
-import { QrCode, Star, X, Phone, MapPin, Calendar, RefreshCw, Clock, Copy, AlertTriangle } from 'lucide-react-native';
+import { useBooking } from '../../context/BookingContext';
 
 export default function BookingsScreen() {
   const { myBookings, cancelBooking, fetchBookings } = useBooking();
@@ -115,8 +115,37 @@ export default function BookingsScreen() {
       }
   };
 
-  const handleCall = () => Linking.openURL(`tel:9876543210`); 
-  const handleMap = () => Linking.openURL('https://maps.google.com'); 
+// hairone-frontend/app/(tabs)/bookings.tsx
+
+// Dynamic Call Function
+const handleCall = (phoneNumber: string) => {
+    if (!phoneNumber) {
+        alert("Phone number not available for this shop.");
+        return;
+    }
+    Linking.openURL(`tel:${phoneNumber}`);
+};
+
+// Dynamic Map Function
+const handleMap = (lat: number, lng: number, label: string) => {
+    if (!lat || !lng) {
+        alert("Location coordinates not available.");
+        return;
+    }
+
+    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+    const latLng = `${lat},${lng}`;
+    const labelEncoded = label ? encodeURIComponent(label) : 'Shop Location';
+    
+    const url = Platform.select({
+        ios: `${scheme}${labelEncoded}@${latLng}`,
+        android: `${scheme}${latLng}(${labelEncoded})`
+    });
+
+    if (url) {
+        Linking.openURL(url);
+    }
+};
 
   return (
     <>
@@ -156,12 +185,26 @@ export default function BookingsScreen() {
                     <View style={styles.topRow}>
                         <Text style={styles.cardTitle} numberOfLines={1}>{booking.barberId?.name || 'Barber'}</Text>
                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                            {/* Inside displayList.map loop... */}
                             {booking.status === 'upcoming' && (
                                 <>
-                                    <TouchableOpacity style={styles.miniIconBtn} onPress={handleCall}>
+                                    <TouchableOpacity 
+                                        style={styles.miniIconBtn} 
+                                        // Pass the populated owner phone number
+                                        onPress={() => handleCall(booking.shopId?.ownerId?.phone)}
+                                    >
                                         <Phone size={14} color="white" />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.miniIconBtn} onPress={handleMap}>
+
+                                    <TouchableOpacity 
+                                        style={styles.miniIconBtn} 
+                                        // Pass the coordinates and shop name
+                                        onPress={() => handleMap(
+                                            booking.shopId?.coordinates?.lat, 
+                                            booking.shopId?.coordinates?.lng, 
+                                            booking.shopId?.name
+                                        )}
+                                    >
                                         <MapPin size={14} color="white" />
                                     </TouchableOpacity>
                                 </>

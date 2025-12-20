@@ -12,7 +12,7 @@ interface BookingContextType {
   clearBooking: () => void;
   myBookings: Booking[];
   fetchBookings: () => void;
-  cancelBooking: (id: string) => void;
+  cancelBooking: (id: string) => Promise<void>; // Updated to return Promise
 }
 
 const BookingContext = createContext<BookingContextType | null>(null);
@@ -21,7 +21,6 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
-  // FIX: Initialize as empty array []
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
 
   const toggleService = (service: Service) => {
@@ -44,7 +43,7 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
     try {
       // @ts-ignore
       const res = await api.get(`/bookings/user/${user._id}`);
-      setMyBookings(res.data || []); // Safety check
+      setMyBookings(res.data || []); 
     } catch (e) {
       console.log("Error fetching bookings", e);
       setMyBookings([]);
@@ -57,12 +56,25 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
 
   const cancelBooking = async (id: string) => {
     try {
-      const updated = myBookings.map(b => b._id === id ? { ...b, status: 'cancelled' } : b);
+      // 1. Call the API to update the server
+      await api.put(`/bookings/${id}/cancel`);
+
+      // 2. Optimistically update local state to reflect change immediately
+      const updated = myBookings.map(b => 
+        // @ts-ignore
+        b._id === id ? { ...b, status: 'cancelled' } : b
+      );
       // @ts-ignore
       setMyBookings(updated);
-      Alert.alert("Cancelled", "Booking has been cancelled");
+
+      Alert.alert("Success", "Booking has been cancelled");
+      
+      // 3. Re-fetch from server to ensure data consistency (removes from upcoming)
+      fetchBookings();
+      
     } catch (e) {
-      Alert.alert("Error", "Could not cancel");
+      console.log("Cancellation Error:", e);
+      Alert.alert("Error", "Could not cancel booking. Please try again.");
     }
   };
 
