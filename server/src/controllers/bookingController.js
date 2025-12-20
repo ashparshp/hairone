@@ -161,3 +161,30 @@ exports.getShopBookings = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch shop bookings" });
   }
 };
+
+// --- 5. Update Booking Status (Complete / No-Show) ---
+exports.updateBookingStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['completed', 'no-show'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status update" });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    if (booking.status !== 'upcoming') {
+      return res.status(400).json({ message: `Cannot update booking that is already ${booking.status}` });
+    }
+
+    booking.status = status;
+    await booking.save();
+
+    res.json(booking);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to update status" });
+  }
+};

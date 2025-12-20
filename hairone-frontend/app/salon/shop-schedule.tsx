@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, User, Clock } from 'lucide-react-native';
+import { ChevronLeft, User, Clock, CheckCircle, XCircle } from 'lucide-react-native';
 
 export default function ShopScheduleScreen() {
   const router = useRouter();
@@ -34,6 +34,15 @@ export default function ShopScheduleScreen() {
     fetchSchedule();
   }, []);
 
+  const handleStatusUpdate = async (bookingId: string, status: 'completed' | 'no-show') => {
+    try {
+      await api.patch(`/bookings/${bookingId}/status`, { status });
+      fetchSchedule(); // Refresh list
+    } catch (e) {
+      Alert.alert("Error", "Failed to update status");
+    }
+  };
+
   const renderBooking = ({ item }: { item: any }) => (
     <View style={styles.card}>
        <View style={styles.timeCol}>
@@ -53,6 +62,37 @@ export default function ShopScheduleScreen() {
           </View>
 
           <Text style={styles.services}>{item.serviceNames.join(', ')}</Text>
+
+          {/* Action Buttons */}
+          <View style={styles.actionRow}>
+            {item.status === 'upcoming' ? (
+              <>
+                <TouchableOpacity style={styles.noshowBtn} onPress={() => handleStatusUpdate(item._id, 'no-show')}>
+                   <XCircle size={14} color="#ef4444" />
+                   <Text style={styles.noshowText}>No-Show</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.completeBtn} onPress={() => handleStatusUpdate(item._id, 'completed')}>
+                   <CheckCircle size={14} color="#0f172a" />
+                   <Text style={styles.completeText}>Complete</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={[
+                styles.statusBadge,
+                { backgroundColor: item.status === 'completed' ? 'rgba(16, 185, 129, 0.1)' :
+                                   item.status === 'no-show' ? 'rgba(239, 68, 68, 0.1)' : '#f1f5f9' }
+              ]}>
+                <Text style={{
+                   fontWeight: 'bold',
+                   fontSize: 12,
+                   color: item.status === 'completed' ? '#10b981' :
+                          item.status === 'no-show' ? '#ef4444' : '#64748b'
+                }}>
+                  {item.status.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
        </View>
     </View>
   );
@@ -102,5 +142,12 @@ const styles = StyleSheet.create({
   barberName: { color: Colors.primary, fontSize: 12, fontWeight: '600' },
   services: { color: Colors.textMuted, fontSize: 12, marginTop: 6 },
   priceTag: { backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  priceText: { color: '#10b981', fontSize: 10, fontWeight: 'bold' }
+  priceText: { color: '#10b981', fontSize: 10, fontWeight: 'bold' },
+
+  actionRow: { flexDirection: 'row', marginTop: 12, gap: 10 },
+  completeBtn: { flex: 1, backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 8, gap: 6 },
+  completeText: { color: '#0f172a', fontWeight: 'bold', fontSize: 12 },
+  noshowBtn: { flex: 1, backgroundColor: 'rgba(239, 68, 68, 0.1)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, borderRadius: 8, gap: 6, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
+  noshowText: { color: '#ef4444', fontWeight: 'bold', fontSize: 12 },
+  statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }
 });
