@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Colors from '../../constants/Colors';
 import { useBooking } from '../../context/BookingContext';
+import { formatLocalDate } from '../../utils/date';
 
 export default function BookingsScreen() {
   const { myBookings, cancelBooking, fetchBookings } = useBooking();
@@ -62,7 +63,9 @@ export default function BookingsScreen() {
             bookingDate.setHours(hours, minutes, 0, 0);
         } else {
             const now = new Date();
-            if (dateStr === now.toISOString().split('T')[0]) {
+            const localDateStr = formatLocalDate(now);
+
+            if (dateStr === localDateStr) {
                return new Date(now.getTime() + 60 * 60 * 1000); 
             }
         }

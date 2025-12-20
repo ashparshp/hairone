@@ -73,15 +73,19 @@ export default function ManageBarberScreen() {
          return;
       }
 
-      // Filter weekly schedule to remove default-looking entries to save space?
-      // Or just send all. Sending all is safer.
+      // Ensure weekly schedule has defaults if empty
+      const sanitizedWeekly = weeklySchedule.map(w => ({
+          ...w,
+          startHour: w.startHour || startHour,
+          endHour: w.endHour || endHour
+      }));
 
       const payload = {
         name,
         startHour,
         endHour,
         breaks,
-        weeklySchedule,
+        weeklySchedule: sanitizedWeekly,
         specialHours,
         isAvailable: true
       };
