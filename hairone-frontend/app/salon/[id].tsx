@@ -227,7 +227,7 @@ export default function ShopDetailsScreen() {
 
       {/* --- STEP 2: BARBER & SLOT --- */}
       {step === 2 && (
-        <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 100}}>
+        <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 160}}>
             <Text style={styles.sectionTitle}>Choose Professional</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 <TouchableOpacity 
