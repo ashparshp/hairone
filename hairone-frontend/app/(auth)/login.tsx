@@ -58,6 +58,8 @@ export default function LoginScreen() {
       // 3. FORCE NAVIGATION TO HOME <--- The Fix
       if (user.role === 'admin') {
          router.replace('/admin/dashboard' as any);
+      } else if (user.role === 'owner') {
+         router.replace('/(tabs)/dashboard' as any);
       } else {
          router.replace('/(tabs)/home' as any);
       }
