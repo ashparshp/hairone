@@ -108,9 +108,7 @@ export default function ManageServicesScreen() {
 
           if (shop && shop._id) {
             // Update existing shop
-            const res = await api.put(`/shops/${shop._id}`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await api.put(`/shops/${shop._id}`, formData);
             setShop(res.data);
             Alert.alert("Success", "Shop details updated!");
           } else {
@@ -121,9 +119,7 @@ export default function ManageServicesScreen() {
             }
             formData.append('name', shopName);
 
-            const res = await api.post('/shops', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await api.post('/shops', formData);
 
             const newShop = res.data;
             setShop(newShop);

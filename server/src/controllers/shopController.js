@@ -67,7 +67,7 @@ let imageUrl = req.file
       type: 'unisex'
     };
 
-    if (lat && lng) {
+    if (lat !== undefined && lng !== undefined) {
       shopData.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
     }
 
@@ -91,7 +91,7 @@ exports.updateShop = async (req, res) => {
     const { address, type, lat, lng } = req.body;
 
     const updates = { address, type };
-    if (lat && lng) {
+    if (lat !== undefined && lng !== undefined) {
       updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
     }
     if (req.file) {
