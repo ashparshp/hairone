@@ -88,27 +88,40 @@ export default function ManageServicesScreen() {
   const handleUpdateShop = async () => {
       if (!address.trim()) return Alert.alert("Required", "Address cannot be empty");
       setSavingShop(true);
+      
       try {
           const formData = new FormData();
           formData.append('address', address);
           formData.append('type', shopType);
+          
           if (coords) {
               formData.append('lat', String(coords.lat));
               formData.append('lng', String(coords.lng));
           }
 
+          // --- FIX: Robust Image Handling ---
           if (image && (!shop || image !== shop.image)) {
+             // 1. Extract filename
+             const filename = image.split('/').pop() || 'shop-image.jpg';
+             
+             // 2. Infer MIME type
+             let match = /\.(\w+)$/.exec(filename);
+             let type = match ? `image/${match[1]}` : `image/jpeg`;
+
+             // 3. Append safely for React Native
              // @ts-ignore
              formData.append('image', {
-               uri: image,
-               name: 'shop-image.jpg',
-               type: 'image/jpeg'
+               uri: image,        
+               name: filename,
+               type: type         
              });
           }
 
           if (shop && shop._id) {
             // Update existing shop
-            const res = await api.put(`/shops/${shop._id}`, formData);
+            const res = await api.put(`/shops/${shop._id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }, // Explicit Header
+            });
             setShop(res.data);
             Alert.alert("Success", "Shop details updated!");
           } else {
@@ -119,7 +132,9 @@ export default function ManageServicesScreen() {
             }
             formData.append('name', shopName);
 
-            const res = await api.post('/shops', formData);
+            const res = await api.post('/shops', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }, // Explicit Header
+            });
 
             const newShop = res.data;
             setShop(newShop);
@@ -131,9 +146,10 @@ export default function ManageServicesScreen() {
 
             Alert.alert("Success", "Shop created successfully!");
           }
-      } catch (e) {
-          console.log(e);
-          Alert.alert("Error", "Failed to save shop details.");
+      } catch (e: any) {
+          console.log("Save Shop Error:", e);
+          const msg = e.response?.data?.message || "Failed to save shop details.";
+          Alert.alert("Error", msg);
       } finally {
           setSavingShop(false);
       }
@@ -273,7 +289,7 @@ export default function ManageServicesScreen() {
                       onChangeText={setShopName}
                       placeholder="Enter shop name"
                       placeholderTextColor="#64748b"
-                      editable={!shop} // Only editable during creation as per requirement? Or let them edit? Backend updateShop doesn't support name update. So disable if shop exists.
+                      editable={!shop} 
                    />
                 </View>
 
