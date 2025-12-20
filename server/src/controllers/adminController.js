@@ -45,3 +45,56 @@ exports.processApplication = async (req, res) => {
     res.status(500).json({ message: "Process failed" });
   }
 };
+
+// ADMIN: Get All Shops
+exports.getAllShops = async (req, res) => {
+    try {
+        const shops = await require('../models/Shop').find()
+            .populate('ownerId', 'name email phone')
+            .sort({ createdAt: -1 });
+        res.json(shops);
+    } catch (e) {
+        res.status(500).json({ message: "Failed to fetch shops" });
+    }
+};
+
+// ADMIN: Get System Stats
+exports.getSystemStats = async (req, res) => {
+    try {
+        const Booking = require('../models/Booking');
+        const User = require('../models/User');
+        const Shop = require('../models/Shop');
+
+        const totalUsers = await User.countDocuments({ role: 'user' });
+        const totalOwners = await User.countDocuments({ role: 'owner' });
+        const totalShops = await Shop.countDocuments();
+
+        // Aggregation for Bookings & Revenue
+        const bookingStats = await Booking.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalBookings: { $sum: 1 },
+                    completedBookings: {
+                        $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] }
+                    },
+                    totalRevenue: {
+                        $sum: { $cond: [{ $eq: ["$status", "completed"] }, "$totalPrice", 0] }
+                    }
+                }
+            }
+        ]);
+
+        const stats = bookingStats[0] || { totalBookings: 0, completedBookings: 0, totalRevenue: 0 };
+
+        res.json({
+            users: totalUsers,
+            owners: totalOwners,
+            shops: totalShops,
+            ...stats
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed to fetch stats" });
+    }
+};

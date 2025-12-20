@@ -1,25 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { Check, X, LogOut, ShieldAlert } from 'lucide-react-native';
+import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'approvals' | 'reports' | 'shops'>('approvals');
+
+  // Data State
   const [applicants, setApplicants] = useState([]);
+  const [shops, setShops] = useState([]);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    fetchData();
+  }, [activeTab]);
 
-  const fetchApplications = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/admin/applications');
-      setApplicants(res.data);
+      if (activeTab === 'approvals') {
+        const res = await api.get('/admin/applications');
+        setApplicants(res.data);
+      } else if (activeTab === 'shops') {
+        const res = await api.get('/admin/shops');
+        setShops(res.data);
+      } else if (activeTab === 'reports') {
+        const res = await api.get('/admin/stats');
+        setStats(res.data);
+      }
     } catch (e) {
       console.log(e);
     } finally {
@@ -31,7 +45,7 @@ export default function AdminDashboard() {
     try {
       await api.post('/admin/process', { userId, action });
       Alert.alert("Success", `User ${action}d successfully.`);
-      fetchApplications(); // Refresh list
+      fetchData(); // Refresh list
     } catch (e) {
       Alert.alert("Error", "Action failed");
     }
@@ -65,35 +79,126 @@ export default function AdminDashboard() {
     </View>
   );
 
+  const renderShop = ({ item }: { item: any }) => (
+    <View style={styles.card}>
+        <View style={{flexDirection:'row', alignItems:'center', gap: 12}}>
+            <Image source={{ uri: item.image || 'https://via.placeholder.com/100' }} style={{width: 50, height: 50, borderRadius: 8}} />
+            <View>
+                <Text style={styles.bizName}>{item.name}</Text>
+                <Text style={styles.userName}>{item.address}</Text>
+            </View>
+        </View>
+        <View style={{marginTop: 12, flexDirection:'row', justifyContent:'space-between'}}>
+            <Text style={{color:Colors.textMuted}}>Owner: {item.ownerId?.name || 'Unknown'}</Text>
+            <Text style={{color:Colors.textMuted}}>{item.ownerId?.phone}</Text>
+        </View>
+    </View>
+  );
+
+  const renderStats = () => {
+      if (!stats) return null;
+      return (
+          <ScrollView contentContainerStyle={{paddingBottom: 20}}>
+              <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                      <Text style={styles.statVal}>{stats.totalBookings}</Text>
+                      <Text style={styles.statLabel}>Total Bookings</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                      <Text style={[styles.statVal, {color: '#10b981'}]}>₹{stats.totalRevenue}</Text>
+                      <Text style={styles.statLabel}>Total Revenue</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                      <Text style={styles.statVal}>{stats.shops}</Text>
+                      <Text style={styles.statLabel}>Active Shops</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                      <Text style={styles.statVal}>{stats.owners}</Text>
+                      <Text style={styles.statLabel}>Owners</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                      <Text style={styles.statVal}>{stats.users}</Text>
+                      <Text style={styles.statLabel}>Customers</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                      <Text style={styles.statVal}>{stats.completedBookings}</Text>
+                      <Text style={styles.statLabel}>Completed</Text>
+                  </View>
+              </View>
+          </ScrollView>
+      )
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
          <View>
              <Text style={styles.title}>Admin Panel</Text>
-             <Text style={styles.subtitle}>Manage Approvals</Text>
+             <Text style={styles.subtitle}>System Management</Text>
          </View>
          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
              <LogOut size={20} color="white" />
          </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionHeader}>Pending Applications ({applicants.length})</Text>
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+          <TouchableOpacity style={[styles.tab, activeTab === 'approvals' && styles.activeTab]} onPress={() => setActiveTab('approvals')}>
+              <ListChecks size={18} color={activeTab === 'approvals' ? '#0f172a' : Colors.textMuted} />
+              <Text style={[styles.tabText, activeTab === 'approvals' && styles.activeTabText]}>Approvals</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tab, activeTab === 'reports' && styles.activeTab]} onPress={() => setActiveTab('reports')}>
+              <BarChart size={18} color={activeTab === 'reports' ? '#0f172a' : Colors.textMuted} />
+              <Text style={[styles.tabText, activeTab === 'reports' && styles.activeTabText]}>Reports</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tab, activeTab === 'shops' && styles.activeTab]} onPress={() => setActiveTab('shops')}>
+              <ShoppingBag size={18} color={activeTab === 'shops' ? '#0f172a' : Colors.textMuted} />
+              <Text style={[styles.tabText, activeTab === 'shops' && styles.activeTabText]}>Shops</Text>
+          </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionHeader}>
+          {activeTab === 'approvals' && `Pending Applications (${applicants.length})`}
+          {activeTab === 'reports' && 'System Analytics'}
+          {activeTab === 'shops' && `All Shops (${shops.length})`}
+      </Text>
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{marginTop: 50}} />
       ) : (
-        <FlatList
-          data={applicants}
-          renderItem={renderApplicant}
-          keyExtractor={(item: any) => item._id}
-          contentContainerStyle={{paddingBottom: 20}}
-          ListEmptyComponent={
-            <View style={{alignItems: 'center', marginTop: 50, opacity: 0.5}}>
-                <ShieldAlert size={48} color="#334155" />
-                <Text style={{color: Colors.textMuted, marginTop: 10}}>No pending requests.</Text>
-            </View>
-          }
-        />
+        <>
+            {activeTab === 'approvals' && (
+                <FlatList
+                    data={applicants}
+                    renderItem={renderApplicant}
+                    keyExtractor={(item: any) => item._id}
+                    contentContainerStyle={{paddingBottom: 20}}
+                    ListEmptyComponent={
+                        <View style={{alignItems: 'center', marginTop: 50, opacity: 0.5}}>
+                            <ShieldAlert size={48} color="#334155" />
+                            <Text style={{color: Colors.textMuted, marginTop: 10}}>No pending requests.</Text>
+                        </View>
+                    }
+                />
+            )}
+
+            {activeTab === 'shops' && (
+                 <FlatList
+                    data={shops}
+                    renderItem={renderShop}
+                    keyExtractor={(item: any) => item._id}
+                    contentContainerStyle={{paddingBottom: 20}}
+                    ListEmptyComponent={
+                        <View style={{alignItems: 'center', marginTop: 50, opacity: 0.5}}>
+                            <ShoppingBag size={48} color="#334155" />
+                            <Text style={{color: Colors.textMuted, marginTop: 10}}>No active shops.</Text>
+                        </View>
+                    }
+                />
+            )}
+
+            {activeTab === 'reports' && renderStats()}
+        </>
       )}
     </View>
   );
@@ -101,11 +206,17 @@ export default function AdminDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: 20, paddingTop: 60 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: 'white' },
-  subtitle: { color: '#ef4444', fontSize: 14, fontWeight: 'bold', letterSpacing: 1 },
+  subtitle: { color: Colors.primary, fontSize: 14, fontWeight: 'bold', letterSpacing: 1 },
   logoutBtn: { padding: 10, backgroundColor: '#334155', borderRadius: 12 },
   
+  tabContainer: { flexDirection: 'row', backgroundColor: '#1e293b', borderRadius: 12, padding: 4, marginBottom: 20 },
+  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8, gap: 8 },
+  activeTab: { backgroundColor: Colors.primary },
+  tabText: { color: Colors.textMuted, fontWeight: 'bold', fontSize: 12 },
+  activeTabText: { color: '#0f172a' },
+
   sectionHeader: { color: Colors.textMuted, marginBottom: 16, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1, fontWeight: 'bold' },
   
   card: { backgroundColor: Colors.card, padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
@@ -120,5 +231,11 @@ const styles = StyleSheet.create({
   approveBtn: { flex: 1, backgroundColor: Colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8 },
   approveText: { color: '#0f172a', fontWeight: 'bold' },
   rejectBtn: { flex: 1, backgroundColor: 'rgba(239, 68, 68, 0.1)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
-  rejectText: { color: '#ef4444', fontWeight: 'bold' }
+  rejectText: { color: '#ef4444', fontWeight: 'bold' },
+
+  // Stats Grid
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  statCard: { width: '48%', backgroundColor: Colors.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  statVal: { color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
+  statLabel: { color: Colors.textMuted, fontSize: 12, textTransform: 'uppercase', fontWeight: 'bold' }
 });
