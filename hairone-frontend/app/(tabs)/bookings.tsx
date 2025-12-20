@@ -27,7 +27,7 @@ export default function BookingsScreen() {
   // --- FIX: SAFE CHECK (myBookings || []) ---
   const safeBookings = myBookings || [];
 
-  const upcomingBookings = safeBookings.filter((b: any) => b.status === 'upcoming');
+  const upcomingBookings = safeBookings.filter((b: any) => b.status === 'upcoming' || b.status === 'pending');
   const pastBookings = safeBookings.filter((b: any) => b.status === 'completed' || b.status === 'cancelled');
   const displayList = activeTab === 'upcoming' ? upcomingBookings : pastBookings;
 
@@ -189,7 +189,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         <Text style={styles.cardTitle} numberOfLines={1}>{booking.barberId?.name || 'Barber'}</Text>
                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
                             {/* Inside displayList.map loop... */}
-                            {booking.status === 'upcoming' && (
+                            {(booking.status === 'upcoming' || booking.status === 'pending') && (
                                 <>
                                     <TouchableOpacity 
                                         style={styles.miniIconBtn} 
@@ -213,10 +213,10 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                 </>
                             )}
                             <View style={[styles.statusBadge, 
-                                { backgroundColor: booking.status === 'upcoming' ? 'rgba(245, 158, 11, 0.15)' : (booking.status === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : '#1e293b') }
+                                { backgroundColor: (booking.status === 'upcoming' || booking.status === 'pending') ? 'rgba(245, 158, 11, 0.15)' : (booking.status === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : '#1e293b') }
                             ]}>
                                 <Text style={{
-                                    color: booking.status === 'upcoming' ? Colors.primary : (booking.status === 'cancelled' ? '#ef4444' : Colors.textMuted), 
+                                    color: (booking.status === 'upcoming' || booking.status === 'pending') ? Colors.primary : (booking.status === 'cancelled' ? '#ef4444' : Colors.textMuted),
                                     fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase'
                                 }}>
                                     {booking.status}
@@ -255,7 +255,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         </View>
                         
                         <View style={{flexDirection: 'row', gap: 10}}>
-                            {booking.status === 'upcoming' ? (
+                            {(booking.status === 'upcoming' || booking.status === 'pending') ? (
                                <>
                                  <TouchableOpacity style={styles.cancelBtnSmall} onPress={() => initiateCancel(booking)}>
                                     <Text style={{color: '#f87171', fontSize: 12, fontWeight: 'bold'}}>Cancel</Text>
