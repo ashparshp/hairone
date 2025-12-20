@@ -42,7 +42,7 @@ export default function AdminDashboard() {
       <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12}}>
         <View>
             <Text style={styles.bizName}>{item.businessName || 'Untitled Shop'}</Text>
-            <Text style={styles.userName}>{item.phone}</Text>
+            <Text style={styles.userName}>{item.name} • {item.phone}</Text>
         </View>
         <View style={styles.badge}>
             <Text style={styles.badgeText}>PENDING</Text>

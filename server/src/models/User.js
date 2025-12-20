@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   
   isPremium: { type: Boolean, default: false },
   
+  businessName: { type: String },
   applicationStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
   createdAt: { type: Date, default: Date.now }
 });
