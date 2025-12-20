@@ -7,7 +7,8 @@ import {
   StyleSheet, 
   Alert, 
   ActivityIndicator, 
-  ScrollView 
+  ScrollView,
+  Switch
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -93,6 +94,18 @@ export default function ManageServicesScreen() {
     }
   };
 
+  const handleToggleService = async (serviceId: string, currentStatus: boolean) => {
+    try {
+      const res = await api.put(`/shops/${shop._id}/services/${serviceId}`, {
+        isAvailable: !currentStatus
+      });
+      setShop(res.data);
+      setServices(res.data.services);
+    } catch (e) {
+      Alert.alert("Error", "Failed to update status");
+    }
+  };
+
   const resetServiceForm = () => {
       setNewServiceName('');
       setNewServicePrice('');
@@ -157,12 +170,12 @@ export default function ManageServicesScreen() {
                  <Text style={{color: Colors.textMuted, fontStyle: 'italic'}}>No services added yet.</Text>
               ) : (
                  services.map((item, index) => (
-                    <View key={index} style={styles.serviceItem}>
-                        <View style={styles.serviceIcon}>
-                           <Scissors size={20} color={Colors.primary} />
+                    <View key={index} style={[styles.serviceItem, item.isAvailable === false && {opacity: 0.6}]}>
+                        <View style={[styles.serviceIcon, item.isAvailable === false && {backgroundColor: '#334155'}]}>
+                           <Scissors size={20} color={item.isAvailable !== false ? Colors.primary : Colors.textMuted} />
                         </View>
                         <View style={{flex: 1}}>
-                            <Text style={styles.serviceName}>{item.name}</Text>
+                            <Text style={[styles.serviceName, item.isAvailable === false && {color: Colors.textMuted, textDecorationLine: 'line-through'}]}>{item.name}</Text>
                             <View style={{flexDirection: 'row', gap: 12, marginTop: 4}}>
                                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
                                    <Clock size={12} color={Colors.textMuted} />
@@ -174,7 +187,13 @@ export default function ManageServicesScreen() {
                                 </View>
                             </View>
                         </View>
-                        <View style={{flexDirection: 'row', gap: 8}}>
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                             <Switch
+                                value={item.isAvailable !== false}
+                                onValueChange={() => handleToggleService(item._id, item.isAvailable !== false)}
+                                trackColor={{false: '#334155', true: Colors.primary}}
+                                thumbColor={item.isAvailable !== false ? "#0f172a" : "#94a3b8"}
+                             />
                              <TouchableOpacity onPress={() => startEditing(item)} style={styles.actionBtn}>
                                  <Edit size={16} color="white" />
                              </TouchableOpacity>
