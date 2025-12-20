@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { AlertCircle, MapPin, Search, Star, Clock } from "lucide-react-native";
+import { AlertCircle, MapPin, Search, Star, Clock, Filter } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -23,6 +23,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [minTime, setMinTime] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,7 +111,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>
-            Hello, {user?.name || user?.phone || "Guest"}
+            Hello, {user?.name || "Guest"}
           </Text>
           <Text style={styles.subGreeting}>Find the best cut near you</Text>
         </View>
@@ -127,9 +128,13 @@ export default function HomeScreen() {
           placeholderTextColor={Colors.textMuted}
           style={styles.searchInput}
         />
+        <TouchableOpacity onPress={() => setShowFilters(!showFilters)}>
+          <Filter size={20} color={showFilters ? Colors.primary : Colors.textMuted} />
+        </TouchableOpacity>
       </View>
 
       {/* Filters Container */}
+      {showFilters && (
       <View style={{ marginBottom: 20 }}>
 
         {/* Type Filter */}
@@ -168,6 +173,7 @@ export default function HomeScreen() {
             </ScrollView>
         </View>
       </View>
+      )}
 
       {/* Shop List */}
       {loading ? (
@@ -223,10 +229,10 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     backgroundColor: Colors.card,
-    padding: 16,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 12,
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,

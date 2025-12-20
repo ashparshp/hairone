@@ -95,7 +95,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.editAvatarBtn} onPress={() => setEditModalVisible(true)}><Edit2 size={12} color="white" /></TouchableOpacity>
          </View>
          <Text style={styles.name}>{user?.name || 'Guest User'}</Text>
-         <Text style={styles.email}>{user?.email || user?.phone}</Text>
+         {user?.email && <Text style={styles.email}>{user?.email}</Text>}
          <View style={[styles.roleBadge, user?.role === 'admin' ? { backgroundColor: '#ef4444' } : user?.role === 'owner' ? { backgroundColor: Colors.primary } : { backgroundColor: '#334155' }]}>
             <Text style={[styles.roleText, user?.role === 'user' && {color: 'white'}]}>{user?.role?.toUpperCase()}</Text>
          </View>
