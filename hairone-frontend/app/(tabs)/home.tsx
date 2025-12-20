@@ -224,14 +224,17 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     backgroundColor: Colors.card,
-    padding: 12,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
     alignItems: "center",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  searchInput: { flex: 1, color: "white", marginLeft: 10, fontSize: 16 },
+  searchInput: { flex: 1, color: "white", marginLeft: 12, fontSize: 16, fontWeight: '500' },
 
   card: {
     backgroundColor: Colors.card,
