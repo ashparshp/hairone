@@ -139,13 +139,18 @@ exports.getAllShops = async (req, res) => {
       return { ...shop, nextAvailableSlot: nextSlot };
     }));
 
-    shopsWithSlots.sort((a, b) => {
+    // Filter out shops with no slots if filtering by time
+    const filteredShops = minTime
+        ? shopsWithSlots.filter(s => s.nextAvailableSlot !== null)
+        : shopsWithSlots;
+
+    filteredShops.sort((a, b) => {
       if (!a.nextAvailableSlot) return 1;
       if (!b.nextAvailableSlot) return -1;
       return timeToMinutes(a.nextAvailableSlot) - timeToMinutes(b.nextAvailableSlot);
     });
 
-    res.json(shopsWithSlots);
+    res.json(filteredShops);
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Server Error" });
