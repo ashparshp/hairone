@@ -30,6 +30,7 @@ export default function ManageServicesScreen() {
   // Shop Details State
   const [shopName, setShopName] = useState('');
   const [address, setAddress] = useState('');
+  const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
   const [shopType, setShopType] = useState<'male'|'female'|'unisex'>('unisex');
   const [image, setImage] = useState<string | null>(null);
   const [savingShop, setSavingShop] = useState(false);
@@ -57,6 +58,9 @@ export default function ManageServicesScreen() {
       setShop(s);
       setShopName(s.name || '');
       setAddress(s.address);
+      if (s.coordinates && s.coordinates.lat) {
+          setCoords(s.coordinates);
+      }
       setShopType(s.type || 'unisex');
       setImage(s.image || null);
       setServices(s.services || []);
@@ -88,6 +92,10 @@ export default function ManageServicesScreen() {
           const formData = new FormData();
           formData.append('address', address);
           formData.append('type', shopType);
+          if (coords) {
+              formData.append('lat', String(coords.lat));
+              formData.append('lng', String(coords.lng));
+          }
 
           if (image && (!shop || image !== shop.image)) {
              // @ts-ignore
@@ -145,6 +153,7 @@ export default function ManageServicesScreen() {
 
           const location = await Location.getCurrentPositionAsync({});
           const { latitude, longitude } = location.coords;
+          setCoords({ lat: latitude, lng: longitude });
           
           // Reverse Geocode
           const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });

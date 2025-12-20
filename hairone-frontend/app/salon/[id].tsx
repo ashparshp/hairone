@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Linking } from 'react-native'; // <--- Import Linking
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart } from 'lucide-react-native';
+import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin } from 'lucide-react-native';
 
 export default function ShopDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -168,7 +169,19 @@ export default function ShopDetailsScreen() {
 
              <View style={styles.shopMeta}>
                 <Text style={styles.shopTitle}>{shop?.name}</Text>
-                <Text style={styles.shopAddress}>{shop?.address}</Text>
+
+                <TouchableOpacity onPress={() => {
+                    const lat = shop?.coordinates?.lat;
+                    const lng = shop?.coordinates?.lng;
+                    const query = lat && lng ? `${lat},${lng}` : shop?.address;
+                    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+                }}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4}}>
+                        <MapPin size={14} color="#cbd5e1" />
+                        <Text style={[styles.shopAddress, {textDecorationLine: 'underline'}]}>{shop?.address}</Text>
+                    </View>
+                </TouchableOpacity>
+
                 <View style={styles.ratingBadge}>
                     <Star size={14} color="black" fill="black"/>
                     <Text style={{fontWeight:'bold', fontSize:12}}> {shop?.rating} (120+ reviews)</Text>
