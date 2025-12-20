@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
 import { ChevronLeft, User, Clock, Plus, X, Check, Search } from 'lucide-react-native';
+import { formatLocalDate } from '../../utils/date';
 
 export default function ShopScheduleScreen() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function ShopScheduleScreen() {
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
-  const [blockDate, setBlockDate] = useState(new Date().toISOString().split('T')[0]);
+  const [blockDate, setBlockDate] = useState(() => formatLocalDate(new Date()));
   const [blockTime, setBlockTime] = useState('');
   const [blockDuration, setBlockDuration] = useState('30');
   const [blockType, setBlockType] = useState<'walk-in'|'blocked'>('walk-in');
@@ -26,7 +27,7 @@ export default function ShopScheduleScreen() {
   const [blockNotes, setBlockNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDate(new Date());
 
   const fetchSchedule = async () => {
     // @ts-ignore

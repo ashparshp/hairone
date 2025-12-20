@@ -7,6 +7,7 @@ import { useBooking } from '../../context/BookingContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
 import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin } from 'lucide-react-native';
+import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -86,7 +87,8 @@ export default function ShopDetailsScreen() {
     setSelectedTime(null); 
     setSlots([]); 
     try {
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        const dateStr = formatLocalDate(selectedDate);
+
         const duration = calculateDuration();
         const bId = selectedBarberId; 
         
@@ -120,7 +122,7 @@ export default function ShopDetailsScreen() {
 
     try {
         setLoading(true);
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        const dateStr = formatLocalDate(selectedDate);
         
         await api.post('/bookings', {
             userId: user?._id,
