@@ -3,45 +3,37 @@ const Barber = require('../models/Barber');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const { getISTTime } = require('../utils/dateUtils');
+const { timeToMinutes, minutesToTime, getBarberScheduleForDate } = require('../utils/scheduleUtils');
 
-// --- HELPER: Convert "HH:mm" to minutes ---
-const timeToMinutes = (timeStr) => {
-  if (!timeStr) return 0;
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-};
+// --- HELPER: Check strict availability based on resolved schedule ---
+// Modified to accept duration INCLUDING buffer for the check
+const isBarberFree = (schedule, startMinutes, totalDurationWithBuffer, busyRanges) => {
+  const endMinutes = startMinutes + totalDurationWithBuffer;
 
-// --- HELPER: Convert minutes back to "HH:mm" ---
-const minutesToTime = (totalMinutes) => {
-  const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-  const minutes = (totalMinutes % 60).toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
-
-// --- HELPER: Check strict availability ---
-const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
-  const endMinutes = startMinutes + duration;
+  // 0. Check if open
+  if (!schedule.isOpen) return false;
 
   // 1. Shift Check
-  const shiftStart = timeToMinutes(barber.startHour);
-  const shiftEnd = timeToMinutes(barber.endHour);
-  
-  if (startMinutes < shiftStart || endMinutes > shiftEnd) return false;
+  // Note: If the buffer pushes the "end" past the shift end, we might want to allow it
+  // IF the buffer is just for cleanup. But usually cleanup is paid time for the barber.
+  // We'll enforce that cleanup must happen within shift hours.
+  if (startMinutes < schedule.start || endMinutes > schedule.end) return false;
 
   // 2. Break Check
-  if (barber.breaks) {
-    for (const br of barber.breaks) {
-      const brStart = timeToMinutes(br.startTime);
-      const brEnd = timeToMinutes(br.endTime);
+  if (schedule.breaks) {
+    for (const br of schedule.breaks) {
       // Conflict if Overlap
-      if (startMinutes < brEnd && endMinutes > brStart) {
+      if (startMinutes < br.end && endMinutes > br.start) {
         return false;
       }
     }
   }
 
   // 3. Busy Ranges (Bookings) Check
+  // busyRanges already include the buffer of previous bookings on their 'end'
   const hasConflict = busyRanges.some(range => {
+    // Check overlap:
+    // New (start, end) vs Existing (range.start, range.end)
     return startMinutes < range.end && endMinutes > range.start;
   });
 
@@ -51,7 +43,10 @@ const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
 // --- 1. Create Shop (Fixed Role Update) ---
 exports.createShop = async (req, res) => {
   try {
-    const { name, address, lat, lng } = req.body;
+    const {
+      name, address, lat, lng,
+      bufferTime, minBookingNotice, maxBookingNotice, autoApproveBookings
+    } = req.body;
     const ownerId = req.user.id;
 
     let imageUrl = req.file
@@ -65,14 +60,17 @@ exports.createShop = async (req, res) => {
       image: imageUrl, 
       services: [],
       rating: 5.0,
-      type: 'unisex'
+      type: 'unisex',
+      bufferTime: bufferTime ? parseInt(bufferTime) : 0,
+      minBookingNotice: minBookingNotice ? parseInt(minBookingNotice) : 60,
+      maxBookingNotice: maxBookingNotice ? parseInt(maxBookingNotice) : 30,
+      autoApproveBookings: autoApproveBookings !== undefined ? autoApproveBookings : true
     };
 
     if (lat !== undefined && lng !== undefined) {
       shopData.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
     }
 
-    // REMOVED DEFAULT SERVICES
     const shop = await Shop.create(shopData);
     
     // Update Role to 'owner' immediately
@@ -89,10 +87,17 @@ exports.createShop = async (req, res) => {
 exports.updateShop = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, type, lat, lng } = req.body;
+    const {
+      name, address, type, lat, lng,
+      bufferTime, minBookingNotice, maxBookingNotice, autoApproveBookings
+    } = req.body;
 
     const updates = { address, type };
     if (name) updates.name = name;
+    if (bufferTime !== undefined) updates.bufferTime = parseInt(bufferTime);
+    if (minBookingNotice !== undefined) updates.minBookingNotice = parseInt(minBookingNotice);
+    if (maxBookingNotice !== undefined) updates.maxBookingNotice = parseInt(maxBookingNotice);
+    if (autoApproveBookings !== undefined) updates.autoApproveBookings = autoApproveBookings;
 
     if (lat !== undefined && lng !== undefined) {
       updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
@@ -123,7 +128,7 @@ exports.getAllShops = async (req, res) => {
     const shops = await Shop.find().lean();
 
     const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
-      const nextSlot = await findEarliestSlotForShop(shop._id, minTime);
+      const nextSlot = await findEarliestSlotForShop(shop, minTime);
       return { ...shop, nextAvailableSlot: nextSlot };
     }));
 
@@ -135,16 +140,18 @@ exports.getAllShops = async (req, res) => {
 
     res.json(shopsWithSlots);
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
 // Helper for Home Screen Card Slot
-const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
+const findEarliestSlotForShop = async (shop, minTimeStr = "00:00") => {
   const { date, minutes: currentISTMinutes } = getISTTime();
   const serviceDuration = 30;
+  const bufferTime = shop.bufferTime || 0;
 
-  const barbers = await Barber.find({ shopId, isAvailable: true });
+  const barbers = await Barber.find({ shopId: shop._id, isAvailable: true });
   if (barbers.length === 0) return null;
 
   const bookings = await Booking.find({
@@ -158,29 +165,35 @@ const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
     if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
     bookingsMap[b.barberId].push({
       start: timeToMinutes(b.startTime),
-      end: timeToMinutes(b.endTime)
+      end: timeToMinutes(b.endTime) + bufferTime
     });
   });
 
   let minStart = 24 * 60;
   let maxEnd = 0;
+
+  const barberSchedules = {};
   barbers.forEach(b => {
-    const s = timeToMinutes(b.startHour);
-    const e = timeToMinutes(b.endHour);
-    if (s < minStart) minStart = s;
-    if (e > maxEnd) maxEnd = e;
+    const schedule = getBarberScheduleForDate(b, date);
+    barberSchedules[b._id] = schedule;
+    if (schedule.isOpen) {
+      if (schedule.start < minStart) minStart = schedule.start;
+      if (schedule.end > maxEnd) maxEnd = schedule.end;
+    }
   });
-  if (minStart >= maxEnd) { minStart = 9 * 60; maxEnd = 20 * 60; }
+
+  if (minStart >= maxEnd) return null;
 
   const minFilter = timeToMinutes(minTimeStr);
   let current = Math.max(minStart, minFilter);
 
-  // Filter out past times
   current = Math.max(current, currentISTMinutes);
 
   while (current + serviceDuration <= maxEnd) {
     for (const barber of barbers) {
-      if (isBarberFree(barber, current, serviceDuration, bookingsMap[barber._id] || [])) {
+      const schedule = barberSchedules[barber._id];
+      // Check using Duration + Buffer
+      if (isBarberFree(schedule, current, serviceDuration + bufferTime, bookingsMap[barber._id] || [])) {
         return minutesToTime(current);
       }
     }
@@ -203,9 +216,14 @@ exports.getShopDetails = async (req, res) => {
 
 // --- 5. Add Barber ---
 exports.addBarber = async (req, res) => {
-  const { shopId, name, startHour, endHour, breaks } = req.body;
+  const { shopId, name, startHour, endHour, breaks, weeklySchedule, specialHours } = req.body;
   try {
-    const barber = await Barber.create({ shopId, name, startHour, endHour, breaks: breaks || [] });
+    const barber = await Barber.create({
+      shopId, name, startHour, endHour,
+      breaks: breaks || [],
+      weeklySchedule: weeklySchedule || [],
+      specialHours: specialHours || []
+    });
     res.status(201).json(barber);
   } catch (e) {
     res.status(500).json({ message: "Failed to add barber" });
@@ -215,9 +233,12 @@ exports.addBarber = async (req, res) => {
 // --- 6. Update Barber ---
 exports.updateBarber = async (req, res) => {
   const { id } = req.params;
-  const { startHour, endHour, breaks, isAvailable } = req.body;
+  const { startHour, endHour, breaks, isAvailable, weeklySchedule, specialHours } = req.body;
   try {
-    const barber = await Barber.findByIdAndUpdate(id, { startHour, endHour, breaks, isAvailable }, { new: true });
+    const barber = await Barber.findByIdAndUpdate(id, {
+      startHour, endHour, breaks, isAvailable,
+      weeklySchedule, specialHours
+    }, { new: true });
     res.json(barber);
   } catch (e) {
     res.status(500).json({ message: "Update failed" });
@@ -229,6 +250,10 @@ exports.getShopSlots = async (req, res) => {
   const { shopId, barberId, date, duration } = req.body; 
 
   try {
+    const shop = await Shop.findById(shopId);
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    const bufferTime = shop.bufferTime || 0;
     const serviceDuration = duration ? parseInt(duration) : 30;
 
     let barbersToCheck = [];
@@ -252,19 +277,25 @@ exports.getShopSlots = async (req, res) => {
       if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
       bookingsMap[b.barberId].push({
         start: timeToMinutes(b.startTime),
-        end: timeToMinutes(b.endTime)
+        end: timeToMinutes(b.endTime) + bufferTime // Existing bookings occupy their duration + buffer
       });
     });
 
+    // Resolve schedules
+    const barberSchedules = {};
     let minStart = 24 * 60;
     let maxEnd = 0;
+
     barbersToCheck.forEach(b => {
-      const s = timeToMinutes(b.startHour);
-      const e = timeToMinutes(b.endHour);
-      if (s < minStart) minStart = s;
-      if (e > maxEnd) maxEnd = e;
+      const schedule = getBarberScheduleForDate(b, date);
+      barberSchedules[b._id] = schedule;
+      if (schedule.isOpen) {
+        if (schedule.start < minStart) minStart = schedule.start;
+        if (schedule.end > maxEnd) maxEnd = schedule.end;
+      }
     });
-    if (minStart >= maxEnd) { minStart = 9 * 60; maxEnd = 20 * 60; }
+
+    if (minStart >= maxEnd) return res.json([]);
 
     const { date: istDate, minutes: istMinutes } = getISTTime();
 
@@ -274,16 +305,21 @@ exports.getShopSlots = async (req, res) => {
     const slots = [];
     let current = minStart;
 
-    // If date is today, filter past times
+    let effectiveMinTime = -1;
     if (date === istDate) {
-      current = Math.max(current, istMinutes);
+      effectiveMinTime = istMinutes + (shop.minBookingNotice || 0);
+      current = Math.max(current, effectiveMinTime);
     }
 
     while (current + serviceDuration <= maxEnd) {
       let isSlotAvailable = false;
       for (const barber of barbersToCheck) {
+        const schedule = barberSchedules[barber._id];
         const busyRanges = bookingsMap[barber._id] || [];
-        if (isBarberFree(barber, current, serviceDuration, busyRanges)) {
+        // CHECK AVAILABILITY USING (DURATION + BUFFER)
+        // This ensures the new slot has enough space for the service AND its buffer
+        // before the next booked event or end of shift.
+        if (isBarberFree(schedule, current, serviceDuration + bufferTime, busyRanges)) {
           isSlotAvailable = true;
           break; 
         }
@@ -291,7 +327,7 @@ exports.getShopSlots = async (req, res) => {
 
       if (isSlotAvailable) slots.push(minutesToTime(current));
       
-      current += 10; // 10 minute stepping
+      current += 15;
     }
 
     res.json(slots);
@@ -318,7 +354,7 @@ exports.addShopService = async (req, res) => {
   }
 };
 
-// --- 9. NEW: Delete Service ---
+// --- 9. Delete Service ---
 exports.deleteShopService = async (req, res) => {
   const { id, serviceId } = req.params;
   try {
@@ -334,7 +370,7 @@ exports.deleteShopService = async (req, res) => {
   }
 };
 
-// --- 10. NEW: Update Service (Toggle Availability) ---
+// --- 10. Update Service (Toggle Availability) ---
 exports.updateShopService = async (req, res) => {
   const { id, serviceId } = req.params;
   const { isAvailable } = req.body;
@@ -352,7 +388,7 @@ exports.updateShopService = async (req, res) => {
   }
 };
 
-// --- 11. NEW: Get User Favorites ---
+// --- 11. Get User Favorites ---
 exports.getUserFavorites = async (req, res) => {
   try {
     const userId = req.user.id;
