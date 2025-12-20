@@ -89,7 +89,7 @@ export default function ShopScheduleScreen() {
 
   const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
       try {
-          await api.put(`/bookings/${bookingId}/status`, { status: newStatus });
+          await api.patch(`/bookings/${bookingId}/status`, { status: newStatus });
           fetchSchedule(); // Refresh
       } catch (e) {
           Alert.alert("Error", "Failed to update status");
@@ -103,6 +103,9 @@ export default function ShopScheduleScreen() {
           <Text style={styles.dateText}>{item.date === today ? 'Today' : item.date}</Text>
           {item.type === 'blocked' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>BLOCKED</Text>}
           {item.type === 'walk-in' && <Text style={{color:'#f59e0b', fontSize:10, fontWeight:'bold', marginTop:4}}>WALK-IN</Text>}
+          {item.status === 'checked-in' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>CHECKED-IN</Text>}
+          {item.status === 'completed' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>DONE</Text>}
+          {item.status === 'no-show' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>NO-SHOW</Text>}
        </View>
 
        <View style={styles.detailsCol}>
@@ -134,7 +137,33 @@ export default function ShopScheduleScreen() {
               </View>
           )}
 
+          {/* Upcoming: Check In / No-Show */}
+          {item.status === 'upcoming' && (
+              <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'checked-in')}>
+                      <Check size={14} color="white" />
+                      <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Check In</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.rejectBtn, {backgroundColor: '#64748b', borderColor: '#475569'}]} onPress={() => handleStatusUpdate(item._id, 'no-show')}>
+                      <X size={14} color="white" />
+                      <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>No Show</Text>
+                  </TouchableOpacity>
+              </View>
+          )}
+
+          {/* Checked-in: Complete */}
+          {item.status === 'checked-in' && (
+              <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'completed')}>
+                      <Check size={14} color="white" />
+                      <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Complete</Text>
+                  </TouchableOpacity>
+              </View>
+          )}
+
           {item.status === 'cancelled' && <Text style={{color:'#ef4444', fontSize:12, marginTop:6, fontStyle:'italic'}}>Cancelled</Text>}
+          {item.status === 'completed' && <Text style={{color:'#10b981', fontSize:12, marginTop:6, fontStyle:'italic'}}>Completed</Text>}
+          {item.status === 'no-show' && <Text style={{color:'#ef4444', fontSize:12, marginTop:6, fontStyle:'italic'}}>Marked as No-Show</Text>}
        </View>
     </View>
   );

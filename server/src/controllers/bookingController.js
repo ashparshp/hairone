@@ -216,13 +216,14 @@ exports.getShopBookings = async (req, res) => {
   }
 };
 
-// --- 5. Update Booking Status (Approve/Reject) ---
+// --- 5. Update Booking Status (Approve/Reject/Complete/No-Show) ---
 exports.updateBookingStatus = async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
-        if (!['upcoming', 'cancelled'].includes(status)) {
+        const validStatuses = ['upcoming', 'cancelled', 'completed', 'no-show', 'checked-in'];
+        if (!validStatuses.includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
         }
 

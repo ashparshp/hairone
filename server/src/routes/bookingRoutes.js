@@ -7,6 +7,6 @@ router.post('/', protect, createBooking);
 router.get('/user/:userId', protect, getMyBookings);
 router.get('/shop/:shopId', protect, getShopBookings);
 router.put('/:id/cancel', protect, cancelBooking);
-router.put('/:id/status', protect, updateBookingStatus); // New endpoint
+router.patch('/:id/status', protect, updateBookingStatus);
 
 module.exports = router;
