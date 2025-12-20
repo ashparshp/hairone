@@ -14,7 +14,7 @@ import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors } from 'lucide-react-native';
+import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Trash2, Edit } from 'lucide-react-native';
 
 export default function ManageServicesScreen() {
   const router = useRouter();
@@ -29,11 +29,12 @@ export default function ManageServicesScreen() {
   const [shopType, setShopType] = useState<'male'|'female'|'unisex'>('unisex');
   const [savingShop, setSavingShop] = useState(false);
 
-  // New Service State
+  // Service Form State
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState('');
   const [addingService, setAddingService] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchShop();
@@ -101,7 +102,7 @@ export default function ManageServicesScreen() {
       }
   };
 
-  const handleAddService = async () => {
+  const handleAddOrUpdateService = async () => {
     if (!newServiceName || !newServicePrice || !newServiceDuration) {
         Alert.alert("Missing Fields", "Please fill all fields.");
         return;
@@ -109,27 +110,78 @@ export default function ManageServicesScreen() {
 
     setAddingService(true);
     try {
-        const res = await api.post(`/shops/${shop._id}/services`, {
-            name: newServiceName,
-            price: parseInt(newServicePrice),
-            duration: parseInt(newServiceDuration)
-        });
+        let res;
+        if (editingServiceId) {
+            // Update existing service
+            res = await api.put(`/shops/${shop._id}/services/${editingServiceId}`, {
+                name: newServiceName,
+                price: parseInt(newServicePrice),
+                duration: parseInt(newServiceDuration)
+            });
+            Alert.alert("Success", "Service Updated!");
+        } else {
+            // Add new service
+            res = await api.post(`/shops/${shop._id}/services`, {
+                name: newServiceName,
+                price: parseInt(newServicePrice),
+                duration: parseInt(newServiceDuration)
+            });
+            Alert.alert("Success", "Service Added!");
+        }
         
         // Update local state
         setShop(res.data);
         setServices(res.data.services);
         
         // Reset form
-        setNewServiceName('');
-        setNewServicePrice('');
-        setNewServiceDuration('');
-        Alert.alert("Success", "Service Added!");
+        resetServiceForm();
     } catch (e) {
         console.log(e);
-        Alert.alert("Error", "Failed to add service.");
+        Alert.alert("Error", editingServiceId ? "Failed to update service." : "Failed to add service.");
     } finally {
         setAddingService(false);
     }
+  };
+
+  const resetServiceForm = () => {
+      setNewServiceName('');
+      setNewServicePrice('');
+      setNewServiceDuration('');
+      setEditingServiceId(null);
+  };
+
+  const startEditing = (service: any) => {
+      setNewServiceName(service.name);
+      setNewServicePrice(service.price.toString());
+      setNewServiceDuration(service.duration.toString());
+      setEditingServiceId(service._id);
+  };
+
+  const handleDeleteService = (serviceId: string) => {
+      Alert.alert(
+          "Delete Service",
+          "Are you sure you want to delete this service?",
+          [
+              { text: "Cancel", style: "cancel" },
+              {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: async () => {
+                      try {
+                          const res = await api.delete(`/shops/${shop._id}/services/${serviceId}`);
+                          setShop(res.data);
+                          setServices(res.data.services);
+                          if (editingServiceId === serviceId) {
+                              resetServiceForm();
+                          }
+                      } catch (e) {
+                          console.log(e);
+                          Alert.alert("Error", "Failed to delete service");
+                      }
+                  }
+              }
+          ]
+      );
   };
 
   if (loading) return <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>;
@@ -220,16 +272,35 @@ export default function ManageServicesScreen() {
                                 </View>
                             </View>
                         </View>
+                        <View style={{flexDirection: 'row', gap: 8}}>
+                             <TouchableOpacity onPress={() => startEditing(item)} style={styles.actionBtn}>
+                                 <Edit size={16} color="white" />
+                             </TouchableOpacity>
+                             <TouchableOpacity onPress={() => handleDeleteService(item._id)} style={[styles.actionBtn, {backgroundColor: 'rgba(239, 68, 68, 0.2)'}]}>
+                                 <Trash2 size={16} color="#ef4444" />
+                             </TouchableOpacity>
+                        </View>
                     </View>
                  ))
               )}
             </View>
 
-            {/* Add Service Form */}
+            {/* Add/Edit Service Form */}
             <View style={styles.addForm}>
                 <View style={styles.formHeader}>
-                   <Plus size={20} color={Colors.primary} />
-                   <Text style={{color: 'white', fontWeight:'bold', fontSize: 16}}>Add New Service</Text>
+                   {editingServiceId ? (
+                       <Edit size={20} color={Colors.primary} />
+                   ) : (
+                       <Plus size={20} color={Colors.primary} />
+                   )}
+                   <Text style={{color: 'white', fontWeight:'bold', fontSize: 16}}>
+                       {editingServiceId ? 'Edit Service' : 'Add New Service'}
+                   </Text>
+                   {editingServiceId && (
+                       <TouchableOpacity onPress={resetServiceForm} style={{marginLeft: 'auto'}}>
+                           <Text style={{color: Colors.textMuted, fontSize: 12}}>Cancel</Text>
+                       </TouchableOpacity>
+                   )}
                 </View>
 
                 <View style={styles.inputGroup}>
@@ -268,9 +339,9 @@ export default function ManageServicesScreen() {
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.addBtn} onPress={handleAddService} disabled={addingService}>
+                <TouchableOpacity style={styles.addBtn} onPress={handleAddOrUpdateService} disabled={addingService}>
                     {addingService ? <ActivityIndicator color="#0f172a"/> : (
-                        <Text style={styles.addBtnText}>Add Service</Text>
+                        <Text style={styles.addBtnText}>{editingServiceId ? 'Update Service' : 'Add Service'}</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -320,5 +391,6 @@ const styles = StyleSheet.create({
   formInput: { backgroundColor: '#0f172a', color: 'white', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#334155' },
   
   addBtn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  addBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 }
+  addBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+  actionBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center' }
 });
