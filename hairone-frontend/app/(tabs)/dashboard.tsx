@@ -5,11 +5,12 @@ import {
   ChevronRight,
   Clock,
   MapPin,
-  Scissors,
   Settings,
   Star,
   User,
   UserPlus,
+  Store,
+  Scissors
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -209,9 +210,16 @@ export default function DashboardScreen() {
             onPress={() => router.push("/salon/shop-schedule" as any)}
           />
           <ActionCard
-            icon={Briefcase}
-            title="Manage Shop"
-            sub="Edit details, location & services"
+            icon={Store}
+            title="Shop Details"
+            sub="Edit name, image & location"
+            color="#f472b6"
+            onPress={() => router.push("/salon/shop-details" as any)}
+          />
+          <ActionCard
+            icon={Scissors}
+            title="Services Menu"
+            sub="Manage services & pricing"
             color="#60a5fa"
             onPress={() => router.push("/salon/manage-services" as any)}
           />

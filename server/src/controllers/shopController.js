@@ -54,7 +54,7 @@ exports.createShop = async (req, res) => {
     const { name, address, lat, lng } = req.body;
     const ownerId = req.user.id;
 
-let imageUrl = req.file 
+    let imageUrl = req.file
       ? req.file.location 
       : 'https://via.placeholder.com/150';
 
@@ -89,9 +89,11 @@ let imageUrl = req.file
 exports.updateShop = async (req, res) => {
   try {
     const { id } = req.params;
-    const { address, type, lat, lng } = req.body;
+    const { name, address, type, lat, lng } = req.body;
 
     const updates = { address, type };
+    if (name) updates.name = name;
+
     if (lat !== undefined && lng !== undefined) {
       updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
     }
