@@ -50,23 +50,29 @@ const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
 // --- 1. Create Shop (Fixed Role Update) ---
 exports.createShop = async (req, res) => {
   try {
-    const { name, address } = req.body;
+    const { name, address, lat, lng } = req.body;
     const ownerId = req.user.id;
 
 let imageUrl = req.file 
       ? req.file.location 
       : 'https://via.placeholder.com/150';
 
-    // REMOVED DEFAULT SERVICES
-    const shop = await Shop.create({ 
+    const shopData = {
       ownerId, 
       name, 
       address, 
       image: imageUrl, 
-      services: [], // Empty array
+      services: [],
       rating: 5.0,
       type: 'unisex'
-    });
+    };
+
+    if (lat && lng) {
+      shopData.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    }
+
+    // REMOVED DEFAULT SERVICES
+    const shop = await Shop.create(shopData);
     
     // Update Role to 'owner' immediately
     await User.findByIdAndUpdate(ownerId, { myShopId: shop._id, role: 'owner' });
@@ -82,9 +88,12 @@ let imageUrl = req.file
 exports.updateShop = async (req, res) => {
   try {
     const { id } = req.params;
-    const { address, type } = req.body; 
+    const { address, type, lat, lng } = req.body;
 
     const updates = { address, type };
+    if (lat && lng) {
+      updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
+    }
     if (req.file) {
       updates.image = req.file.location;
     }
