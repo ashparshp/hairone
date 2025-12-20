@@ -22,18 +22,22 @@ export default function HomeScreen() {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [minTime, setMinTime] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<string>('all');
 
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [minTime])
+    }, [minTime, filterType])
   );
 
   const fetchShops = async () => {
     setLoading(true);
     try {
-      const endpoint = minTime ? `/shops?minTime=${minTime}` : "/shops";
-      const res = await api.get(endpoint);
+      const params = new URLSearchParams();
+      if (minTime) params.append('minTime', minTime);
+      if (filterType !== 'all') params.append('type', filterType);
+
+      const res = await api.get(`/shops?${params.toString()}`);
       console.log("Fetched Shops:", res.data); // Debugging Log
       setShops(res.data);
     } catch (e) {
@@ -51,6 +55,13 @@ export default function HomeScreen() {
     { label: "After 6 PM", value: "18:00" },
   ];
 
+  const typeOptions = [
+    { label: "All", value: "all" },
+    { label: "Unisex", value: "unisex" },
+    { label: "Male", value: "male" },
+    { label: "Female", value: "female" },
+  ];
+
   const renderShop = ({ item }: { item: any }) => (
     <TouchableOpacity 
       style={styles.card} 
@@ -62,6 +73,12 @@ export default function HomeScreen() {
         style={styles.cardImage} 
         resizeMode="cover"
       />
+      <View style={styles.badgeContainer}>
+         <View style={styles.typeBadge}>
+             <Text style={styles.typeBadgeText}>{item.type || 'Unisex'}</Text>
+         </View>
+      </View>
+
       <View style={styles.cardContent}>
         <View style={styles.row}>
           <Text style={styles.shopName}>{item.name}</Text>
@@ -113,22 +130,44 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Time Filter */}
+      {/* Filters Container */}
       <View style={{ marginBottom: 20 }}>
-        <Text style={styles.sectionTitle}>Filter by Time</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {timeOptions.map((opt, i) => (
-            <TouchableOpacity 
-              key={i}
-              style={[styles.filterChip, minTime === opt.value && styles.filterChipActive]}
-              onPress={() => setMinTime(opt.value)}
-            >
-              <Text style={[styles.filterText, minTime === opt.value && { color: 'black', fontWeight: 'bold' }]}>
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+
+        {/* Type Filter */}
+        <View style={{marginBottom: 16}}>
+            <Text style={styles.sectionTitle}>Filter by Type</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {typeOptions.map((opt, i) => (
+                    <TouchableOpacity
+                    key={i}
+                    style={[styles.filterChip, filterType === opt.value && styles.filterChipActive]}
+                    onPress={() => setFilterType(opt.value)}
+                    >
+                    <Text style={[styles.filterText, filterType === opt.value && { color: 'black', fontWeight: 'bold' }]}>
+                        {opt.label}
+                    </Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
+
+        {/* Time Filter */}
+        <View>
+            <Text style={styles.sectionTitle}>Filter by Time</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {timeOptions.map((opt, i) => (
+                <TouchableOpacity
+                key={i}
+                style={[styles.filterChip, minTime === opt.value && styles.filterChipActive]}
+                onPress={() => setMinTime(opt.value)}
+                >
+                <Text style={[styles.filterText, minTime === opt.value && { color: 'black', fontWeight: 'bold' }]}>
+                    {opt.label}
+                </Text>
+                </TouchableOpacity>
+            ))}
+            </ScrollView>
+        </View>
       </View>
 
       {/* Shop List */}
@@ -204,6 +243,9 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   cardImage: { width: "100%", height: 180, backgroundColor: "#1e293b" },
+  badgeContainer: { position: 'absolute', top: 10, right: 10 },
+  typeBadge: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  typeBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
   cardContent: { padding: 16 },
   row: {
     flexDirection: "row",

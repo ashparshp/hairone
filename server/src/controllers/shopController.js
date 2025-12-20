@@ -125,8 +125,14 @@ exports.updateShop = async (req, res) => {
 // --- 3. Get All Shops ---
 exports.getAllShops = async (req, res) => {
   try {
-    const { minTime } = req.query; 
-    const shops = await Shop.find().lean();
+    const { minTime, type } = req.query;
+
+    const query = {};
+    if (type && type !== 'all') {
+        query.type = type.toLowerCase();
+    }
+
+    const shops = await Shop.find(query).lean();
 
     const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
       const nextSlot = await findEarliestSlotForShop(shop, minTime);
@@ -165,17 +171,6 @@ const findEarliestSlotForShop = async (shop, minTimeStr = "00:00") => {
   // ...
 
   // Reverting to simple logic for finding ANY slot today
-  const schedule = getBarberScheduleForDate(barbers[0], date);
-  // Just a quick check on first barber to save complexity?
-  // No, the original code checked all.
-
-  // Let's defer this specific helper update unless requested,
-  // as it's just for the card display "Next Slot: XX:XX".
-
-  return null; // Placeholder as I am overwriting the file.
-  // Wait, I should not break this function. I will restore the original logic
-  // but with the updated schedule handling (end > start).
-
   // ... Restoring original logic ...
   const bookings = await Booking.find({
     barberId: { $in: barbers.map(b => b._id) },

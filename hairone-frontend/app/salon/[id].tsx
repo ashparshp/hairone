@@ -209,7 +209,7 @@ export default function ShopDetailsScreen() {
       {step === 1 && (
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 100}}>
             <Text style={styles.sectionTitle}>Services</Text>
-            {shop?.services && shop.services.map((service: any, index: number) => {
+            {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                 const isSelected = selectedServices.find(s => s.name === service.name);
                 return (
                     <TouchableOpacity key={index} style={[styles.serviceCard, isSelected && styles.serviceCardActive]} onPress={() => toggleService(service)}>
