@@ -1,25 +1,28 @@
 const Booking = require('../models/Booking');
 const Barber = require('../models/Barber');
+const Shop = require('../models/Shop');
 const { addMinutes, parse, format } = require('date-fns');
-const { getISTTime } = require('../utils/dateUtils');
-
-// --- Helper: Convert "HH:mm" to minutes ---
-const timeToMinutes = (timeStr) => {
-  if (!timeStr) return 0;
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-};
+const { getISTTime, timeToMinutes, getBarberSchedule } = require('../utils/dateUtils');
 
 // --- Helper: Availability Check ---
-const checkAvailability = async (barber, date, startStr, duration) => {
+const checkAvailability = async (barber, date, startStr, duration, bufferTime = 0) => {
   const start = timeToMinutes(startStr);
-  const end = start + duration;
+  const serviceEnd = start + duration;
+  const slotEndWithBuffer = serviceEnd + bufferTime;
 
-  if (start < timeToMinutes(barber.startHour) || end > timeToMinutes(barber.endHour)) return false;
+  const schedule = getBarberSchedule(barber, date);
+
+  if (schedule.isOff) return false;
+
+  // Service must end by closing time
+  if (start < schedule.start || serviceEnd > schedule.end) return false;
 
   if (barber.breaks) {
     for (const br of barber.breaks) {
-      if (start < timeToMinutes(br.endTime) && end > timeToMinutes(br.startTime)) return false;
+      const brStart = timeToMinutes(br.startTime);
+      const brEnd = timeToMinutes(br.endTime);
+      // Conflict if Overlap with service
+      if (start < brEnd && serviceEnd > brStart) return false;
     }
   }
 
@@ -30,7 +33,19 @@ const checkAvailability = async (barber, date, startStr, duration) => {
   });
 
   for (const b of conflicts) {
-    if (start < timeToMinutes(b.endTime) && end > timeToMinutes(b.startTime)) return false;
+    // Conflict check with buffer
+    // Existing bookings should also have buffer.
+    // However, existing bookings in DB only store start/end (service duration).
+    // We need to assume the buffer is applied AFTER the existing booking.
+    // So existing booking effectively occupies [b.start, b.end + buffer].
+    // Our new slot occupies [start, slotEndWithBuffer].
+
+    // BUT we don't store buffer in booking, it's on Shop.
+    // For now we assume bufferTime passed in is the shop's buffer.
+    const bStart = timeToMinutes(b.startTime);
+    const bEnd = timeToMinutes(b.endTime) + bufferTime;
+
+    if (start < bEnd && slotEndWithBuffer > bStart) return false;
   }
   return true;
 };
@@ -53,10 +68,28 @@ exports.createBooking = async (req, res) => {
     if (date < istDate) {
       return res.status(400).json({ message: "Cannot book for a past date." });
     }
+
+    // Fetch Shop Settings for Constraints
+    const shop = await Shop.findById(shopId);
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    // Min Booking Notice Check
     if (date === istDate) {
       if (timeToMinutes(startTime) < istMinutes) {
         return res.status(400).json({ message: "Cannot book for a past time." });
       }
+      if (timeToMinutes(startTime) < istMinutes + shop.minBookingNotice) {
+        return res.status(400).json({ message: `Must book at least ${shop.minBookingNotice} minutes in advance.` });
+      }
+    }
+
+    // Max Booking Notice Check
+    const requestDate = parse(date, 'yyyy-MM-dd', new Date());
+    const currentDate = parse(istDate, 'yyyy-MM-dd', new Date());
+    const diffTime = requestDate - currentDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > shop.maxBookingNotice) {
+      return res.status(400).json({ message: `Cannot book more than ${shop.maxBookingNotice} days in advance.` });
     }
 
     let assignedBarberId = barberId;
@@ -67,7 +100,7 @@ exports.createBooking = async (req, res) => {
       const allBarbers = await Barber.find({ shopId, isAvailable: true });
       const availableBarbers = [];
       for (const barber of allBarbers) {
-        if (await checkAvailability(barber, date, startTime, durationInt)) {
+        if (await checkAvailability(barber, date, startTime, durationInt, shop.bufferTime)) {
           availableBarbers.push(barber);
         }
       }
@@ -80,7 +113,7 @@ exports.createBooking = async (req, res) => {
     } else {
       const barber = await Barber.findById(barberId);
       if (!barber) return res.status(404).json({ message: "Barber not found" });
-      if (!(await checkAvailability(barber, date, startTime, durationInt))) {
+      if (!(await checkAvailability(barber, date, startTime, durationInt, shop.bufferTime))) {
         return res.status(409).json({ message: "Barber unavailable." });
       }
     }
@@ -89,11 +122,14 @@ exports.createBooking = async (req, res) => {
     const endObj = addMinutes(startObj, durationInt);
     const endTime = format(endObj, 'HH:mm');
 
+    const status = shop.autoApproveBookings ? 'upcoming' : 'pending';
+
     const booking = await Booking.create({
       userId, shopId, barberId: assignedBarberId, serviceNames, totalPrice, 
       totalDuration: durationInt, date, startTime, endTime, 
       paymentMethod: paymentMethod || 'cash', 
-      status: 'upcoming', bookingKey: Math.floor(1000 + Math.random() * 9000).toString()
+      status: status,
+      bookingKey: Math.floor(1000 + Math.random() * 9000).toString()
     });
 
     res.status(201).json(booking);
@@ -159,5 +195,60 @@ exports.getShopBookings = async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to fetch shop bookings" });
+  }
+};// --- 5. Block Slot (Walk-in / Owner Block) ---
+exports.blockSlot = async (req, res) => {
+  const { shopId, barberId, date, startTime, duration, reason } = req.body;
+
+  try {
+    const shop = await Shop.findById(shopId);
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    // Blocked slots bypass minBookingNotice/maxBookingNotice because the owner does it.
+
+    const durationInt = parseInt(duration || 30);
+    const barber = await Barber.findById(barberId);
+    if (!barber) return res.status(404).json({ message: "Barber not found" });
+
+    // Enforce availability check to prevent double booking.
+    if (!(await checkAvailability(barber, date, startTime, durationInt, shop.bufferTime))) {
+       return res.status(409).json({ message: "Slot is already booked or unavailable." });
+    }
+
+    const startObj = parse(startTime, 'HH:mm', new Date());
+    const endObj = addMinutes(startObj, durationInt);
+    const endTime = format(endObj, 'HH:mm');
+
+    const booking = await Booking.create({
+      userId: req.user.id, // Owner
+      shopId,
+      barberId,
+      serviceNames: [reason || 'Blocked Slot'],
+      totalPrice: 0,
+      totalDuration: durationInt,
+      date,
+      startTime,
+      endTime,
+      type: 'blocked',
+      status: 'upcoming',
+      bookingKey: 'BLOCK-' + Math.floor(1000 + Math.random() * 9000).toString()
+    });
+
+    res.status(201).json(booking);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to block slot" });
+  }
+};
+
+// --- 6. Approve Booking ---
+exports.approveBooking = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const booking = await Booking.findByIdAndUpdate(id, { status: 'upcoming' }, { new: true });
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    res.json(booking);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to approve booking" });
   }
 };

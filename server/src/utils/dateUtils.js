@@ -1,4 +1,5 @@
 // server/src/utils/dateUtils.js
+const { parse, getDay } = require('date-fns');
 
 /**
  * Returns the current date and time in IST (Indian Standard Time).
@@ -20,4 +21,57 @@ const getISTTime = () => {
   };
 };
 
-module.exports = { getISTTime };
+// --- HELPER: Convert "HH:mm" to minutes ---
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+// --- HELPER: Convert minutes back to "HH:mm" ---
+const minutesToTime = (totalMinutes) => {
+  const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
+  const minutes = (totalMinutes % 60).toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+// --- HELPER: Get Effective Schedule for Barber on Date ---
+const getBarberSchedule = (barber, dateStr) => {
+  // 1. Check Special Hours
+  if (barber.specialHours) {
+    const special = barber.specialHours.find(h => h.date === dateStr);
+    if (special) {
+      if (special.isClosed) return { isOff: true };
+      return {
+        start: timeToMinutes(special.start),
+        end: timeToMinutes(special.end),
+        isOff: false
+      };
+    }
+  }
+
+  // 2. Check Weekly Schedule
+  if (barber.weeklySchedule && barber.weeklySchedule.length > 0) {
+    const dateObj = parse(dateStr, 'yyyy-MM-dd', new Date());
+    const dayIndex = getDay(dateObj); // 0 = Sunday
+
+    const weekly = barber.weeklySchedule.find(s => s.day === dayIndex);
+    if (weekly) {
+      if (weekly.isOff) return { isOff: true };
+      return {
+        start: timeToMinutes(weekly.start),
+        end: timeToMinutes(weekly.end),
+        isOff: false
+      };
+    }
+  }
+
+  // 3. Default
+  return {
+    start: timeToMinutes(barber.startHour),
+    end: timeToMinutes(barber.endHour),
+    isOff: false
+  };
+};
+
+module.exports = { getISTTime, timeToMinutes, minutesToTime, getBarberSchedule };

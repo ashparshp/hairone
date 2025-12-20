@@ -2,47 +2,39 @@ const Shop = require('../models/Shop');
 const Barber = require('../models/Barber');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const { getISTTime } = require('../utils/dateUtils');
-
-// --- HELPER: Convert "HH:mm" to minutes ---
-const timeToMinutes = (timeStr) => {
-  if (!timeStr) return 0;
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
-// --- HELPER: Convert minutes back to "HH:mm" ---
-const minutesToTime = (totalMinutes) => {
-  const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-  const minutes = (totalMinutes % 60).toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
-};
+const { getISTTime, timeToMinutes, minutesToTime, getBarberSchedule } = require('../utils/dateUtils');
+const { parse } = require('date-fns');
 
 // --- HELPER: Check strict availability ---
-const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
-  const endMinutes = startMinutes + duration;
+const isBarberFree = (barber, startMinutes, duration, busyRanges, daySchedule, bufferTime = 0) => {
+  const serviceEnd = startMinutes + duration;
+  const slotEndWithBuffer = serviceEnd + bufferTime;
 
-  // 1. Shift Check
-  const shiftStart = timeToMinutes(barber.startHour);
-  const shiftEnd = timeToMinutes(barber.endHour);
+  // 1. Shift Check (using daySchedule)
+  if (daySchedule.isOff) return false;
   
-  if (startMinutes < shiftStart || endMinutes > shiftEnd) return false;
+  // Service must end by closing time.
+  if (startMinutes < daySchedule.start || serviceEnd > daySchedule.end) return false;
 
   // 2. Break Check
   if (barber.breaks) {
     for (const br of barber.breaks) {
       const brStart = timeToMinutes(br.startTime);
       const brEnd = timeToMinutes(br.endTime);
-      // Conflict if Overlap
-      if (startMinutes < brEnd && endMinutes > brStart) {
+      // Conflict if Overlap with service time
+      // Check if [start, serviceEnd] overlaps [brStart, brEnd]
+      if (startMinutes < brEnd && serviceEnd > brStart) {
         return false;
       }
     }
   }
 
   // 3. Busy Ranges (Bookings) Check
+  // busyRanges already include buffer of previous bookings if processed correctly.
+  // We need to check if OUR [start, slotEndWithBuffer] overlaps any busyRange.
+  // Note: busyRanges should be [start, end+buffer].
   const hasConflict = busyRanges.some(range => {
-    return startMinutes < range.end && endMinutes > range.start;
+    return startMinutes < range.end && slotEndWithBuffer > range.start;
   });
 
   return !hasConflict;
@@ -51,7 +43,7 @@ const isBarberFree = (barber, startMinutes, duration, busyRanges) => {
 // --- 1. Create Shop (Fixed Role Update) ---
 exports.createShop = async (req, res) => {
   try {
-    const { name, address, lat, lng } = req.body;
+    const { name, address, lat, lng, bufferTime, minBookingNotice, maxBookingNotice, autoApproveBookings } = req.body;
     const ownerId = req.user.id;
 
     let imageUrl = req.file
@@ -65,7 +57,11 @@ exports.createShop = async (req, res) => {
       image: imageUrl, 
       services: [],
       rating: 5.0,
-      type: 'unisex'
+      type: 'unisex',
+      bufferTime: bufferTime || 0,
+      minBookingNotice: minBookingNotice || 60,
+      maxBookingNotice: maxBookingNotice || 30,
+      autoApproveBookings: autoApproveBookings !== undefined ? autoApproveBookings : true
     };
 
     if (lat !== undefined && lng !== undefined) {
@@ -89,10 +85,14 @@ exports.createShop = async (req, res) => {
 exports.updateShop = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, type, lat, lng } = req.body;
+    const { name, address, type, lat, lng, bufferTime, minBookingNotice, maxBookingNotice, autoApproveBookings } = req.body;
 
     const updates = { address, type };
     if (name) updates.name = name;
+    if (bufferTime !== undefined) updates.bufferTime = bufferTime;
+    if (minBookingNotice !== undefined) updates.minBookingNotice = minBookingNotice;
+    if (maxBookingNotice !== undefined) updates.maxBookingNotice = maxBookingNotice;
+    if (autoApproveBookings !== undefined) updates.autoApproveBookings = autoApproveBookings;
 
     if (lat !== undefined && lng !== undefined) {
       updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
@@ -203,9 +203,14 @@ exports.getShopDetails = async (req, res) => {
 
 // --- 5. Add Barber ---
 exports.addBarber = async (req, res) => {
-  const { shopId, name, startHour, endHour, breaks } = req.body;
+  const { shopId, name, startHour, endHour, breaks, weeklySchedule, specialHours } = req.body;
   try {
-    const barber = await Barber.create({ shopId, name, startHour, endHour, breaks: breaks || [] });
+    const barber = await Barber.create({
+      shopId, name, startHour, endHour,
+      breaks: breaks || [],
+      weeklySchedule: weeklySchedule || [],
+      specialHours: specialHours || []
+    });
     res.status(201).json(barber);
   } catch (e) {
     res.status(500).json({ message: "Failed to add barber" });
@@ -215,9 +220,13 @@ exports.addBarber = async (req, res) => {
 // --- 6. Update Barber ---
 exports.updateBarber = async (req, res) => {
   const { id } = req.params;
-  const { startHour, endHour, breaks, isAvailable } = req.body;
+  const { startHour, endHour, breaks, isAvailable, weeklySchedule, specialHours } = req.body;
   try {
-    const barber = await Barber.findByIdAndUpdate(id, { startHour, endHour, breaks, isAvailable }, { new: true });
+    const updates = { startHour, endHour, breaks, isAvailable };
+    if (weeklySchedule) updates.weeklySchedule = weeklySchedule;
+    if (specialHours) updates.specialHours = specialHours;
+
+    const barber = await Barber.findByIdAndUpdate(id, updates, { new: true });
     res.json(barber);
   } catch (e) {
     res.status(500).json({ message: "Update failed" });
@@ -230,6 +239,33 @@ exports.getShopSlots = async (req, res) => {
 
   try {
     const serviceDuration = duration ? parseInt(duration) : 30;
+
+    // Fetch Shop Settings
+    const shop = await Shop.findById(shopId);
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    // Check Max Booking Notice
+    const { date: istDate, minutes: istMinutes } = getISTTime();
+
+    // Simple date comparison (string comparison works for YYYY-MM-DD if formats match)
+    // Actually, better to parse date.
+    // maxBookingNotice is in days.
+    const requestDate = parse(date, 'yyyy-MM-dd', new Date());
+    const currentDate = parse(istDate, 'yyyy-MM-dd', new Date());
+    const diffTime = requestDate - currentDate;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays > shop.maxBookingNotice) {
+      return res.json([]); // Too far in future
+    }
+    if (date < istDate) return res.json([]); // Past date
+
+    // Min Booking Notice (minutes)
+    // If date is today, we add notice to current time.
+    let minAllowedMinutes = 0;
+    if (date === istDate) {
+      minAllowedMinutes = istMinutes + shop.minBookingNotice;
+    }
 
     let barbersToCheck = [];
     if (barberId && barberId !== 'any') {
@@ -252,38 +288,47 @@ exports.getShopSlots = async (req, res) => {
       if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
       bookingsMap[b.barberId].push({
         start: timeToMinutes(b.startTime),
-        end: timeToMinutes(b.endTime)
+        end: timeToMinutes(b.endTime) + shop.bufferTime // Add shop buffer to busy range
       });
     });
 
-    let minStart = 24 * 60;
-    let maxEnd = 0;
+    // Calculate effective minStart and maxEnd for the group (or single barber)
+    // based on the SCHEDULE for that specific day.
+    let groupMinStart = 24 * 60;
+    let groupMaxEnd = 0;
+
+    const barberSchedules = {};
+
     barbersToCheck.forEach(b => {
-      const s = timeToMinutes(b.startHour);
-      const e = timeToMinutes(b.endHour);
-      if (s < minStart) minStart = s;
-      if (e > maxEnd) maxEnd = e;
+      const schedule = getBarberSchedule(b, date);
+      barberSchedules[b._id] = schedule;
+
+      if (!schedule.isOff) {
+        if (schedule.start < groupMinStart) groupMinStart = schedule.start;
+        if (schedule.end > groupMaxEnd) groupMaxEnd = schedule.end;
+      }
     });
-    if (minStart >= maxEnd) { minStart = 9 * 60; maxEnd = 20 * 60; }
 
-    const { date: istDate, minutes: istMinutes } = getISTTime();
-
-    // If date is in the past, return empty
-    if (date < istDate) return res.json([]);
-
-    const slots = [];
-    let current = minStart;
-
-    // If date is today, filter past times
-    if (date === istDate) {
-      current = Math.max(current, istMinutes);
+    if (groupMinStart >= groupMaxEnd) {
+        // Everyone is off
+        return res.json([]);
     }
 
-    while (current + serviceDuration <= maxEnd) {
+    const slots = [];
+    let current = groupMinStart;
+
+    // Filter past times / notice period
+    if (date === istDate) {
+      current = Math.max(current, minAllowedMinutes);
+    }
+
+    while (current + serviceDuration <= groupMaxEnd) {
       let isSlotAvailable = false;
       for (const barber of barbersToCheck) {
         const busyRanges = bookingsMap[barber._id] || [];
-        if (isBarberFree(barber, current, serviceDuration, busyRanges)) {
+        const schedule = barberSchedules[barber._id];
+
+        if (isBarberFree(barber, current, serviceDuration, busyRanges, schedule, shop.bufferTime)) {
           isSlotAvailable = true;
           break; 
         }
@@ -291,7 +336,7 @@ exports.getShopSlots = async (req, res) => {
 
       if (isSlotAvailable) slots.push(minutesToTime(current));
       
-      current += 10; // 10 minute stepping
+      current += 15;
     }
 
     res.json(slots);

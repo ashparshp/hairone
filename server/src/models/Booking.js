@@ -12,7 +12,8 @@ const bookingSchema = new mongoose.Schema({
   startTime: { type: String, required: true }, // "14:30"
   endTime: { type: String, required: true },
   
-  status: { type: String, enum: ['upcoming', 'completed', 'cancelled'], default: 'upcoming' },
+  type: { type: String, enum: ['online', 'walk-in', 'blocked'], default: 'online' },
+  status: { type: String, enum: ['pending', 'upcoming', 'completed', 'cancelled', 'no-show'], default: 'upcoming' },
   paymentMethod: { type: String, default: 'PAY_AT_VENUE' },
   bookingKey: String
 }, { timestamps: true });
