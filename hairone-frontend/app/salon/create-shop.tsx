@@ -106,10 +106,29 @@ export default function ManageServicesScreen() {
              });
           }
 
+          // Fix for "Network Error" with Axios + FormData on Android/iOS
+          // Using fetch() instead as it handles multipart boundaries more reliably in RN
+          const baseURL = api.defaults.baseURL;
+          const headers: any = {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+          };
+
           if (shop && shop._id) {
             // Update existing shop
-            const res = await api.put(`/shops/${shop._id}`, formData);
-            setShop(res.data);
+            const response = await fetch(`${baseURL}/shops/${shop._id}`, {
+                method: 'PUT',
+                headers,
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || 'Failed to update shop');
+            }
+
+            const updatedShop = await response.json();
+            setShop(updatedShop);
             Alert.alert("Success", "Shop details updated!");
           } else {
             // Create new shop
@@ -119,9 +138,18 @@ export default function ManageServicesScreen() {
             }
             formData.append('name', shopName);
 
-            const res = await api.post('/shops', formData);
+            const response = await fetch(`${baseURL}/shops`, {
+                method: 'POST',
+                headers,
+                body: formData,
+            });
 
-            const newShop = res.data;
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || 'Failed to create shop');
+            }
+
+            const newShop = await response.json();
             setShop(newShop);
 
             // Update User Context
