@@ -38,7 +38,6 @@ export default function HomeScreen() {
       if (filterType !== 'all') params.append('type', filterType);
 
       const res = await api.get(`/shops?${params.toString()}`);
-      console.log("Fetched Shops:", res.data); // Debugging Log
       setShops(res.data);
     } catch (e) {
       console.log("Error fetching shops:", e);
