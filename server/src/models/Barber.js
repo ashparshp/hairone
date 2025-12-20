@@ -11,6 +11,25 @@ const barberSchema = new mongoose.Schema({
     endTime: String,   // "15:00"
     title: String
   }],
+  // Weekly Schedule Overrides (Day specific)
+  weeklySchedule: [{
+    day: { type: String, enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] },
+    isOpen: { type: Boolean, default: true },
+    startHour: String,
+    endHour: String,
+    breaks: [{
+      startTime: String,
+      endTime: String
+    }]
+  }],
+  // Special Holiday / Ad-hoc Hours
+  specialHours: [{
+    date: { type: String }, // "YYYY-MM-DD"
+    isOpen: { type: Boolean, default: true },
+    startHour: String,
+    endHour: String,
+    reason: String
+  }],
   isAvailable: { type: Boolean, default: true }
 });
 

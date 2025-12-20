@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Optional for blocked slots
   shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
   barberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Barber', required: true },
   serviceNames: [String],
@@ -12,9 +12,11 @@ const bookingSchema = new mongoose.Schema({
   startTime: { type: String, required: true }, // "14:30"
   endTime: { type: String, required: true },
   
-  status: { type: String, enum: ['upcoming', 'completed', 'cancelled'], default: 'upcoming' },
+  status: { type: String, enum: ['upcoming', 'completed', 'cancelled', 'pending', 'blocked'], default: 'upcoming' },
+  type: { type: String, enum: ['online', 'walk-in', 'blocked'], default: 'online' },
   paymentMethod: { type: String, default: 'PAY_AT_VENUE' },
-  bookingKey: String
+  bookingKey: String,
+  notes: String // For blocking reason or special requests
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

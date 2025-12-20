@@ -17,7 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store, Trash2, Camera } from 'lucide-react-native';
+import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store, Trash2, Camera, CalendarClock } from 'lucide-react-native';
 
 export default function ManageServicesScreen() {
   const router = useRouter();
@@ -34,6 +34,12 @@ export default function ManageServicesScreen() {
   const [shopType, setShopType] = useState<'male'|'female'|'unisex'>('unisex');
   const [image, setImage] = useState<string | null>(null);
   const [savingShop, setSavingShop] = useState(false);
+
+  // Scheduling Rules State
+  const [bufferTime, setBufferTime] = useState('0');
+  const [minNotice, setMinNotice] = useState('60');
+  const [maxNotice, setMaxNotice] = useState('30');
+  const [autoApprove, setAutoApprove] = useState(true);
 
   // New Service State
   const [newServiceName, setNewServiceName] = useState('');
@@ -64,6 +70,12 @@ export default function ManageServicesScreen() {
       setShopType(s.type || 'unisex');
       setImage(s.image || null);
       setServices(s.services || []);
+
+      // Scheduling
+      setBufferTime(String(s.bufferTime || 0));
+      setMinNotice(String(s.minBookingNotice || 60));
+      setMaxNotice(String(s.maxBookingNotice || 30));
+      setAutoApprove(s.autoApproveBookings !== false); // Default true
     } catch (e) {
       console.log(e);
       Alert.alert("Error", "Failed to load shop details");
@@ -94,21 +106,23 @@ export default function ManageServicesScreen() {
           formData.append('address', address);
           formData.append('type', shopType);
           
+          // Scheduling
+          formData.append('bufferTime', bufferTime);
+          formData.append('minBookingNotice', minNotice);
+          formData.append('maxBookingNotice', maxNotice);
+          // @ts-ignore
+          formData.append('autoApproveBookings', autoApprove);
+
           if (coords) {
               formData.append('lat', String(coords.lat));
               formData.append('lng', String(coords.lng));
           }
 
-          // --- FIX: Robust Image Handling ---
           if (image && (!shop || image !== shop.image)) {
-             // 1. Extract filename
              const filename = image.split('/').pop() || 'shop-image.jpg';
-             
-             // 2. Infer MIME type
              let match = /\.(\w+)$/.exec(filename);
              let type = match ? `image/${match[1]}` : `image/jpeg`;
 
-             // 3. Append safely for React Native
              // @ts-ignore
              formData.append('image', {
                uri: image,        
@@ -120,7 +134,7 @@ export default function ManageServicesScreen() {
           if (shop && shop._id) {
             // Update existing shop
             const res = await api.put(`/shops/${shop._id}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }, // Explicit Header
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
             setShop(res.data);
             Alert.alert("Success", "Shop details updated!");
@@ -133,13 +147,12 @@ export default function ManageServicesScreen() {
             formData.append('name', shopName);
 
             const res = await api.post('/shops', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }, // Explicit Header
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             const newShop = res.data;
             setShop(newShop);
 
-            // Update User Context
             if (user && token) {
               login(token, { ...user, role: 'owner', myShopId: newShop._id });
             }
@@ -167,7 +180,6 @@ export default function ManageServicesScreen() {
           const { latitude, longitude } = location.coords;
           setCoords({ lat: latitude, lng: longitude });
           
-          // Reverse Geocode
           const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
           if (geocode.length > 0) {
               const g = geocode[0];
@@ -196,11 +208,9 @@ export default function ManageServicesScreen() {
             duration: parseInt(newServiceDuration)
         });
         
-        // Update local state
         setShop(res.data);
         setServices(res.data.services);
         
-        // Reset form
         setNewServiceName('');
         setNewServicePrice('');
         setNewServiceDuration('');
@@ -279,7 +289,7 @@ export default function ManageServicesScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* Shop Name Input - Only if creating or just to show */}
+                {/* Shop Name Input */}
                 <Text style={styles.label}>Shop Name</Text>
                 <View style={styles.inputContainer}>
                    <Store size={18} color={Colors.textMuted} style={{marginLeft: 12}} />
@@ -325,6 +335,77 @@ export default function ManageServicesScreen() {
                         </TouchableOpacity>
                     ))}
                 </View>
+            </View>
+        </View>
+
+        {/* --- SECTION 2: SCHEDULING RULES --- */}
+        <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Scheduling Rules</Text>
+            <View style={styles.card}>
+
+                <View style={styles.row}>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Buffer Time (min)</Text>
+                        <Text style={styles.helperText}>Gap after each booking</Text>
+                    </View>
+                    <TextInput
+                        style={styles.inputSmall}
+                        value={bufferTime}
+                        onChangeText={setBufferTime}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor="#64748b"
+                    />
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.row}>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Min Notice (min)</Text>
+                        <Text style={styles.helperText}>Booking blocked if less than this</Text>
+                    </View>
+                    <TextInput
+                        style={styles.inputSmall}
+                        value={minNotice}
+                        onChangeText={setMinNotice}
+                        keyboardType="numeric"
+                        placeholder="60"
+                        placeholderTextColor="#64748b"
+                    />
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.row}>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Max Notice (days)</Text>
+                        <Text style={styles.helperText}>Booking blocked if further than this</Text>
+                    </View>
+                    <TextInput
+                        style={styles.inputSmall}
+                        value={maxNotice}
+                        onChangeText={setMaxNotice}
+                        keyboardType="numeric"
+                        placeholder="30"
+                        placeholderTextColor="#64748b"
+                    />
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={[styles.row, {marginBottom: 0}]}>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Auto Approve</Text>
+                        <Text style={styles.helperText}>If off, bookings are 'pending'</Text>
+                    </View>
+                    <Switch
+                        value={autoApprove}
+                        onValueChange={setAutoApprove}
+                        trackColor={{false: '#334155', true: Colors.primary}}
+                        thumbColor={autoApprove ? "#0f172a" : "#94a3b8"}
+                    />
+                </View>
 
                 <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateShop} disabled={savingShop}>
                     {savingShop ? <ActivityIndicator color="#0f172a" /> : (
@@ -334,15 +415,15 @@ export default function ManageServicesScreen() {
                         </>
                     )}
                 </TouchableOpacity>
+
             </View>
         </View>
 
-        {/* --- SECTION 2: SERVICES --- */}
+        {/* --- SECTION 3: SERVICES --- */}
         {shop && (
           <View style={styles.section}>
               <Text style={styles.sectionTitle}>Services Menu ({services.length})</Text>
 
-              {/* List of Services (Mapped instead of FlatList) */}
               <View style={{marginBottom: 20}}>
                 {services.length === 0 ? (
                    <Text style={{color: Colors.textMuted, fontStyle: 'italic'}}>No services added yet.</Text>
@@ -366,10 +447,9 @@ export default function ManageServicesScreen() {
                               </View>
                           </View>
 
-                          {/* Actions */}
                           <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
                              <Switch
-                                value={item.isAvailable !== false} // Default true if undefined
+                                value={item.isAvailable !== false}
                                 onValueChange={() => handleToggleService(item._id, item.isAvailable !== false)}
                                 trackColor={{false: '#334155', true: Colors.primary}}
                                 thumbColor={item.isAvailable !== false ? "#0f172a" : "#94a3b8"}
@@ -383,7 +463,6 @@ export default function ManageServicesScreen() {
                 )}
               </View>
 
-              {/* Add Service Form */}
               <View style={styles.addForm}>
                   <View style={styles.formHeader}>
                      <Plus size={20} color={Colors.primary} />
@@ -463,8 +542,14 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   typeText: { color: Colors.textMuted, fontSize: 12, fontWeight: '500' },
   
-  saveBtn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  saveBtn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 16 },
   saveBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+
+  // Scheduling Rules
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 16 },
+  helperText: { color: '#64748b', fontSize: 10, marginTop: 2 },
+  inputSmall: { backgroundColor: '#0f172a', color: 'white', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', width: 80, textAlign: 'center' },
+  divider: { height: 1, backgroundColor: '#334155', marginVertical: 12 },
 
   // Image Picker
   imagePicker: { width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: '#334155', backgroundColor: '#0f172a' },
