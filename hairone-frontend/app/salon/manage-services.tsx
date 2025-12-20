@@ -24,11 +24,6 @@ export default function ManageServicesScreen() {
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Shop Details State
-  const [address, setAddress] = useState('');
-  const [shopType, setShopType] = useState<'male'|'female'|'unisex'>('unisex');
-  const [savingShop, setSavingShop] = useState(false);
-
   // Service Form State
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
@@ -48,8 +43,6 @@ export default function ManageServicesScreen() {
       const res = await api.get(`/shops/${user.myShopId}`);
       const s = res.data.shop;
       setShop(s);
-      setAddress(s.address);
-      setShopType(s.type || 'unisex');
       setServices(s.services || []);
     } catch (e) {
       console.log(e);
@@ -57,49 +50,6 @@ export default function ManageServicesScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleUpdateShop = async () => {
-      if (!address.trim()) return Alert.alert("Required", "Address cannot be empty");
-      setSavingShop(true);
-      try {
-          const res = await api.put(`/shops/${shop._id}`, {
-              address,
-              type: shopType
-          });
-          setShop(res.data);
-          Alert.alert("Success", "Shop details updated!");
-      } catch (e) {
-          Alert.alert("Error", "Failed to update shop.");
-      } finally {
-          setSavingShop(false);
-      }
-  };
-
-  const fetchLocation = async () => {
-      try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') {
-              Alert.alert("Permission Denied", "Allow location access to use this feature.");
-              return;
-          }
-
-          const location = await Location.getCurrentPositionAsync({});
-          const { latitude, longitude } = location.coords;
-          
-          // Reverse Geocode
-          const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
-          if (geocode.length > 0) {
-              const g = geocode[0];
-              const newAddr = `${g.street || ''} ${g.city || ''}, ${g.region || ''} ${g.postalCode || ''}`.trim();
-              setAddress(newAddr);
-          } else {
-              Alert.alert("Notice", "Location found but address lookup failed.");
-          }
-      } catch (e) {
-          console.log(e);
-          Alert.alert("Error", "Could not fetch location.");
-      }
   };
 
   const handleAddOrUpdateService = async () => {
@@ -192,62 +142,14 @@ export default function ManageServicesScreen() {
          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
             <ChevronLeft size={24} color="white"/>
          </TouchableOpacity>
-         <Text style={styles.title}>Manage Shop</Text>
+         <Text style={styles.title}>Services Menu</Text>
       </View>
       
       <ScrollView contentContainerStyle={{paddingBottom: 40}} showsVerticalScrollIndicator={false}>
         
-        {/* --- SECTION 1: SHOP DETAILS --- */}
-        <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Shop Details</Text>
-            <View style={styles.card}>
-                <Text style={styles.label}>Shop Location</Text>
-                <View style={styles.inputContainer}>
-                   <MapPin size={18} color={Colors.textMuted} style={{marginLeft: 12}} />
-                   <TextInput 
-                      style={styles.input} 
-                      value={address} 
-                      onChangeText={setAddress}
-                      placeholder="Enter full address"
-                      placeholderTextColor="#64748b"
-                      multiline
-                   />
-                </View>
-                
-                <TouchableOpacity style={styles.locationBtn} onPress={fetchLocation}>
-                    <MapPin size={14} color="white" />
-                    <Text style={{color: 'white', fontWeight: 'bold', fontSize: 12}}>Use GPS Location</Text>
-                </TouchableOpacity>
-
-                <Text style={[styles.label, {marginTop: 8}]}>Shop Type</Text>
-                <View style={styles.typeRow}>
-                    {['male', 'female', 'unisex'].map((t) => (
-                        <TouchableOpacity 
-                          key={t} 
-                          style={[styles.typeChip, shopType === t && styles.typeChipActive]}
-                          onPress={() => setShopType(t as any)}
-                        >
-                            <Text style={[styles.typeText, shopType === t && {color: 'black', fontWeight:'bold'}]}>
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-
-                <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateShop} disabled={savingShop}>
-                    {savingShop ? <ActivityIndicator color="#0f172a" /> : (
-                        <>
-                          <Save size={18} color="#0f172a" />
-                          <Text style={styles.saveBtnText}>Save Details</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-            </View>
-        </View>
-
         {/* --- SECTION 2: SERVICES --- */}
         <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Services Menu ({services.length})</Text>
+            <Text style={styles.sectionTitle}>Services List ({services.length})</Text>
             
             {/* List of Services (Mapped instead of FlatList) */}
             <View style={{marginBottom: 20}}>
