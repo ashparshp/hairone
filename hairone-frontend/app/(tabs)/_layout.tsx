@@ -23,13 +23,14 @@ export default function TabLayout() {
       headerShown: false
     }}>
 
-      {/* OWNER TABS */}
-      <Tabs.Screen name="dashboard" options={{
-        title: 'My Shop',
-        // Hide if not owner
-        href: user?.role === 'owner' ? '/(tabs)/dashboard' : null,
-        tabBarIcon: ({color}) => <Briefcase color={color} size={24} />
-      }} />
+      {/* OWNER: Dashboard first */}
+      {user?.role === 'owner' && (
+        <Tabs.Screen name="dashboard" options={{
+          title: 'My Shop',
+          href: '/(tabs)/dashboard',
+          tabBarIcon: ({color}) => <Briefcase color={color} size={24} />
+        }} />
+      )}
 
       {/* USER TABS */}
       <Tabs.Screen name="home" options={{
@@ -49,6 +50,15 @@ export default function TabLayout() {
         title: 'Profile',
         tabBarIcon: ({color}) => <User color={color} size={24} />
       }} />
+
+      {/* NON-OWNER: Dashboard last (hidden) */}
+      {user?.role !== 'owner' && (
+        <Tabs.Screen name="dashboard" options={{
+          title: 'My Shop',
+          href: null,
+          tabBarIcon: ({color}) => <Briefcase color={color} size={24} />
+        }} />
+      )}
     </Tabs>
   );
 }
