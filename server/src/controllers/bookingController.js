@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Barber = require('../models/Barber');
 const { addMinutes, parse, format } = require('date-fns');
+const { getISTTime } = require('../utils/dateUtils');
 
 // --- Helper: Convert "HH:mm" to minutes ---
 const timeToMinutes = (timeStr) => {
@@ -45,6 +46,17 @@ exports.createBooking = async (req, res) => {
   try {
     if (!startTime || !totalDuration || !date) {
       return res.status(400).json({ message: "Missing required booking details." });
+    }
+
+    // Validate Past Time
+    const { date: istDate, minutes: istMinutes } = getISTTime();
+    if (date < istDate) {
+      return res.status(400).json({ message: "Cannot book for a past date." });
+    }
+    if (date === istDate) {
+      if (timeToMinutes(startTime) < istMinutes) {
+        return res.status(400).json({ message: "Cannot book for a past time." });
+      }
     }
 
     let assignedBarberId = barberId;

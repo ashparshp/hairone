@@ -2,6 +2,7 @@ const Shop = require('../models/Shop');
 const Barber = require('../models/Barber');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const { getISTTime } = require('../utils/dateUtils');
 
 // --- HELPER: Convert "HH:mm" to minutes ---
 const timeToMinutes = (timeStr) => {
@@ -138,7 +139,7 @@ exports.getAllShops = async (req, res) => {
 
 // Helper for Home Screen Card Slot
 const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
-  const date = new Date().toISOString().split('T')[0];
+  const { date, minutes: currentISTMinutes } = getISTTime();
   const serviceDuration = 30;
 
   const barbers = await Barber.find({ shopId, isAvailable: true });
@@ -171,6 +172,9 @@ const findEarliestSlotForShop = async (shopId, minTimeStr = "00:00") => {
 
   const minFilter = timeToMinutes(minTimeStr);
   let current = Math.max(minStart, minFilter);
+
+  // Filter out past times
+  current = Math.max(current, currentISTMinutes);
 
   while (current + serviceDuration <= maxEnd) {
     for (const barber of barbers) {
@@ -260,8 +264,18 @@ exports.getShopSlots = async (req, res) => {
     });
     if (minStart >= maxEnd) { minStart = 9 * 60; maxEnd = 20 * 60; }
 
+    const { date: istDate, minutes: istMinutes } = getISTTime();
+
+    // If date is in the past, return empty
+    if (date < istDate) return res.json([]);
+
     const slots = [];
     let current = minStart;
+
+    // If date is today, filter past times
+    if (date === istDate) {
+      current = Math.max(current, istMinutes);
+    }
 
     while (current + serviceDuration <= maxEnd) {
       let isSlotAvailable = false;
