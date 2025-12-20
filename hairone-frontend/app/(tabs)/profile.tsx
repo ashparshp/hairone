@@ -43,8 +43,9 @@ export default function ProfileScreen() {
     if (!bizName.trim() || !ownerName.trim()) return Alert.alert("Required", "Please enter Shop Name and Your Name");
     setIsSubmitting(true);
     try {
-      await api.post('/admin/apply', { businessName: bizName, ownerName });
-      Alert.alert("Success", "Application Submitted! Changes apply after re-login.", [{ text: "OK", onPress: () => { setApplying(false); setIsSubmitting(false); } }]);
+      const res = await api.post('/admin/apply', { businessName: bizName, ownerName });
+      if (token) login(token, res.data);
+      Alert.alert("Success", "Application Submitted!", [{ text: "OK", onPress: () => { setApplying(false); setIsSubmitting(false); } }]);
     } catch (e) {
       Alert.alert("Error", "Application failed.");
       setIsSubmitting(false);
