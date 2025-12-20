@@ -52,6 +52,6 @@ router.post('/slots', getShopSlots);
 router.post('/:id/services', protect, addShopService);
 router.delete('/:id/services/:serviceId', protect, deleteShopService);
 router.put('/:id/services/:serviceId', protect, updateShopService);
-router.put('/:id', protect, updateShop);
+router.put('/:id', protect, upload.single('image'), updateShop);
 
 module.exports = router;

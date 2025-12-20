@@ -84,9 +84,14 @@ exports.updateShop = async (req, res) => {
     const { id } = req.params;
     const { address, type } = req.body; 
 
+    const updates = { address, type };
+    if (req.file) {
+      updates.image = req.file.location;
+    }
+
     const shop = await Shop.findByIdAndUpdate(
       id,
-      { address, type },
+      updates,
       { new: true }
     );
 

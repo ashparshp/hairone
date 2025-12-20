@@ -8,14 +8,16 @@ import {
   Alert, 
   ActivityIndicator, 
   ScrollView,
-  Switch
+  Switch,
+  Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Plus, MapPin, Save, Clock, IndianRupee, Scissors, Store, Trash2, Camera } from 'lucide-react-native';
 
 export default function ManageServicesScreen() {
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function ManageServicesScreen() {
   const [shopName, setShopName] = useState('');
   const [address, setAddress] = useState('');
   const [shopType, setShopType] = useState<'male'|'female'|'unisex'>('unisex');
+  const [image, setImage] = useState<string | null>(null);
   const [savingShop, setSavingShop] = useState(false);
 
   // New Service State
@@ -55,6 +58,7 @@ export default function ManageServicesScreen() {
       setShopName(s.name || '');
       setAddress(s.address);
       setShopType(s.type || 'unisex');
+      setImage(s.image || null);
       setServices(s.services || []);
     } catch (e) {
       console.log(e);
@@ -64,15 +68,40 @@ export default function ManageServicesScreen() {
     }
   };
 
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
   const handleUpdateShop = async () => {
       if (!address.trim()) return Alert.alert("Required", "Address cannot be empty");
       setSavingShop(true);
       try {
+          const formData = new FormData();
+          formData.append('address', address);
+          formData.append('type', shopType);
+
+          if (image && (!shop || image !== shop.image)) {
+             // @ts-ignore
+             formData.append('image', {
+               uri: image,
+               name: 'shop-image.jpg',
+               type: 'image/jpeg'
+             });
+          }
+
           if (shop && shop._id) {
             // Update existing shop
-            const res = await api.put(`/shops/${shop._id}`, {
-                address,
-                type: shopType
+            const res = await api.put(`/shops/${shop._id}`, formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
             });
             setShop(res.data);
             Alert.alert("Success", "Shop details updated!");
@@ -82,11 +111,10 @@ export default function ManageServicesScreen() {
               setSavingShop(false);
               return Alert.alert("Required", "Shop Name cannot be empty");
             }
+            formData.append('name', shopName);
 
-            const res = await api.post('/shops', {
-              name: shopName,
-              address,
-              type: shopType
+            const res = await api.post('/shops', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             const newShop = res.data;
@@ -216,6 +244,19 @@ export default function ManageServicesScreen() {
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>Shop Details</Text>
             <View style={styles.card}>
+
+                {/* Image Picker */}
+                <Text style={styles.label}>Shop Image</Text>
+                <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+                  {image ? (
+                    <Image source={{ uri: image }} style={styles.previewImage} />
+                  ) : (
+                    <View style={styles.placeholderImage}>
+                      <Camera size={32} color={Colors.textMuted} />
+                      <Text style={{ color: Colors.textMuted, marginTop: 8 }}>Upload Shop Image</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
                 {/* Shop Name Input - Only if creating or just to show */}
                 <Text style={styles.label}>Shop Name</Text>
@@ -403,6 +444,11 @@ const styles = StyleSheet.create({
   
   saveBtn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   saveBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+
+  // Image Picker
+  imagePicker: { width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 20, borderWidth: 1, borderColor: '#334155', backgroundColor: '#0f172a' },
+  previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  placeholderImage: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   
   // Service Item
   serviceItem: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: Colors.card, marginBottom: 10, borderRadius: 16, borderWidth: 1, borderColor: Colors.border },
