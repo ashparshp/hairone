@@ -34,7 +34,6 @@ export default function HomeScreen() {
     try {
       const endpoint = minTime ? `/shops?minTime=${minTime}` : "/shops";
       const res = await api.get(endpoint);
-      console.log("Fetched Shops:", res.data); // Debugging Log
       setShops(res.data);
     } catch (e) {
       console.log("Error fetching shops:", e);

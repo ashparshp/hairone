@@ -15,7 +15,7 @@ api.interceptors.request.use(async (config) => {
   }
 
   const fullUrl = `${config.baseURL || API_URL}${config.url}`;
-  console.log(`🚀 [REQ] ${config.method?.toUpperCase()} ${fullUrl}`);
+  // console.log(`🚀 [REQ] ${config.method?.toUpperCase()} ${fullUrl}`);
   return config;
 });
 
