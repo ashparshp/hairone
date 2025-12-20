@@ -9,8 +9,10 @@ const timeToMinutes = (timeStr) => {
 
 // Helper: Convert minutes to "HH:mm"
 const minutesToTime = (totalMinutes) => {
-  const hours = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
-  const minutes = (totalMinutes % 60).toString().padStart(2, '0');
+  // Normalize to 0-23h range for display
+  const normalized = totalMinutes % 1440;
+  const hours = Math.floor(normalized / 60).toString().padStart(2, '0');
+  const minutes = (normalized % 60).toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 };
 
@@ -28,16 +30,26 @@ const getDayOfWeek = (dateStr) => {
  * Hierarchy: Special Hours > Weekly Schedule > Default
  */
 const getBarberScheduleForDate = (barber, dateStr) => {
+  let schedule = {
+    isOpen: barber.isAvailable,
+    start: 0,
+    end: 0,
+    breaks: []
+  };
+
   // 1. Check Special Hours
   if (barber.specialHours && barber.specialHours.length > 0) {
     const special = barber.specialHours.find(h => h.date === dateStr);
     if (special) {
-      return {
+      schedule = {
         isOpen: special.isOpen,
         start: timeToMinutes(special.startHour),
         end: timeToMinutes(special.endHour),
         breaks: []
       };
+      // Handle overnight
+      if (schedule.end < schedule.start) schedule.end += 1440;
+      return schedule;
     }
   }
 
@@ -50,12 +62,15 @@ const getBarberScheduleForDate = (barber, dateStr) => {
         start: timeToMinutes(b.startTime),
         end: timeToMinutes(b.endTime)
       }));
-      return {
+      schedule = {
         isOpen: weekly.isOpen,
         start: timeToMinutes(weekly.startHour),
         end: timeToMinutes(weekly.endHour),
         breaks: weeklyBreaks
       };
+      // Handle overnight
+      if (schedule.end < schedule.start) schedule.end += 1440;
+      return schedule;
     }
   }
 
@@ -65,12 +80,17 @@ const getBarberScheduleForDate = (barber, dateStr) => {
     end: timeToMinutes(b.endTime)
   }));
 
-  return {
+  schedule = {
     isOpen: barber.isAvailable,
     start: timeToMinutes(barber.startHour),
     end: timeToMinutes(barber.endHour),
     breaks: defaultBreaks
   };
+
+  // Handle overnight
+  if (schedule.end < schedule.start) schedule.end += 1440;
+
+  return schedule;
 };
 
 module.exports = {
