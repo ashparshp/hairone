@@ -1,6 +1,19 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import { AlertCircle, MapPin, Search, Star, Clock, Filter, Moon, Sun } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
+import {
+  MapPin,
+  Search,
+  Star,
+  Clock,
+  Filter,
+  Moon,
+  Sun,
+  Scissors,
+  User,
+  Heart,
+  ChevronDown,
+  Check
+} from "lucide-react-native";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -11,39 +24,103 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Dimensions,
+  Platform,
+  LayoutAnimation,
+  UIManager
 } from "react-native";
+import * as Location from 'expo-location';
+import Slider from '@react-native-community/slider';
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { FadeInView } from "../../components/AnimatedViews";
 import { ScalePress } from "../../components/ScalePress";
 import api from "../../services/api";
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
+
+const { width } = Dimensions.get('window');
+
+// Haversine formula
+const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371;
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const d = R * c;
+  return parseFloat(d.toFixed(1)); // Return number
+}
+
+const deg2rad = (deg: number) => deg * (Math.PI/180);
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, theme, toggleTheme } = useTheme();
 
+  // Data State
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [minTime, setMinTime] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
+
+  // Filter State
   const [searchText, setSearchText] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [genderFilter, setGenderFilter] = useState('All');
+  const [distanceFilter, setDistanceFilter] = useState(10); // Max 10km default
+
+  // Location State
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [currentAddress, setCurrentAddress] = useState("Locating...");
+
+  // Setup Location
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setCurrentAddress("Location Denied");
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        lat: location.coords.latitude,
+        lng: location.coords.longitude
+      });
+
+      // Reverse Geocode for Header
+      try {
+          let address = await Location.reverseGeocodeAsync(location.coords);
+          if (address.length > 0) {
+             const city = address[0].city || address[0].subregion || "Unknown City";
+             const region = address[0].region || address[0].country || "";
+             setCurrentAddress(`${city}, ${region}`);
+          }
+      } catch (e) {
+          setCurrentAddress("Current Location");
+      }
+    })();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [minTime, filterType])
+    }, [])
   );
 
   const fetchShops = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (minTime) params.append('minTime', minTime);
-      if (filterType !== 'all') params.append('type', filterType);
-
-      const res = await api.get(`/shops?${params.toString()}`);
+      const res = await api.get(`/shops`); // Fetch all, filter client side for smooth demo
       setShops(res.data);
     } catch (e) {
       console.log("Error fetching shops:", e);
@@ -52,274 +129,356 @@ export default function HomeScreen() {
     }
   };
 
-  const filteredShops = shops.filter((s: any) =>
-    s.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    s.address?.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const toggleFilters = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowFilters(!showFilters);
+  }
 
-  const timeOptions = [
-    { label: "Now", value: null },
-    { label: "After 12 PM", value: "12:00" },
-    { label: "After 2 PM", value: "14:00" },
-    { label: "After 4 PM", value: "16:00" },
-    { label: "After 6 PM", value: "18:00" },
+  // Categories
+  const categories = [
+    { id: 'All', label: 'All' },
+    { id: 'Hair', label: 'Haircut' },
+    { id: 'Beard', label: 'Beard' },
+    { id: 'Facial', label: 'Facial' },
+    { id: 'Spa', label: 'Spa' },
   ];
 
-  const typeOptions = [
-    { label: "All", value: "all" },
-    { label: "Unisex", value: "unisex" },
-    { label: "Male", value: "male" },
-    { label: "Female", value: "female" },
-  ];
+  // Filter Logic
+  const filteredShops = shops.filter((s: any) => {
+    // 1. Search Text
+    if (searchText && !s.name.toLowerCase().includes(searchText.toLowerCase()) && !s.address?.toLowerCase().includes(searchText.toLowerCase())) {
+        return false;
+    }
 
-  const renderShop = ({ item, index }: { item: any, index: number }) => (
+    // 2. Gender
+    if (genderFilter !== 'All') {
+        const targetType = genderFilter === 'Men' ? 'male' : genderFilter === 'Women' ? 'female' : 'unisex';
+        if (s.type.toLowerCase() !== targetType) return false;
+    }
+
+    // 3. Category (Check services)
+    if (activeCategory !== 'All') {
+        // Mock checking services or just type for demo if services empty
+        // Assuming s.services exists
+        const hasService = s.services?.some((srv: any) => srv.name.toLowerCase().includes(activeCategory.toLowerCase()));
+        if (!hasService && activeCategory !== 'All') {
+             // Fallback: If no services, maybe match 'Hair' to 'male' type?
+             // Ideally we strictly check services.
+             // For demo, if services empty, we might skip or show all?
+             // Let's return false if services exist but don't match.
+             if (s.services && s.services.length > 0) return false;
+        }
+    }
+
+    // 4. Distance
+    if (userLocation && s.coordinates?.lat) {
+        const dist = getDistanceFromLatLonInKm(userLocation.lat, userLocation.lng, s.coordinates.lat, s.coordinates.lng);
+        if (dist > distanceFilter) return false;
+    }
+
+    return true;
+  });
+
+  const renderShop = ({ item, index }: { item: any, index: number }) => {
+    let distance = null;
+    if (userLocation && item.coordinates?.lat) {
+        distance = getDistanceFromLatLonInKm(userLocation.lat, userLocation.lng, item.coordinates.lat, item.coordinates.lng);
+    }
+
+    // Tags generation
+    const tags = [];
+    if (item.type === 'male') tags.push("Barber");
+    if (item.type === 'female') tags.push("Salon");
+    if (item.type === 'unisex') tags.push("Unisex");
+    if (item.services?.length > 0) {
+        tags.push(item.services[0].name.split(' ')[0]);
+    } else {
+        tags.push("Haircut");
+    }
+    const displayTags = tags.slice(0, 3); // Max 3
+
+    return (
     <FadeInView delay={index * 100}>
         <ScalePress
-        style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={() => router.push(`/salon/${item._id}`)}
+            style={[
+                styles.card,
+                {
+                    backgroundColor: theme === 'dark' ? '#1e293b' : 'white',
+                    borderColor: theme === 'dark' ? '#334155' : '#f1f5f9',
+                    shadowColor: theme === 'dark' ? '#000' : '#e2e8f0'
+                }
+            ]}
+            onPress={() => router.push(`/salon/${item._id}`)}
         >
-        <Image
-            source={{ uri: item.image || 'https://via.placeholder.com/400' }}
-            style={[styles.cardImage, {backgroundColor: theme === 'dark' ? '#1e293b' : '#f1f5f9'}]}
-            resizeMode="cover"
-        />
-        <View style={styles.badgeContainer}>
-            <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{item.type || 'Unisex'}</Text>
-            </View>
-        </View>
-
-        <View style={styles.cardContent}>
-            <View style={styles.row}>
-            <Text style={[styles.shopName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-            <View style={[styles.ratingBadge, { backgroundColor: colors.tint }]}>
-                <Star size={12} color="black" fill="black" />
-                <Text style={styles.ratingText}>{item.rating || 'New'}</Text>
-            </View>
-            </View>
-            <View style={styles.rowMuted}>
-            <MapPin size={14} color={colors.textMuted} />
-            <Text style={[styles.addressText, { color: colors.textMuted }]} numberOfLines={1}>{item.address}</Text>
+            {/* Image Section */}
+            <View style={styles.cardImageContainer}>
+                <Image
+                    source={{ uri: item.image || 'https://via.placeholder.com/400' }}
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                />
+                <TouchableOpacity style={styles.heartBtn}>
+                    <Heart size={14} color="white" />
+                </TouchableOpacity>
             </View>
 
-            {/* Next Available Slot Indicator */}
-            <View style={[styles.slotBadge, !item.nextAvailableSlot && styles.slotBadgeMuted]}>
-            <Clock size={12} color={item.nextAvailableSlot ? colors.tint : colors.textMuted} />
-            <Text style={[styles.slotText, { color: item.nextAvailableSlot ? colors.tint : colors.textMuted }]}>
-                {item.nextAvailableSlot
-                    ? `Earliest: ${item.nextAvailableSlot}`
-                    : 'No slots today'}
-            </Text>
+            {/* Info Section */}
+            <View style={styles.cardContent}>
+                <View style={styles.rowBetweenStart}>
+                    <View style={{flex: 1}}>
+                        <Text style={[styles.shopName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+                        <View style={styles.rowMuted}>
+                            <MapPin size={10} color={colors.textMuted} />
+                            <Text style={[styles.addressText, { color: colors.textMuted }]} numberOfLines={1}>
+                                {item.address} {distance ? `• ${distance} km` : ''}
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={[styles.ratingBadge, { backgroundColor: theme === 'dark' ? '#334155' : '#f1f5f9' }]}>
+                        <Star size={10} color="#fbbf24" fill="#fbbf24" />
+                        <Text style={[styles.ratingText, { color: colors.text }]}>{item.rating || '5.0'}</Text>
+                    </View>
+                </View>
+
+                {/* Tags */}
+                <View style={styles.tagRow}>
+                    {displayTags.map((tag, i) => (
+                        <View key={i} style={[styles.tag, { backgroundColor: theme === 'dark' ? '#334155' : '#f3f4f6' }]}>
+                            <Text style={[styles.tagText, { color: theme === 'dark' ? '#cbd5e1' : '#4b5563' }]}>{tag}</Text>
+                        </View>
+                    ))}
+                </View>
+
+                {/* Bottom Action */}
+                <View style={[styles.actionRow, { borderColor: colors.border }]}>
+                     <View style={styles.rowGap}>
+                         <View style={[styles.iconCircle, { backgroundColor: theme === 'dark' ? '#334155' : '#fffbeb' }]}>
+                             <Clock size={12} color={colors.tint} />
+                         </View>
+                         <View>
+                             <Text style={[styles.tinyLabel, { color: colors.textMuted }]}>NEXT SLOT</Text>
+                             <Text style={[styles.slotVal, { color: colors.text }]}>{item.nextAvailableSlot || 'Full Today'}</Text>
+                         </View>
+                     </View>
+                     <TouchableOpacity
+                        style={[styles.bookBtn, { backgroundColor: theme === 'dark' ? colors.tint : '#0f172a' }]}
+                        onPress={() => router.push(`/salon/${item._id}`)}
+                     >
+                         <Text style={[styles.bookBtnText, { color: theme === 'dark' ? '#0f172a' : 'white' }]}>Book Now</Text>
+                     </TouchableOpacity>
+                </View>
             </View>
-        </View>
         </ScalePress>
     </FadeInView>
-  );
+  )};
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
+
+      {/* HEADER */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.text }]}>
-            Hello, <Text style={{color: colors.tint}}>{user?.name?.split(' ')[0] || "Guest"}</Text>
-          </Text>
-          <Text style={[styles.subGreeting, { color: colors.textMuted }]}>Look sharp, book smart.</Text>
-        </View>
-        <View style={{flexDirection: 'row', gap: 12}}>
-            <TouchableOpacity onPress={toggleTheme} style={[styles.avatar, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                {theme === 'dark' ? <Sun size={20} color="white"/> : <Moon size={20} color="black"/>}
-            </TouchableOpacity>
-            <View style={[styles.avatar, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                <Text style={{ color: colors.text, fontWeight: "bold", fontSize: 18 }}>
-                    {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-                </Text>
-            </View>
-        </View>
+         <View style={{flex: 1}}>
+             <View style={styles.locationRow}>
+                 <MapPin size={14} color={colors.tint} fill={colors.tint} />
+                 <Text style={[styles.locationText, { color: colors.textMuted }]}>{currentAddress}</Text>
+                 <ChevronDown size={12} color={colors.textMuted} />
+             </View>
+             <Text style={[styles.greeting, { color: colors.text }]}>Hello, {user?.name?.split(' ')[0] || "Guest"}</Text>
+         </View>
+
+         <View style={styles.headerRight}>
+             {/* Animated Switch */}
+             <TouchableOpacity onPress={toggleTheme} activeOpacity={0.8} style={[styles.themeSwitch, { backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0' }]}>
+                 <View style={[styles.switchKnob, {
+                     transform: [{ translateX: theme === 'dark' ? 32 : 0 }],
+                     backgroundColor: theme === 'dark' ? '#0f172a' : 'white'
+                 }]}>
+                     {theme === 'dark' ? <Moon size={12} color={colors.tint} /> : <Sun size={12} color={colors.tint} />}
+                 </View>
+                 <View style={styles.switchIconLeft}><Sun size={12} color="#94a3b8" /></View>
+                 <View style={styles.switchIconRight}><Moon size={12} color="#94a3b8" /></View>
+             </TouchableOpacity>
+
+             <View style={styles.avatarContainer}>
+                 <Text style={{fontSize: 14, fontWeight: 'bold'}}>{user?.name?.[0] || 'U'}</Text>
+             </View>
+         </View>
       </View>
 
-      {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Search size={20} color={colors.textMuted} />
-        <TextInput
-          placeholder="Search for salons..."
-          placeholderTextColor={colors.textMuted}
-          style={[styles.searchInput, { color: colors.text }]}
-          value={searchText}
-          onChangeText={setSearchText}
-        />
-        <TouchableOpacity onPress={() => setShowFilters(!showFilters)} style={[styles.filterBtn, {backgroundColor: colors.tint}]}>
-          <Filter size={20} color="#000" />
-        </TouchableOpacity>
+      {/* SEARCH */}
+      <View style={styles.searchContainer}>
+          <View style={[styles.searchPill, { backgroundColor: theme === 'dark' ? '#1e293b' : 'white', borderColor: colors.border }]}>
+              <Search size={18} color={colors.textMuted} />
+              <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="Find a salon or service..."
+                  placeholderTextColor={colors.textMuted}
+                  value={searchText}
+                  onChangeText={setSearchText}
+              />
+              <TouchableOpacity onPress={toggleFilters} style={[styles.filterBtn, showFilters && { backgroundColor: colors.tint }]}>
+                  <Filter size={16} color={showFilters ? (theme === 'dark' ? 'black' : 'white') : colors.textMuted} />
+              </TouchableOpacity>
+          </View>
       </View>
 
-      {/* Filters Container */}
+      {/* EXPANDABLE FILTERS */}
       {showFilters && (
-      <View style={{ marginBottom: 20 }}>
+          <View style={[styles.filtersBox, { backgroundColor: theme === 'dark' ? '#1e293b' : 'white', borderColor: colors.border }]}>
+              {/* Gender */}
+              <View style={{marginBottom: 16}}>
+                  <Text style={[styles.filterLabel, { color: colors.textMuted }]}>GENDER</Text>
+                  <View style={{flexDirection: 'row', gap: 8}}>
+                      {['All', 'Men', 'Women', 'Unisex'].map(g => (
+                          <TouchableOpacity
+                            key={g}
+                            style={[
+                                styles.genderChip,
+                                { borderColor: colors.border },
+                                genderFilter === g && { backgroundColor: colors.tint, borderColor: colors.tint }
+                            ]}
+                            onPress={() => setGenderFilter(g)}
+                          >
+                              <Text style={[
+                                  styles.genderText,
+                                  { color: colors.textMuted },
+                                  genderFilter === g && { color: theme === 'dark' ? 'black' : 'white', fontWeight: 'bold' }
+                              ]}>{g}</Text>
+                          </TouchableOpacity>
+                      ))}
+                  </View>
+              </View>
 
-        {/* Type Filter */}
-        <View style={{marginBottom: 16}}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Filter by Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {typeOptions.map((opt, i) => (
-                    <TouchableOpacity
-                    key={i}
-                    style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, filterType === opt.value && { backgroundColor: colors.tint, borderColor: colors.tint }]}
-                    onPress={() => setFilterType(opt.value)}
-                    >
-                    <Text style={[styles.filterText, { color: colors.textMuted }, filterType === opt.value && { color: 'black', fontWeight: 'bold' }]}>
-                        {opt.label}
-                    </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-        </View>
-
-        {/* Time Filter */}
-        <View>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Filter by Time</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {timeOptions.map((opt, i) => (
-                <TouchableOpacity
-                key={i}
-                style={[styles.filterChip, { backgroundColor: colors.card, borderColor: colors.border }, minTime === opt.value && { backgroundColor: colors.tint, borderColor: colors.tint }]}
-                onPress={() => setMinTime(opt.value)}
-                >
-                <Text style={[styles.filterText, { color: colors.textMuted }, minTime === opt.value && { color: 'black', fontWeight: 'bold' }]}>
-                    {opt.label}
-                </Text>
-                </TouchableOpacity>
-            ))}
-            </ScrollView>
-        </View>
-      </View>
+              {/* Distance Slider */}
+              <View>
+                  <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
+                      <Text style={[styles.filterLabel, { color: colors.textMuted }]}>DISTANCE</Text>
+                      <Text style={{fontSize: 12, fontWeight: 'bold', color: colors.tint}}>
+                          {distanceFilter === 10 ? 'Any' : `< ${distanceFilter} km`}
+                      </Text>
+                  </View>
+                  <Slider
+                      style={{width: '100%', height: 40}}
+                      minimumValue={1}
+                      maximumValue={10}
+                      step={1}
+                      value={distanceFilter}
+                      onValueChange={setDistanceFilter}
+                      minimumTrackTintColor={colors.tint}
+                      maximumTrackTintColor={colors.border}
+                      thumbTintColor={colors.tint}
+                  />
+                  <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                      <Text style={{fontSize: 10, color: colors.textMuted}}>1 km</Text>
+                      <Text style={{fontSize: 10, color: colors.textMuted}}>10 km</Text>
+                  </View>
+              </View>
+          </View>
       )}
 
-      {/* Shop List */}
+      {/* CATEGORIES */}
+      <View style={{marginBottom: 20}}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingHorizontal: 20}}>
+              {categories.map(cat => (
+                  <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                          styles.catChip,
+                          {
+                            backgroundColor: activeCategory === cat.id ? (theme === 'dark' ? '#f1f5f9' : '#0f172a') : (theme === 'dark' ? '#1e293b' : 'white'),
+                            borderColor: colors.border
+                          }
+                      ]}
+                      onPress={() => setActiveCategory(cat.id)}
+                  >
+                      <Text style={[
+                          styles.catText,
+                          { color: activeCategory === cat.id ? (theme === 'dark' ? '#0f172a' : 'white') : colors.textMuted }
+                      ]}>{cat.label}</Text>
+                  </TouchableOpacity>
+              ))}
+          </ScrollView>
+      </View>
+
+      {/* LIST HEADER */}
+      <View style={styles.listHeader}>
+          <Text style={[styles.listTitle, { color: colors.text }]}>Nearby ({filteredShops.length})</Text>
+          <TouchableOpacity><Text style={{fontSize: 12, color: colors.textMuted}}>View Map</Text></TouchableOpacity>
+      </View>
+
+      {/* SHOP LIST */}
       {loading ? (
-        <ActivityIndicator
-          style={{ marginTop: 50 }}
-          color={colors.tint}
-          size="large"
-        />
+        <ActivityIndicator style={{marginTop: 40}} color={colors.tint} />
       ) : (
         <FlatList
-          data={filteredShops}
-          renderItem={renderShop}
-          keyExtractor={(item: any) => item._id}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <AlertCircle size={48} color={colors.textMuted} />
-              <Text style={[styles.emptyText, { color: colors.text }]}>No shops found.</Text>
-              <Text style={[styles.emptySub, { color: colors.textMuted }]}>Try adjusting your filters.</Text>
-            </View>
-          }
+            data={filteredShops}
+            renderItem={renderShop}
+            keyExtractor={(item: any) => item._id}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+                <Text style={{textAlign: 'center', marginTop: 40, color: colors.textMuted}}>No salons found nearby.</Text>
+            }
         />
       )}
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    paddingTop: 60,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  greeting: { fontSize: 24, fontWeight: "bold" },
-  subGreeting: { fontSize: 14, marginTop: 2 },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  container: { flex: 1, paddingTop: 60 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 20 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  locationText: { fontSize: 12, fontWeight: '600' },
+  greeting: { fontSize: 24, fontWeight: 'bold' },
 
-  searchContainer: {
-    flexDirection: "row",
-    padding: 6,
-    paddingLeft: 12,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 20,
-    borderWidth: 1,
-  },
-  searchInput: { flex: 1, marginLeft: 10, fontSize: 16, fontWeight: '500', height: 44 },
-  filterBtn: {
-     padding: 10,
-     borderRadius: 10
-  },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  themeSwitch: { width: 64, height: 32, borderRadius: 16, flexDirection: 'row', alignItems: 'center', position: 'relative', paddingHorizontal: 4 },
+  switchKnob: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 4, left: 4, zIndex: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  switchIconLeft: { position: 'absolute', left: 8 },
+  switchIconRight: { position: 'absolute', right: 8 },
 
-  card: {
-    borderRadius: 20,
-    marginBottom: 20,
-    overflow: "hidden",
-    borderWidth: 1,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 4}
-  },
-  cardImage: { width: "100%", height: 180 },
-  badgeContainer: { position: 'absolute', top: 12, right: 12 },
-  typeBadge: { backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backdropFilter: 'blur(10px)' },
-  typeBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
-  cardContent: { padding: 16 },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  shopName: { fontSize: 18, fontWeight: "bold", flex: 1, marginRight: 8 },
-  ratingBadge: {
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignItems: "center",
-    gap: 4,
-  },
-  ratingText: { fontSize: 12, fontWeight: "bold", color: "black" },
-  rowMuted: { flexDirection: "row", alignItems: "center", gap: 6 },
-  addressText: { fontSize: 14, flex: 1 },
+  avatarContainer: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
 
-  slotBadge: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8
-  },
-  slotBadgeMuted: {
-    backgroundColor: 'rgba(148, 163, 184, 0.1)',
-  },
-  slotText: { fontSize: 12, fontWeight: 'bold' },
+  searchContainer: { paddingHorizontal: 24, marginBottom: 16 },
+  searchPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 50, borderRadius: 16, borderWidth: 1 },
+  input: { flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '500' },
+  filterBtn: { padding: 8, borderRadius: 8 },
 
-  sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
-  filterChip: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 24, marginRight: 10, borderWidth: 1 },
-  filterText: { fontSize: 12, fontWeight: '600' },
+  filtersBox: { marginHorizontal: 24, padding: 20, borderRadius: 20, borderWidth: 1, marginBottom: 20 },
+  filterLabel: { fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12 },
+  genderChip: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  genderText: { fontSize: 10, fontWeight: 'bold' },
 
-  emptyState: { alignItems: "center", marginTop: 50, opacity: 0.7 },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginTop: 16,
-  },
-  emptySub: { marginTop: 4 },
+  catChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, borderWidth: 1, marginRight: 10 },
+  catText: { fontSize: 12, fontWeight: '600' },
+
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 },
+  listTitle: { fontSize: 18, fontWeight: '700' },
+
+  card: { borderRadius: 32, marginBottom: 24, borderWidth: 1, overflow: 'hidden' },
+  cardImageContainer: { height: 160, width: '100%', position: 'relative' },
+  cardImage: { width: '100%', height: '100%' },
+  heartBtn: { position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' },
+
+  cardContent: { padding: 16, paddingTop: 20 },
+  rowBetweenStart: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  shopName: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  rowMuted: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  addressText: { fontSize: 12 },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  ratingText: { fontSize: 12, fontWeight: 'bold' },
+
+  tagRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  tag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  tagText: { fontSize: 10, fontWeight: '600' },
+
+  actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderStyle: 'dashed', paddingTop: 16 },
+  rowGap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconCircle: { padding: 6, borderRadius: 20 },
+  tinyLabel: { fontSize: 9, fontWeight: 'bold', marginBottom: 2 },
+  slotVal: { fontSize: 12, fontWeight: 'bold' },
+  bookBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 14 },
+  bookBtnText: { fontSize: 12, fontWeight: 'bold' },
 });

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { LightColors, DarkColors } from '../constants/Colors';
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem } from '../utils/storage';
 
 type ThemeType = 'light' | 'dark';
 
@@ -26,7 +26,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   const loadTheme = async () => {
     try {
-      const stored = await SecureStore.getItemAsync('app_theme');
+      const stored = await getItem('app_theme');
       if (stored === 'light' || stored === 'dark') {
         setThemeState(stored);
       }
@@ -38,7 +38,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const setTheme = async (newTheme: ThemeType) => {
     setThemeState(newTheme);
     try {
-        await SecureStore.setItemAsync('app_theme', newTheme);
+        await setItem('app_theme', newTheme);
     } catch (e) {
         console.log('Failed to save theme', e);
     }
