@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks, Ban } from 'lucide-react-native';
+import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks, Ban, MessageSquare } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { FadeInView } from '../../components/AnimatedViews';
 
@@ -11,12 +11,13 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const { colors, theme } = useTheme();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'approvals' | 'reports' | 'shops'>('approvals');
+  const [activeTab, setActiveTab] = useState<'approvals' | 'reports' | 'shops' | 'support'>('approvals');
 
   // Data State
   const [applicants, setApplicants] = useState([]);
   const [shops, setShops] = useState([]);
   const [stats, setStats] = useState<any>(null);
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Suspension Modal
@@ -40,6 +41,9 @@ export default function AdminDashboard() {
       } else if (activeTab === 'reports') {
         const res = await api.get('/admin/stats');
         setStats(res.data);
+      } else if (activeTab === 'support') {
+        const res = await api.get('/support/all');
+        setTickets(res.data);
       }
     } catch (e) {
       console.log(e);
@@ -134,6 +138,22 @@ export default function AdminDashboard() {
     </FadeInView>
   );
 
+  const renderTicket = ({ item, index }: { item: any, index: number }) => (
+    <FadeInView delay={index * 50}>
+      <TouchableOpacity
+        style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}
+        onPress={() => router.push(`/support/${item._id}` as any)}
+      >
+         <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
+             <Text style={[styles.bizName, {color: colors.text, fontSize: 16}]}>{item.subject}</Text>
+             <Text style={[styles.status, {color: item.status === 'open' ? '#10b981' : colors.textMuted}]}>{item.status.toUpperCase()}</Text>
+         </View>
+         <Text style={{color: colors.textMuted, fontSize: 12, marginBottom: 8}}>User: {item.userId?.name} ({item.userId?.phone})</Text>
+         <Text style={{color: colors.text, fontSize: 14}} numberOfLines={1}>{item.messages[item.messages.length - 1]?.text}</Text>
+      </TouchableOpacity>
+    </FadeInView>
+  );
+
   const renderStats = () => {
       if (!stats) return null;
       return (
@@ -196,12 +216,17 @@ export default function AdminDashboard() {
               <ShoppingBag size={18} color={activeTab === 'shops' ? '#0f172a' : colors.textMuted} />
               <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'shops' && styles.activeTabText]}>Shops</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={[styles.tab, activeTab === 'support' && {backgroundColor: colors.tint}]} onPress={() => setActiveTab('support')}>
+              <MessageSquare size={18} color={activeTab === 'support' ? '#0f172a' : colors.textMuted} />
+              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'support' && styles.activeTabText]}>Support</Text>
+          </TouchableOpacity>
       </View>
 
       <Text style={[styles.sectionHeader, {color: colors.textMuted}]}>
           {activeTab === 'approvals' && `Pending Applications (${applicants.length})`}
           {activeTab === 'reports' && 'System Analytics'}
           {activeTab === 'shops' && `All Shops (${shops.length})`}
+          {activeTab === 'support' && `Support Tickets (${tickets.length})`}
       </Text>
 
       {loading ? (
@@ -233,6 +258,21 @@ export default function AdminDashboard() {
                         <View style={{alignItems: 'center', marginTop: 50, opacity: 0.5}}>
                             <ShoppingBag size={48} color={colors.textMuted} />
                             <Text style={{color: colors.textMuted, marginTop: 10}}>No active shops.</Text>
+                        </View>
+                    }
+                />
+            )}
+
+            {activeTab === 'support' && (
+                 <FlatList
+                    data={tickets}
+                    renderItem={renderTicket}
+                    keyExtractor={(item: any) => item._id}
+                    contentContainerStyle={{paddingBottom: 20}}
+                    ListEmptyComponent={
+                        <View style={{alignItems: 'center', marginTop: 50, opacity: 0.5}}>
+                            <MessageSquare size={48} color={colors.textMuted} />
+                            <Text style={{color: colors.textMuted, marginTop: 10}}>No tickets.</Text>
                         </View>
                     }
                 />
@@ -304,6 +344,7 @@ const styles = StyleSheet.create({
   bizName: { fontWeight: 'bold', fontSize: 18 },
   userName: { fontSize: 14, marginTop: 2 },
   sub: { fontSize: 12, marginVertical: 12 },
+  status: { fontSize: 10, fontWeight: 'bold' },
   
   badge: { backgroundColor: 'rgba(234, 179, 8, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
   badgeText: { color: '#eab308', fontSize: 10, fontWeight: 'bold' },
