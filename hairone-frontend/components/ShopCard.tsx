@@ -87,8 +87,11 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
               </View>
             </View>
 
-            <TouchableOpacity style={styles.bookBtn} onPress={onPress}>
-              <Text style={styles.bookBtnText}>Book Now</Text>
+            <TouchableOpacity
+              style={[styles.bookBtn, { backgroundColor: isDark ? '#f59e0b' : '#0f172a' }]}
+              onPress={onPress}
+            >
+              <Text style={[styles.bookBtnText, { color: isDark ? '#0f172a' : 'white' }]}>Book Now</Text>
             </TouchableOpacity>
           </View>
         </View>
