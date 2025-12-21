@@ -24,7 +24,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
       style={[
         styles.card,
         {
-          // UPDATED: Use global theme colors instead of hardcoded hex
+          // UPDATED: Use colors.card (Zinc-900) instead of Slate-900
           backgroundColor: colors.card, 
           borderColor: colors.border, 
         }
