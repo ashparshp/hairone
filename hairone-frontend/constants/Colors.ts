@@ -16,12 +16,12 @@ export const LightColors = {
 
 export const DarkColors = {
   ...SharedColors,
-  background: '#0f172a',
-  card: '#1e293b',
-  text: '#ffffff',
-  textMuted: '#cbd5e1',
-  border: '#334155',
-  tint: '#f59e0b',
+  background: '#000000', // True Black
+  card: '#18181b',       // Deep Zinc
+  text: '#FFFFFF',       // Pure White
+  textMuted: '#a1a1aa',  // Silver
+  border: '#27272a',     // Zinc 800
+  tint: '#fbbf24',       // Vivid Gold
 };
 
 // Default export for backwards compatibility (defaulting to Dark for now)
