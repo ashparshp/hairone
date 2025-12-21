@@ -9,6 +9,7 @@ import { formatLocalDate } from '../../utils/date';
 export default function BookingsScreen() {
   const { myBookings, cancelBooking, fetchBookings } = useBooking();
   const { colors, theme } = useTheme();
+  const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState('upcoming'); 
   
   // Refresh on mount
@@ -120,37 +121,35 @@ export default function BookingsScreen() {
       }
   };
 
-// hairone-frontend/app/(tabs)/bookings.tsx
+  // Dynamic Call Function
+  const handleCall = (phoneNumber: string) => {
+      if (!phoneNumber) {
+          alert("Phone number not available for this shop.");
+          return;
+      }
+      Linking.openURL(`tel:${phoneNumber}`);
+  };
 
-// Dynamic Call Function
-const handleCall = (phoneNumber: string) => {
-    if (!phoneNumber) {
-        alert("Phone number not available for this shop.");
-        return;
-    }
-    Linking.openURL(`tel:${phoneNumber}`);
-};
+  // Dynamic Map Function
+  const handleMap = (lat: number, lng: number, label: string) => {
+      if (!lat || !lng) {
+          alert("Location coordinates not available.");
+          return;
+      }
 
-// Dynamic Map Function
-const handleMap = (lat: number, lng: number, label: string) => {
-    if (!lat || !lng) {
-        alert("Location coordinates not available.");
-        return;
-    }
+      const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+      const latLng = `${lat},${lng}`;
+      const labelEncoded = label ? encodeURIComponent(label) : 'Shop Location';
+      
+      const url = Platform.select({
+          ios: `${scheme}${labelEncoded}@${latLng}`,
+          android: `${scheme}${latLng}(${labelEncoded})`
+      });
 
-    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
-    const latLng = `${lat},${lng}`;
-    const labelEncoded = label ? encodeURIComponent(label) : 'Shop Location';
-    
-    const url = Platform.select({
-        ios: `${scheme}${labelEncoded}@${latLng}`,
-        android: `${scheme}${latLng}(${labelEncoded})`
-    });
-
-    if (url) {
-        Linking.openURL(url);
-    }
-};
+      if (url) {
+          Linking.openURL(url);
+      }
+  };
 
   return (
     <>
@@ -160,15 +159,16 @@ const handleMap = (lat: number, lng: number, label: string) => {
         </View>
 
         <View style={styles.tabWrapper}>
-            <View style={[styles.tabContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', borderColor: colors.border}]}>
+            {/* UPDATED: Background logic for visibility in dark mode */}
+            <View style={[styles.tabContainer, {backgroundColor: isDark ? colors.card : '#f1f5f9', borderColor: colors.border}]}>
                 <TouchableOpacity 
-                    style={[styles.tab, activeTab === 'upcoming' && {backgroundColor: colors.card}]}
+                    style={[styles.tab, activeTab === 'upcoming' && {backgroundColor: isDark ? colors.border : colors.card}]}
                     onPress={() => setActiveTab('upcoming')}
                 >
                     <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'upcoming' && {color: colors.text}]}>Upcoming</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                    style={[styles.tab, activeTab === 'history' && {backgroundColor: colors.card}]}
+                    style={[styles.tab, activeTab === 'history' && {backgroundColor: isDark ? colors.border : colors.card}]}
                     onPress={() => setActiveTab('history')}
                 >
                     <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'history' && {color: colors.text}]}>History</Text>
@@ -191,20 +191,19 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     <View style={styles.topRow}>
                         <Text style={[styles.cardTitle, {color: colors.text}]} numberOfLines={1}>{booking.barberId?.name || 'Barber'}</Text>
                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                            {/* Inside displayList.map loop... */}
                             {(booking.status === 'upcoming' || booking.status === 'pending') && (
                                 <>
                                     <TouchableOpacity 
-                                        style={[styles.miniIconBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}
-                                        // Pass the populated owner phone number
+                                        // UPDATED: Use colors.border for button bg in dark mode
+                                        style={[styles.miniIconBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]}
                                         onPress={() => handleCall(booking.shopId?.ownerId?.phone)}
                                     >
                                         <Phone size={14} color={colors.text} />
                                     </TouchableOpacity>
 
                                     <TouchableOpacity 
-                                        style={[styles.miniIconBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}
-                                        // Pass the coordinates and shop name
+                                        // UPDATED: Use colors.border for button bg
+                                        style={[styles.miniIconBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]}
                                         onPress={() => handleMap(
                                             booking.shopId?.coordinates?.lat, 
                                             booking.shopId?.coordinates?.lng, 
@@ -216,7 +215,11 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                 </>
                             )}
                             <View style={[styles.statusBadge, 
-                                { backgroundColor: (booking.status === 'upcoming' || booking.status === 'pending') ? (theme === 'dark' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.2)') : (booking.status === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : theme === 'dark' ? '#1e293b' : '#f1f5f9') }
+                                { 
+                                  backgroundColor: (booking.status === 'upcoming' || booking.status === 'pending') 
+                                    ? (isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.2)') 
+                                    : (booking.status === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : (isDark ? colors.background : '#f1f5f9')) 
+                                }
                             ]}>
                                 <Text style={{
                                     color: (booking.status === 'upcoming' || booking.status === 'pending') ? colors.tint : (booking.status === 'cancelled' ? '#ef4444' : colors.textMuted),
@@ -245,7 +248,8 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         </View>
                     </View>
 
-                    <View style={[styles.servicesContainer, {backgroundColor: theme === 'dark' ? '#020617' : '#f8fafc', borderColor: colors.border}]}>
+                    {/* UPDATED: Use colors.background for nested container */}
+                    <View style={[styles.servicesContainer, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}]}>
                         {booking.serviceNames && booking.serviceNames.map((s: any, idx: number) => (
                             <Text key={idx} style={[styles.serviceText, {color: colors.textMuted}]}>• {s}</Text>
                         ))}
@@ -272,7 +276,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                <>
                                  {booking.status !== 'cancelled' && (
                                      <>
-                                        <TouchableOpacity style={[styles.secondaryBtnSmall, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}>
+                                        <TouchableOpacity style={[styles.secondaryBtnSmall, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]}>
                                             <RefreshCw size={14} color={colors.text} style={{marginRight: 4}}/>
                                             <Text style={{color: colors.text, fontSize: 12, fontWeight: 'bold'}}>Rebook</Text>
                                         </TouchableOpacity>
@@ -318,7 +322,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
     <Modal visible={cancelModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
             <View style={[styles.alertContent, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                <View style={[styles.alertIconBox, { backgroundColor: cancelData.isLate ? 'rgba(239, 68, 68, 0.1)' : (theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.2)') }]}>
+                <View style={[styles.alertIconBox, { backgroundColor: cancelData.isLate ? 'rgba(239, 68, 68, 0.1)' : (isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.2)') }]}>
                     <AlertTriangle size={32} color={cancelData.isLate ? '#ef4444' : colors.tint} />
                 </View>
                 
@@ -328,13 +332,13 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     {cancelData.message}
                 </Text>
 
-                <View style={[styles.refundBox, {backgroundColor: theme === 'dark' ? '#020617' : '#f8fafc', borderColor: colors.border}]}>
+                <View style={[styles.refundBox, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}]}>
                     <Text style={{color: colors.textMuted, fontSize: 12, textTransform: 'uppercase'}}>Refund Amount</Text>
                     <Text style={{color: colors.text, fontSize: 24, fontWeight: 'bold'}}>₹{cancelData.refundAmount}</Text>
                 </View>
 
                 <View style={{flexDirection: 'row', gap: 12, width: '100%'}}>
-                    <TouchableOpacity style={[styles.alertBtnSecondary, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setCancelModalVisible(false)}>
+                    <TouchableOpacity style={[styles.alertBtnSecondary, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]} onPress={() => setCancelModalVisible(false)}>
                         <Text style={{color: colors.text, fontWeight: '600'}}>Keep</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.alertBtnDestructive} onPress={confirmCancel}>
@@ -357,7 +361,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
              <View style={{flexDirection: 'row', justifyContent: 'center', marginBottom: 24, gap: 10}}>
                 {[1,2,3,4,5].map(star => (
                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
-                      <Star size={32} color={star <= rating ? colors.tint : (theme === 'dark' ? '#334155' : '#cbd5e1')} fill={star <= rating ? colors.tint : 'transparent'} />
+                      <Star size={32} color={star <= rating ? colors.tint : (isDark ? colors.border : '#cbd5e1')} fill={star <= rating ? colors.tint : 'transparent'} />
                    </TouchableOpacity>
                 ))}
              </View>
