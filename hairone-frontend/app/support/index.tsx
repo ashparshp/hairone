@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import api from '../../services/api';
 import { ChevronLeft, Plus, MessageSquare, Clock } from 'lucide-react-native';
 import { FadeInView } from '../../components/AnimatedViews';
@@ -32,7 +33,7 @@ export default function SupportListScreen() {
       const res = await api.get('/support/my');
       setTickets(res.data);
     } catch (e) {
-      console.log(e);
+      // Error handled silently or via toast if needed
     } finally {
       setLoading(false);
     }
@@ -57,24 +58,37 @@ export default function SupportListScreen() {
   const renderItem = ({ item, index }: { item: any, index: number }) => (
     <FadeInView delay={index * 100}>
       <TouchableOpacity
-        style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}
+        style={[
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              shadowColor: colors.shadow, // Assuming shadow color is available or fallback
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3
+            }
+        ]}
         onPress={() => router.push(`/support/${item._id}` as any)}
       >
-         <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
+         <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
              <Text style={[styles.subject, {color: colors.text}]}>{item.subject}</Text>
-             <Text style={[styles.status, {color: item.status === 'open' ? '#10b981' : colors.textMuted}]}>{item.status.toUpperCase()}</Text>
+             <View style={[styles.statusBadge, {backgroundColor: item.status === 'open' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.1)' }]}>
+                <Text style={[styles.status, {color: item.status === 'open' ? '#10b981' : colors.textMuted}]}>{item.status.toUpperCase()}</Text>
+             </View>
          </View>
-         <Text style={{color: colors.textMuted, fontSize: 12}} numberOfLines={1}>{item.messages[item.messages.length - 1]?.text}</Text>
-         <View style={{marginTop: 8, flexDirection:'row', alignItems:'center', gap: 4}}>
+         <Text style={{color: colors.textMuted, fontSize: 13, lineHeight: 18}} numberOfLines={2}>{item.messages[item.messages.length - 1]?.text}</Text>
+         <View style={{marginTop: 12, flexDirection:'row', alignItems:'center', gap: 6}}>
              <Clock size={12} color={colors.textMuted} />
-             <Text style={{color: colors.textMuted, fontSize: 10}}>{new Date(item.updatedAt).toLocaleDateString()}</Text>
+             <Text style={{color: colors.textMuted, fontSize: 11}}>{new Date(item.updatedAt).toLocaleDateString()}</Text>
          </View>
       </TouchableOpacity>
     </FadeInView>
   );
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
+    <SafeAreaView style={[styles.container, {backgroundColor: colors.background}]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
          <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card, borderColor: colors.border}]}>
             <ChevronLeft size={24} color={colors.text}/>
@@ -104,7 +118,10 @@ export default function SupportListScreen() {
 
       {/* Create Modal */}
       <Modal visible={createModal} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+          >
               <View style={[styles.modalContent, {backgroundColor: colors.card}]}>
                   <Text style={[styles.modalTitle, {color: colors.text}]}>New Ticket</Text>
 
@@ -119,7 +136,7 @@ export default function SupportListScreen() {
 
                   <Text style={[styles.label, {color: colors.textMuted}]}>Message</Text>
                   <TextInput
-                    style={[styles.input, {backgroundColor: colors.background, color: colors.text, borderColor: colors.border, height: 100, textAlignVertical:'top'}]}
+                    style={[styles.input, {backgroundColor: colors.background, color: colors.text, borderColor: colors.border, height: 120, textAlignVertical:'top'}]}
                     placeholder="Describe your issue..."
                     placeholderTextColor={colors.textMuted}
                     multiline
@@ -127,7 +144,7 @@ export default function SupportListScreen() {
                     onChangeText={setMessage}
                   />
 
-                  <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
+                  <View style={{flexDirection:'row', gap: 10, marginTop: 24}}>
                       <TouchableOpacity style={[styles.btn, {backgroundColor: colors.border}]} onPress={() => setCreateModal(false)}>
                           <Text style={{color: colors.text}}>Cancel</Text>
                       </TouchableOpacity>
@@ -136,28 +153,29 @@ export default function SupportListScreen() {
                       </TouchableOpacity>
                   </View>
               </View>
-          </View>
+          </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 60 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10 },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10, paddingTop: 10 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   title: { fontSize: 24, fontWeight: 'bold', marginLeft: 16, flex: 1 },
   addBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 
-  card: { padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1 },
-  subject: { fontWeight: 'bold', fontSize: 16 },
+  card: { padding: 16, borderRadius: 16, marginBottom: 16, borderWidth: 1 },
+  subject: { fontWeight: 'bold', fontSize: 16, flex: 1, marginRight: 8 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   status: { fontSize: 10, fontWeight: 'bold' },
   empty: { alignItems: 'center', marginTop: 100, opacity: 0.5 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent:'flex-end' },
-  modalContent: { padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  modalContent: { padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-  label: { fontSize: 12, fontWeight: 'bold', marginBottom: 6 },
-  input: { padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  label: { fontSize: 12, fontWeight: 'bold', marginBottom: 8, marginLeft: 4 },
+  input: { padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
   btn: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center' }
 });
