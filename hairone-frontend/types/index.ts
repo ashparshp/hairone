@@ -10,6 +10,7 @@ export interface User {
   email?: string;
   favorites?: string[];
   gender?: string;
+  avatar?: string;
 }
 
 export interface Service {
