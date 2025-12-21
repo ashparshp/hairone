@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   name: { type: String },
+  avatar: { type: String },
   email: { type: String },
   gender: { type: String, enum: ['male', 'female', 'other'] },
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Shop' }],

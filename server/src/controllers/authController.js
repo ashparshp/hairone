@@ -52,9 +52,14 @@ exports.updateProfile = async (req, res) => {
   const { name, email, gender } = req.body;
   
   try {
+    const updateData = { name, email, gender };
+    if (req.file) {
+        updateData.avatar = req.file.location; // S3/Multer
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { name, email, gender },
+      updateData,
       { new: true }
     );
     res.json(user);
