@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -54,6 +55,19 @@ export default function HomeScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [locationName, setLocationName] = useState("Locating...");
   const [permissionGranted, setPermissionGranted] = useState(false);
+
+  // Animation for Theme Toggle
+  const toggleX = useSharedValue(isDark ? 28 : 0);
+
+  useEffect(() => {
+    toggleX.value = withTiming(isDark ? 28 : 0, { duration: 300 });
+  }, [isDark]);
+
+  const animatedToggleStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: toggleX.value }],
+    };
+  });
 
   // Initial Location Fetch
   useEffect(() => {
@@ -215,15 +229,15 @@ export default function HomeScreen() {
                  }
                ]}
              >
-               <View style={[
+               <Animated.View style={[
                  styles.themeIconContainer,
+                 animatedToggleStyle,
                  {
-                    transform: [{ translateX: isDark ? 28 : 0 }],
                     backgroundColor: isDark ? '#475569' : 'white'
                  }
                ]}>
                   {isDark ? <Moon size={10} color="#fcd34d" /> : <Sun size={10} color="#f59e0b" />}
-               </View>
+               </Animated.View>
              </TouchableOpacity>
 
             <View style={[styles.avatarContainer, { borderColor: isDark ? '#334155' : 'white' }]}>
@@ -281,7 +295,7 @@ export default function HomeScreen() {
 
                 {/* Gender Filter */}
                 <View style={styles.filterGroup}>
-                  <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#cbd5e1' }]}>Gender</Text>
+                  <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>Gender</Text>
                   <View style={styles.chipRow}>
                     {['All', 'Men', 'Women', 'Unisex'].map(g => (
                       <TouchableOpacity
@@ -307,7 +321,7 @@ export default function HomeScreen() {
                 {/* Distance Filter */}
                 <View style={styles.filterGroup}>
                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
-                     <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#cbd5e1' }]}>Distance</Text>
+                     <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>Distance</Text>
                      <Text style={{color: '#f59e0b', fontWeight: 'bold', fontSize: 12}}>
                         {distanceFilter === 10 ? 'All' : `< ${distanceFilter} km`}
                      </Text>
