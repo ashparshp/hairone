@@ -14,17 +14,20 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const tabs: TabItem[] = [
-    { id: 'home', label: 'Home', icon: Home, path: '/(tabs)/home' },
-    { id: 'appts', label: 'Bookings', icon: CalendarDays, path: '/(tabs)/bookings' },
-    { id: 'favs', label: 'Saved', icon: Heart, path: '/(tabs)/favorites' }, // Favorites tab or similar
-    { id: 'profile', label: 'Profile', icon: UserCircle, path: '/(tabs)/profile' },
-  ];
+  let tabs: TabItem[] = [];
 
-  // Adjust for Owner
   if (user?.role === 'owner') {
-      // Just an example adjustment, logic depends on requirement
-      tabs[0] = { id: 'dashboard', label: 'My Shop', icon: Briefcase, path: '/(tabs)/dashboard' };
+    tabs = [
+      { id: 'dashboard', label: 'My Shop', icon: Briefcase, path: '/(tabs)/dashboard' },
+      { id: 'profile', label: 'Profile', icon: UserCircle, path: '/(tabs)/profile' }
+    ];
+  } else {
+    tabs = [
+      { id: 'home', label: 'Home', icon: Home, path: '/(tabs)/home' },
+      { id: 'appts', label: 'Bookings', icon: CalendarDays, path: '/(tabs)/bookings' },
+      { id: 'favs', label: 'Saved', icon: Heart, path: '/(tabs)/favorites' },
+      { id: 'profile', label: 'Profile', icon: UserCircle, path: '/(tabs)/profile' },
+    ];
   }
 
   return (
@@ -71,6 +74,7 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
               // Find the route name mapping
               let routeName = item.id;
               if (item.id === 'appts') routeName = 'bookings';
+              if (item.id === 'favs') routeName = 'favorites';
 
               navigation.navigate(routeName);
             }
