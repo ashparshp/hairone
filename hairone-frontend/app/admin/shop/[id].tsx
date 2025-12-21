@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 export default function AdminShopDetails() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<any>(null);
@@ -187,6 +187,7 @@ export default function AdminShopDetails() {
                        <DateTimePicker
                           value={showStart ? startDate : endDate}
                           mode="date"
+                          display="default"
                           onChange={(e, d) => {
                              if(showStart) { setShowStart(Platform.OS === 'ios'); d && setStartDate(d); }
                              else { setShowEnd(Platform.OS === 'ios'); d && setEndDate(d); }
@@ -195,7 +196,7 @@ export default function AdminShopDetails() {
                    )}
 
                    {customRevenue !== null && (
-                       <View style={{marginTop: 12, padding: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8}}>
+                       <View style={{marginTop: 12, padding: 12, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 8}}>
                           <Text style={{color: colors.textMuted}}>Revenue for Period</Text>
                           <Text style={{fontSize: 24, fontWeight: 'bold', color: colors.tint}}>₹{customRevenue.toLocaleString()}</Text>
                        </View>
@@ -260,5 +261,5 @@ const styles = StyleSheet.create({
   dateInput: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderWidth: 1, borderRadius: 8, flex: 1 },
 
   // Bookings
-  bookingItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 }
+  bookingItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 },
 });
