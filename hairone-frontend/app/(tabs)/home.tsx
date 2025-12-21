@@ -268,7 +268,8 @@ export default function HomeScreen() {
 
             {/* Collapsible Filters */}
             {showFilters && (
-              <View style={[styles.filterContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              // UPDATED: Background changed to colors.background (True Black) instead of Card
+              <View style={[styles.filterContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
 
                 {/* Gender Filter */}
                 <View style={styles.filterGroup}>
@@ -281,14 +282,15 @@ export default function HomeScreen() {
                         style={[
                           styles.chip,
                           {
-                            backgroundColor: genderFilter === g ? colors.primary : (isDark ? colors.border : colors.background),
+                            // UPDATED: Inactive state uses colors.card (Zinc) for better button appearance on Black bg
+                            backgroundColor: genderFilter === g ? colors.primary : (isDark ? colors.card : colors.background),
                             borderColor: colors.border
                           }
                         ]}
                       >
                         <Text style={[
                           styles.chipText,
-                          { color: genderFilter === g ? 'white' : colors.textMuted }
+                          { color: genderFilter === g ? 'white' : (isDark ? colors.text : colors.textMuted) }
                         ]}>{g}</Text>
                       </ScalePress>
                     ))}
@@ -486,12 +488,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14, // UPDATED: Increased from 10
-    borderRadius: 14,    // UPDATED: Increased from 12
+    paddingVertical: 14, // UPDATED: Larger tap area (approx 44px+ height)
+    borderRadius: 14,
     borderWidth: 1,
   },
   chipText: {
-    fontSize: 14,        // UPDATED: Increased from 10
+    fontSize: 14,        // UPDATED: Larger text (was 10)
     fontWeight: 'bold',
   },
 
@@ -526,7 +528,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 100, // Space for bottom nav
   },
   emptyState: {
     alignItems: 'center',
