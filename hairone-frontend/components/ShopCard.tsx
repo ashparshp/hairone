@@ -23,13 +23,13 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
       onPress={onPress}
       style={[
         styles.card,
-          {
-            // UPDATED: Use colors.card and colors.border
-            backgroundColor: colors.card, 
-            borderColor: colors.border, 
-          }
-        ]}
-      >
+        {
+          // UPDATED: Use global theme colors instead of hardcoded hex
+          backgroundColor: colors.card, 
+          borderColor: colors.border, 
+        }
+      ]}
+    >
         {/* Compact Shop Image */}
         <View style={styles.imageContainer}>
           <Image
@@ -67,14 +67,13 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
           </View>
 
           <View style={styles.tagsRow}>
-            {/* UPDATED: Background logic */}
-            <View style={[styles.tag, { backgroundColor: isDark ? colors.border : colors.background }]}>
+            {/* UPDATED: Use colors.background (True Black) for tag background to contrast with Card (Zinc) */}
+            <View style={[styles.tag, { backgroundColor: isDark ? colors.background : '#f8fafc' }]}>
                 <Text style={[styles.tagText, { color: colors.textMuted }]}>{shop.type || 'Unisex'}</Text>
             </View>
           </View>
 
           {/* Footer */}
-          {/* UPDATED: Border logic */}
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <View style={styles.slotInfo}>
               <View style={[styles.clockIcon, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#fffbeb' }]}>
@@ -89,14 +88,15 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
             </View>
 
             <TouchableOpacity
+              // UPDATED: Use colors.tint (Gold) for button background
               style={[styles.bookBtn, { backgroundColor: isDark ? colors.tint : '#0f172a' }]}
               onPress={onPress}
             >
-              <Text style={[styles.bookBtnText, { color: isDark ? '#000' : 'white' }]}>Book Now</Text>
+              <Text style={[styles.bookBtnText, { color: isDark ? '#000000' : 'white' }]}>Book Now</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </ScalePress>
+    </ScalePress>
   );
 };
 
