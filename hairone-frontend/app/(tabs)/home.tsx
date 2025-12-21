@@ -23,6 +23,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { ShopCard } from "../../components/ShopCard";
 import { ShopCardSkeleton } from "../../components/ShopCardSkeleton";
 import { ScalePress } from "../../components/ScalePress";
+import Logo from "../../components/Logo";
 import api from "../../services/api";
 
 const { width } = Dimensions.get('window');
@@ -194,6 +195,9 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
+          <View style={{ marginBottom: 4 }}>
+             <Logo width={100} height={40} />
+          </View>
           <TouchableOpacity
             style={styles.locationRow}
             onPress={refreshLocation}
@@ -203,9 +207,6 @@ export default function HomeScreen() {
                {locationName}
              </Text>
           </TouchableOpacity>
-          <Text style={[styles.greeting, { color: isDark ? 'white' : '#0f172a' }]}>
-            Hello, {user?.name?.split(' ')[0] || "Guest"}
-          </Text>
         </View>
 
         <View style={styles.headerRight}>
