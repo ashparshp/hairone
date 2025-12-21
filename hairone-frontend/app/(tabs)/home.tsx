@@ -22,6 +22,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { ShopCard } from "../../components/ShopCard";
 import { ShopCardSkeleton } from "../../components/ShopCardSkeleton";
+import { ScalePress } from "../../components/ScalePress";
 import api from "../../services/api";
 
 const { width } = Dimensions.get('window');
@@ -262,7 +263,7 @@ export default function HomeScreen() {
           <>
             {/* Search Bar */}
             <View style={styles.searchSection}>
-              <View style={[styles.searchBox, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#f1f5f9' }]}>
+              <View style={[styles.searchBox, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
                 <Search size={18} color={isDark ? '#94a3b8' : '#cbd5e1'} />
                 <TextInput
                   placeholder="Find a salon or service..."
@@ -272,32 +273,32 @@ export default function HomeScreen() {
                   onChangeText={setSearchText}
                   // Removed onSubmitEditing as filtering is now live via useEffect
                 />
-                <TouchableOpacity
+                <ScalePress
                   onPress={() => setShowFilters(!showFilters)}
                   style={[styles.filterBtn, showFilters && { backgroundColor: '#f59e0b' }]}
                 >
                   <Filter size={18} color={showFilters ? 'white' : (isDark ? '#94a3b8' : '#cbd5e1')} />
-                </TouchableOpacity>
+                </ScalePress>
               </View>
             </View>
 
             {/* Collapsible Filters */}
             {showFilters && (
-              <View style={[styles.filterContainer, { backgroundColor: isDark ? '#1e293b' : 'white', borderColor: isDark ? '#334155' : '#f1f5f9' }]}>
+              <View style={[styles.filterContainer, { backgroundColor: isDark ? '#1e293b' : 'white', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
 
                 {/* Gender Filter */}
                 <View style={styles.filterGroup}>
                   <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>Gender</Text>
                   <View style={styles.chipRow}>
                     {['All', 'Men', 'Women', 'Unisex'].map(g => (
-                      <TouchableOpacity
+                      <ScalePress
                         key={g}
                         onPress={() => setGenderFilter(g)}
                         style={[
                           styles.chip,
                           {
                             backgroundColor: genderFilter === g ? '#f59e0b' : (isDark ? '#334155' : '#f8fafc'),
-                            borderColor: isDark ? '#475569' : '#e2e8f0'
+                            borderColor: isDark ? '#334155' : '#e2e8f0'
                           }
                         ]}
                       >
@@ -305,7 +306,7 @@ export default function HomeScreen() {
                           styles.chipText,
                           { color: genderFilter === g ? 'white' : (isDark ? '#cbd5e1' : '#64748b') }
                         ]}>{g}</Text>
-                      </TouchableOpacity>
+                      </ScalePress>
                     ))}
                   </View>
                 </View>
@@ -338,7 +339,7 @@ export default function HomeScreen() {
             <View style={styles.categoriesSection}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingHorizontal: 24}}>
                 {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
+                  <ScalePress
                     key={cat.id}
                     onPress={() => setActiveCategory(cat.id)}
                     style={[
@@ -355,7 +356,7 @@ export default function HomeScreen() {
                       styles.catText,
                       { color: activeCategory === cat.id ? (isDark ? '#0f172a' : 'white') : (isDark ? '#94a3b8' : '#64748b') }
                     ]}>{cat.label}</Text>
-                  </TouchableOpacity>
+                  </ScalePress>
                 ))}
               </ScrollView>
             </View>

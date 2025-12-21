@@ -9,6 +9,9 @@ interface ScalePressProps {
   disabled?: boolean;
 }
 
+/**
+ * A wrapper component that scales down when pressed.
+ */
 export const ScalePress = ({
   children,
   onPress,

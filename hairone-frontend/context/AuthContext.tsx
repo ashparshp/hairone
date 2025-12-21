@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { User } from '../types';
 
@@ -24,8 +25,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const storedToken = await SecureStore.getItemAsync('token');
-        const storedUser = await SecureStore.getItemAsync('user');
+        let storedToken, storedUser;
+
+        if (Platform.OS === 'web') {
+           storedToken = localStorage.getItem('token');
+           storedUser = localStorage.getItem('user');
+        } else {
+           storedToken = await SecureStore.getItemAsync('token');
+           storedUser = await SecureStore.getItemAsync('user');
+        }
 
         if (storedToken && storedUser) {
           setToken(storedToken);
@@ -70,14 +78,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(newToken);
     setUser(newUser);
     
-    await SecureStore.setItemAsync('token', newToken);
-    await SecureStore.setItemAsync('user', JSON.stringify(newUser));
+    if (Platform.OS === 'web') {
+      localStorage.setItem('token', newToken);
+      localStorage.setItem('user', JSON.stringify(newUser));
+    } else {
+      await SecureStore.setItemAsync('token', newToken);
+      await SecureStore.setItemAsync('user', JSON.stringify(newUser));
+    }
   };
 
   // 4. Logout Function (Clears Storage)
   const logout = async () => {
-    await SecureStore.deleteItemAsync('token');
-    await SecureStore.deleteItemAsync('user');
+    if (Platform.OS === 'web') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } else {
+      await SecureStore.deleteItemAsync('token');
+      await SecureStore.deleteItemAsync('user');
+    }
     setToken(null);
     setUser(null);
   };

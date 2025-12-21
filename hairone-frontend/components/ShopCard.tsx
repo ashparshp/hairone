@@ -25,7 +25,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
         styles.card,
           {
             backgroundColor: isDark ? '#0f172a' : '#ffffff', // Slate-900 or White
-            borderColor: isDark ? '#1e293b' : '#f8fafc', // Slate-800 or Slate-50
+            borderColor: isDark ? '#334155' : '#e2e8f0', // Slate-700 or Slate-200
           }
         ]}
       >
@@ -99,7 +99,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 35, // 2.2rem approx
+    borderRadius: 24, // Standardized
     marginHorizontal: 24, // Fix for edge-to-edge
     marginBottom: 20,
     borderWidth: 1,
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     height: 160,
-    borderRadius: 25, // 1.6rem approx
+    borderRadius: 16, // Standardized
     overflow: 'hidden',
     marginTop: 12,
     marginHorizontal: 12,
