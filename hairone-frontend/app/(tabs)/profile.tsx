@@ -289,7 +289,7 @@ export default function ProfileScreen() {
       {/* Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-              <FadeInView style={[styles.modalContent, {backgroundColor: colors.card}]}>
+              <FadeInView style={{...styles.modalContent, backgroundColor: colors.card}}>
                   <View style={styles.modalHeader}>
                       <Text style={[styles.modalTitle, {color: colors.text}]}>Update Profile</Text>
                       {/* UPDATED: Close button background */}
@@ -335,7 +335,7 @@ export default function ProfileScreen() {
       {/* Custom Logout Modal */}
       <Modal visible={logoutModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-              <FadeInView style={[styles.alertContent, {backgroundColor: colors.card, borderColor: colors.border}]}>
+              <FadeInView style={{...styles.alertContent, backgroundColor: colors.card, borderColor: colors.border}}>
                   <Text style={[styles.modalTitle, { color: colors.text, fontSize: 18 }]}>Sign out?</Text>
                   <Text style={{color: colors.textMuted, textAlign: 'center', marginVertical: 16}}>
                       You will need to sign in again to access your account.
