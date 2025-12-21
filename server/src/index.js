@@ -35,6 +35,6 @@ const PORT = process.env.PORT || 8080;
 
 // Listen on all network interfaces for mobile access
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
   console.log(`☁️  Cloud Storage: DigitalOcean Spaces Active`);
 });
