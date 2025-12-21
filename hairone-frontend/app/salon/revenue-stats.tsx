@@ -20,6 +20,7 @@ export default function RevenueStatsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, theme } = useTheme();
+  const isDark = theme === 'dark';
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
 
@@ -40,7 +41,6 @@ export default function RevenueStatsScreen() {
       // @ts-ignore
       const res = await api.get(`/shops/${user.myShopId}/revenue`);
       setData(res.data);
-      // Initialize pickers with returned range if available, else defaults
       if (res.data.customRange) {
         setStartDate(new Date(res.data.customRange.start));
         setEndDate(new Date(res.data.customRange.end));
@@ -104,7 +104,7 @@ export default function RevenueStatsScreen() {
         <Text style={[styles.title, { color: colors.text }]}>Revenue Stats</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* SUMMARY CARDS */}
         <View style={styles.grid}>
           <StatCard title="This Week" amount={data?.weekly || 0} color="#3b82f6" />
@@ -116,7 +116,7 @@ export default function RevenueStatsScreen() {
         <View style={[styles.customSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom Range</Text>
           <Text style={[styles.sectionSub, { color: colors.textMuted }]}>
-             Calculate revenue for a specific period. Range starts from shop creation date by default.
+             Calculate revenue for a specific period.
           </Text>
 
           <View style={styles.dateRow}>
@@ -124,7 +124,7 @@ export default function RevenueStatsScreen() {
             <View style={styles.dateCol}>
               <Text style={[styles.label, { color: colors.textMuted }]}>From</Text>
               <TouchableOpacity
-                style={[styles.dateInput, { borderColor: colors.border }]}
+                style={[styles.dateInput, { backgroundColor: isDark ? colors.background : '#ffffff', borderColor: colors.border }]}
                 onPress={() => setShowStartPicker(true)}
               >
                 <Calendar size={16} color={colors.textMuted} />
@@ -145,7 +145,7 @@ export default function RevenueStatsScreen() {
             <View style={styles.dateCol}>
               <Text style={[styles.label, { color: colors.textMuted }]}>To</Text>
               <TouchableOpacity
-                style={[styles.dateInput, { borderColor: colors.border }]}
+                style={[styles.dateInput, { backgroundColor: isDark ? colors.background : '#ffffff', borderColor: colors.border }]}
                 onPress={() => setShowEndPicker(true)}
               >
                 <Calendar size={16} color={colors.textMuted} />
@@ -170,15 +170,15 @@ export default function RevenueStatsScreen() {
             disabled={loadingCustom}
           >
             {loadingCustom ? (
-              <ActivityIndicator color="#0f172a" />
+              <ActivityIndicator color="#000000" />
             ) : (
-              <Text style={styles.calcBtnText}>Calculate Revenue</Text>
+              <Text style={[styles.calcBtnText, { color: '#000000' }]}>Calculate Revenue</Text>
             )}
           </TouchableOpacity>
 
           {/* CUSTOM RESULT */}
           {(customRevenue !== null || data?.custom !== undefined) && (
-            <View style={styles.resultBox}>
+            <View style={[styles.resultBox, { backgroundColor: isDark ? colors.background : 'rgba(245, 158, 11, 0.1)' }]}>
                <Text style={[styles.resultLabel, { color: colors.textMuted }]}>Total Revenue</Text>
                <Text style={[styles.resultAmount, { color: colors.tint }]}>
                  ₹{(customRevenue !== null ? customRevenue : data?.custom || 0).toLocaleString()}
@@ -203,19 +203,13 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   title: { fontSize: 20, fontWeight: "bold" },
-  scrollContent: { padding: 20 },
+  scrollContent: { padding: 20, paddingBottom: 100 },
 
   grid: { gap: 16, marginBottom: 30 },
   card: {
     padding: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "transparent",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
   },
   cardTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4, textTransform: "uppercase" },
   cardAmount: { fontSize: 28, fontWeight: "bold" },
@@ -247,12 +241,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 20,
   },
-  calcBtnText: { fontWeight: "bold", color: "#0f172a", fontSize: 16 },
+  calcBtnText: { fontWeight: "bold", fontSize: 16 },
 
   resultBox: {
     alignItems: "center",
     padding: 16,
-    backgroundColor: "rgba(245, 158, 11, 0.1)",
     borderRadius: 12,
   },
   resultLabel: { fontSize: 14, marginBottom: 4 },
