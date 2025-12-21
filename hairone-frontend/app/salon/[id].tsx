@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Linking } from 'react-native'; // <--- Import Linking
+import { Linking } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
+import { useToast } from '../../context/ToastContext';
+import { useTheme } from '../../context/ThemeContext'; // Import Theme
+import { SlideInView } from '../../components/AnimatedViews'; // Import Animation
 import api from '../../services/api';
-import Colors from '../../constants/Colors';
 import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { user, login, token } = useAuth(); // Added login & token
+  const { user, login, token } = useAuth();
+  const { showToast } = useToast();
+  const { colors, theme } = useTheme(); // Use Theme
   
   const bookingContext = useBooking();
   const fetchBookings = bookingContext ? bookingContext.fetchBookings : null;
@@ -58,7 +62,7 @@ export default function ShopDetailsScreen() {
       setBarbers(res.data.barbers);
     } catch (e) {
       console.log(e);
-      Alert.alert("Error", "Could not load shop details.");
+      showToast("Could not load shop details.", "error");
     } finally {
       setLoading(false);
     }
@@ -68,12 +72,14 @@ export default function ShopDetailsScreen() {
   const isFav = user?.favorites?.includes(id as string);
 
   const toggleFavorite = async () => {
-    if (!user) return Alert.alert("Sign In Required", "Please login to save shops.");
+    if (!user) return showToast("Please login to save shops", "error");
     try {
       const res = await api.post('/auth/favorites', { shopId: id });
       // Update local state
       const updatedUser = { ...user, favorites: res.data };
       if (token) login(token, updatedUser);
+      const isNowFav = updatedUser.favorites.includes(id as string);
+      showToast(isNowFav ? "Added to favorites" : "Removed from favorites", "success");
     } catch (e) {
       console.log("Fav Error", e);
     }
@@ -116,7 +122,7 @@ export default function ShopDetailsScreen() {
         setSlots(res.data);
     } catch (e) {
         console.log("Fetch Slots Error:", e);
-        Alert.alert("Notice", "Could not load slots.");
+        showToast("Could not load slots.", "error");
     } finally {
         setLoadingSlots(false);
     }
@@ -132,8 +138,8 @@ export default function ShopDetailsScreen() {
   };
 
   const handleBook = async () => {
-    if (!selectedTime) return Alert.alert("Required", "Please select a time slot.");
-    if (selectedServices.length === 0) return Alert.alert("Required", "Please select at least one service.");
+    if (!selectedTime) return showToast("Please select a time slot", "error");
+    if (selectedServices.length === 0) return showToast("Please select at least one service", "error");
 
     try {
         setLoading(true);
@@ -151,22 +157,22 @@ export default function ShopDetailsScreen() {
             paymentMethod: paymentMethod
         });
 
-        Alert.alert("Success", "Booking Confirmed!");
+        showToast("Booking Confirmed!", "success");
         if (fetchBookings) fetchBookings(); 
         
         router.replace('/(tabs)/bookings' as any);
     } catch (e: any) {
         console.log("Booking Error:", e);
-        Alert.alert("Error", e.response?.data?.message || "Booking failed");
+        showToast(e.response?.data?.message || "Booking failed", "error");
     } finally {
         setLoading(false);
     }
   };
 
-  if (loading && !shop) return <View style={styles.center}><ActivityIndicator color={Colors.primary} size="large"/></View>;
+  if (loading && !shop) return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.tint} size="large"/></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       
       {/* --- STEP 1 HEADER --- */}
       {step === 1 && (
@@ -179,9 +185,9 @@ export default function ShopDetailsScreen() {
                 <ChevronLeft color="white" size={24} />
              </TouchableOpacity>
 
-             {/* Favorite Button (NEW) */}
+             {/* Favorite Button */}
              <TouchableOpacity style={styles.favBtnAbsolute} onPress={toggleFavorite}>
-                <Heart size={24} color={isFav ? Colors.primary : "white"} fill={isFav ? Colors.primary : "transparent"} />
+                <Heart size={24} color={isFav ? colors.tint : "white"} fill={isFav ? colors.tint : "transparent"} />
              </TouchableOpacity>
 
              <View style={styles.shopMeta}>
@@ -199,9 +205,9 @@ export default function ShopDetailsScreen() {
                     </View>
                 </TouchableOpacity>
 
-                <View style={styles.ratingBadge}>
+                <View style={[styles.ratingBadge, {backgroundColor: colors.tint}]}>
                     <Star size={14} color="black" fill="black"/>
-                    <Text style={{fontWeight:'bold', fontSize:12}}> {shop?.rating} (120+ reviews)</Text>
+                    <Text style={{fontWeight:'bold', fontSize:12, color:'black'}}> {shop?.rating} (120+ reviews)</Text>
                 </View>
              </View>
         </View>
@@ -209,11 +215,11 @@ export default function ShopDetailsScreen() {
 
       {/* --- NAV HEADER (Steps 2 & 3) --- */}
       {step > 1 && (
-         <View style={styles.navHeader}>
+         <View style={[styles.navHeader, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={() => setStep(step - 1)}>
-                <ChevronLeft color="white" size={24} />
+                <ChevronLeft color={colors.text} size={24} />
             </TouchableOpacity>
-            <Text style={styles.navTitle}>
+            <Text style={[styles.navTitle, { color: colors.text }]}>
                 {step === 2 ? 'Select Professional & Time' : 'Review & Pay'}
             </Text>
             <View style={{width: 24}} />
@@ -222,54 +228,59 @@ export default function ShopDetailsScreen() {
 
       {/* --- STEP 1: SELECT SERVICES --- */}
       {step === 1 && (
-        <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 100}}>
-            <Text style={styles.sectionTitle}>Services</Text>
+        <SlideInView key="step1" from="right" style={{flex: 1}}>
+        <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 140}}>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Services</Text>
             {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                 const isSelected = selectedServices.find(s => s.name === service.name);
                 return (
-                    <TouchableOpacity key={index} style={[styles.serviceCard, isSelected && styles.serviceCardActive]} onPress={() => toggleService(service)}>
+                    <TouchableOpacity key={index} style={[styles.serviceCard, {backgroundColor: colors.card, borderColor: colors.border}, isSelected && {borderColor: colors.tint, backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]} onPress={() => toggleService(service)}>
                         <View style={{flex: 1}}>
-                            <Text style={[styles.serviceName, isSelected && {color: Colors.primary}]}>{service.name}</Text>
-                            <Text style={styles.serviceDuration}>{service.duration} mins • {isSelected ? 'Selected' : 'Tap to add'}</Text>
+                            <Text style={[styles.serviceName, {color: colors.text}, isSelected && {color: colors.tint}]}>{service.name}</Text>
+                            <Text style={[styles.serviceDuration, {color: colors.textMuted}]}>{service.duration} mins • {isSelected ? 'Selected' : 'Tap to add'}</Text>
                         </View>
                         <View style={{alignItems:'flex-end'}}>
-                             <Text style={[styles.servicePrice, isSelected && {color: Colors.primary}]}>₹{service.price}</Text>
-                             {isSelected && <Check size={16} color={Colors.primary} style={{marginTop: 4}}/>}
+                             <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>₹{service.price}</Text>
+                             {isSelected && <Check size={16} color={colors.tint} style={{marginTop: 4}}/>}
                         </View>
                     </TouchableOpacity>
                 );
             })}
         </ScrollView>
+        </SlideInView>
       )}
 
       {/* --- STEP 2: BARBER & SLOT --- */}
       {step === 2 && (
+        <SlideInView key="step2" from="right" style={{flex: 1}}>
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 160}}>
-            <Text style={styles.sectionTitle}>Choose Professional</Text>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Choose Professional</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 <TouchableOpacity 
-                   style={[styles.barberChip, selectedBarberId === 'any' && styles.barberChipActive]}
+                   style={[styles.barberChip, {backgroundColor: colors.card, borderColor: colors.border}, selectedBarberId === 'any' && {backgroundColor: colors.tint, borderColor: colors.tint}]}
                    onPress={() => setSelectedBarberId('any')}
                 >
-                    <View style={[styles.avatarCircle, {backgroundColor: Colors.primary}]}>
-                       <Star size={16} color="black" fill="black"/>
+                    <View style={[styles.avatarCircle, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}, selectedBarberId === 'any' && {backgroundColor: 'rgba(255,255,255,0.2)'}]}>
+                       <Star size={16} color={selectedBarberId === 'any' ? 'black' : colors.text} fill={selectedBarberId === 'any' ? 'black' : 'transparent'}/>
                     </View>
-                    <Text style={[styles.barberName, selectedBarberId === 'any' && {color: 'black', fontWeight:'bold'}]}>Any Pro</Text>
+                    <Text style={[styles.barberName, {color: colors.text}, selectedBarberId === 'any' && {color: 'black', fontWeight:'bold'}]}>Any Pro</Text>
                 </TouchableOpacity>
 
                 {barbers.map((b: any) => (
                     <TouchableOpacity 
                         key={b._id}
-                        style={[styles.barberChip, selectedBarberId === b._id && styles.barberChipActive]}
+                        style={[styles.barberChip, {backgroundColor: colors.card, borderColor: colors.border}, selectedBarberId === b._id && {backgroundColor: colors.tint, borderColor: colors.tint}]}
                         onPress={() => setSelectedBarberId(b._id)}
                     >
-                         <View style={styles.avatarCircle}><User size={16} color="white"/></View>
-                         <Text style={[styles.barberName, selectedBarberId === b._id && {color: 'black', fontWeight:'bold'}]}>{b.name}</Text>
+                         <View style={[styles.avatarCircle, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}, selectedBarberId === b._id && {backgroundColor: 'rgba(255,255,255,0.2)'}]}>
+                            <User size={16} color={selectedBarberId === b._id ? 'black' : colors.text}/>
+                         </View>
+                         <Text style={[styles.barberName, {color: colors.text}, selectedBarberId === b._id && {color: 'black', fontWeight:'bold'}]}>{b.name}</Text>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
 
-            <Text style={styles.sectionTitle}>Select Date</Text>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Select Date</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 {[0,1,2,3,4,5,6].map(days => {
                     const d = new Date();
@@ -278,61 +289,61 @@ export default function ShopDetailsScreen() {
                     return (
                         <TouchableOpacity 
                             key={days} 
-                            style={[styles.dateChip, isSelected && styles.dateChipActive]}
+                            style={[styles.dateChip, {backgroundColor: colors.card, borderColor: colors.border}, isSelected && {backgroundColor: colors.tint, borderColor: colors.tint}]}
                             onPress={() => setSelectedDate(d)}
                         >
-                            <Text style={[styles.dayText, isSelected && {color: 'black'}]}>{d.toLocaleDateString('en-US', {weekday: 'short'})}</Text>
-                            <Text style={[styles.dateText, isSelected && {color: 'black'}]}>{d.getDate()}</Text>
+                            <Text style={[styles.dayText, {color: colors.textMuted}, isSelected && {color: 'black'}]}>{d.toLocaleDateString('en-US', {weekday: 'short'})}</Text>
+                            <Text style={[styles.dateText, {color: colors.text}, isSelected && {color: 'black'}]}>{d.getDate()}</Text>
                         </TouchableOpacity>
                     );
                 })}
             </ScrollView>
 
-            <Text style={styles.sectionTitle}>Booking Option</Text>
-            <View style={styles.toggleContainer}>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Booking Option</Text>
+            <View style={[styles.toggleContainer, {backgroundColor: colors.card, borderColor: colors.border}]}>
                 <TouchableOpacity 
-                    style={[styles.toggleBtn, bookingType === 'earliest' && styles.toggleBtnActive]}
+                    style={[styles.toggleBtn, bookingType === 'earliest' && {backgroundColor: colors.tint}]}
                     onPress={() => setBookingType('earliest')}
                 >
-                    <Text style={[styles.toggleText, bookingType === 'earliest' && { color: 'black' }]}>Earliest Available</Text>
+                    <Text style={[styles.toggleText, {color: colors.textMuted}, bookingType === 'earliest' && { color: 'black' }]}>Earliest Available</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                    style={[styles.toggleBtn, bookingType === 'schedule' && styles.toggleBtnActive]}
+                    style={[styles.toggleBtn, bookingType === 'schedule' && {backgroundColor: colors.tint}]}
                     onPress={() => setBookingType('schedule')}
                 >
-                    <Text style={[styles.toggleText, bookingType === 'schedule' && { color: 'black' }]}>Custom Schedule</Text>
+                    <Text style={[styles.toggleText, {color: colors.textMuted}, bookingType === 'schedule' && { color: 'black' }]}>Custom Schedule</Text>
                 </TouchableOpacity>
             </View>
 
             {bookingType === 'earliest' ? (
-                <View style={styles.earliestCard}>
+                <View style={[styles.earliestCard, {backgroundColor: colors.card, borderColor: colors.tint}]}>
                     {loadingSlots ? (
-                         <ActivityIndicator color={Colors.primary} />
+                         <ActivityIndicator color={colors.tint} />
                     ) : slots.length > 0 ? (
                          <View style={{flexDirection:'row', alignItems:'center', gap: 12}}>
-                             <Clock size={24} color={Colors.primary} />
+                             <Clock size={24} color={colors.tint} />
                              <View>
-                                 <Text style={{color:'white', fontWeight:'bold', fontSize:16}}>Next Available: {slots[0]}</Text>
+                                 <Text style={{color: colors.text, fontWeight:'bold', fontSize:16}}>Next Available: {slots[0]}</Text>
                              </View>
                          </View>
                     ) : (
-                         <Text style={{color: Colors.textMuted}}>No slots available today.</Text>
+                         <Text style={{color: colors.textMuted}}>No slots available today.</Text>
                     )}
                 </View>
             ) : (
                 <>
-                    <Text style={styles.sectionTitle}>Select Time</Text>
+                    <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Select Time</Text>
                     {loadingSlots ? (
-                        <ActivityIndicator color={Colors.primary} />
+                        <ActivityIndicator color={colors.tint} />
                     ) : (
                         <View style={styles.slotsGrid}>
                             {slots.map((time, i) => (
                                 <TouchableOpacity 
                                 key={i} 
-                                style={[styles.slotChip, selectedTime === time && styles.slotChipActive]}
+                                style={[styles.slotChip, {backgroundColor: colors.card, borderColor: colors.border}, selectedTime === time && {backgroundColor: colors.tint, borderColor: colors.tint}]}
                                 onPress={() => setSelectedTime(time)}
                                 >
-                                    <Text style={[styles.slotText, selectedTime === time && {color: 'black', fontWeight: 'bold'}]}>{time}</Text>
+                                    <Text style={[styles.slotText, {color: colors.text}, selectedTime === time && {color: 'black', fontWeight: 'bold'}]}>{time}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -340,85 +351,92 @@ export default function ShopDetailsScreen() {
                 </>
             )}
         </ScrollView>
+        </SlideInView>
       )}
 
       {/* --- STEP 3: SUMMARY & PAYMENT --- */}
       {step === 3 && (
+         <SlideInView key="step3" from="right" style={{flex: 1}}>
          <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20}}>
-            <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Booking Summary</Text>
+            <View style={[styles.summaryCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                <Text style={[styles.summaryTitle, {color: colors.text}]}>Booking Summary</Text>
                 
                 <View style={styles.summaryRow}>
-                    <Calendar size={18} color={Colors.textMuted} />
-                    <Text style={styles.summaryText}>{selectedDate.toDateString()}</Text>
+                    <Calendar size={18} color={colors.textMuted} />
+                    <Text style={[styles.summaryText, {color: colors.text}]}>{selectedDate.toDateString()}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                    <Clock size={18} color={Colors.textMuted} />
-                    <Text style={styles.summaryText}>{selectedTime}</Text>
+                    <Clock size={18} color={colors.textMuted} />
+                    <Text style={[styles.summaryText, {color: colors.text}]}>{selectedTime}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                    <User size={18} color={Colors.textMuted} />
-                    <Text style={styles.summaryText}>{selectedBarberId === 'any' ? 'Random Professional' : barbers.find((b:any) => b._id === selectedBarberId)?.name}</Text>
+                    <User size={18} color={colors.textMuted} />
+                    <Text style={[styles.summaryText, {color: colors.text}]}>{selectedBarberId === 'any' ? 'Random Professional' : barbers.find((b:any) => b._id === selectedBarberId)?.name}</Text>
                 </View>
 
-                <View style={styles.divider} />
+                <View style={[styles.divider, {backgroundColor: colors.border}]} />
                 
                 {selectedServices.map((s, i) => (
                     <View key={i} style={{flexDirection:'row', justifyContent:'space-between', marginBottom: 8}}>
-                        <Text style={{color: Colors.textMuted}}>{s.name}</Text>
-                        <Text style={{color: 'white'}}>₹{s.price}</Text>
+                        <Text style={{color: colors.textMuted}}>{s.name}</Text>
+                        <Text style={{color: colors.text}}>₹{s.price}</Text>
                     </View>
                 ))}
 
-                <View style={[styles.divider, {backgroundColor: Colors.border}]} />
+                <View style={[styles.divider, {backgroundColor: colors.border}]} />
                 
                 <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
-                    <Text style={{color: 'white', fontWeight: 'bold', fontSize: 18}}>Total</Text>
-                    <Text style={{color: Colors.primary, fontWeight: 'bold', fontSize: 18}}>₹{calculateTotal()}</Text>
+                    <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>Total</Text>
+                    <Text style={{color: colors.tint, fontWeight: 'bold', fontSize: 18}}>₹{calculateTotal()}</Text>
                 </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Payment Method</Text>
 
-            <TouchableOpacity style={[styles.paymentCard, paymentMethod === 'cash' && styles.paymentCardActive]} onPress={() => setPaymentMethod('cash')}>
-                <Banknote size={24} color={paymentMethod === 'cash' ? Colors.primary : 'white'} />
+            <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border}, paymentMethod === 'cash' && {borderColor: colors.tint, backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]} onPress={() => setPaymentMethod('cash')}>
+                <Banknote size={24} color={paymentMethod === 'cash' ? colors.tint : colors.text} />
                 <View style={{flex: 1, marginLeft: 12}}>
-                    <Text style={[styles.paymentTitle, paymentMethod === 'cash' && {color: Colors.primary}]}>Cash on Delivery</Text>
-                    <Text style={styles.paymentSub}>Pay at the salon</Text>
+                    <Text style={[styles.paymentTitle, {color: colors.text}, paymentMethod === 'cash' && {color: colors.tint}]}>Cash on Delivery</Text>
+                    <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Pay at the salon</Text>
                 </View>
+                {paymentMethod === 'cash' && <View style={[styles.checkCircle, {borderColor: colors.tint}]}><View style={[styles.checkInner, {backgroundColor: colors.tint}]}/></View>}
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.paymentCard, {opacity: 0.5}]} disabled={true}>
-                <CreditCard size={24} color="white" />
+            <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border, opacity: 0.5}]} disabled={true}>
+                <CreditCard size={24} color={colors.text} />
                 <View style={{flex: 1, marginLeft: 12}}>
-                    <Text style={styles.paymentTitle}>UPI / Online</Text>
-                    <Text style={styles.paymentSub}>Coming Soon</Text>
+                    <Text style={[styles.paymentTitle, {color: colors.text}]}>UPI / Online</Text>
+                    <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Coming Soon</Text>
                 </View>
             </TouchableOpacity>
 
          </ScrollView>
+         </SlideInView>
       )}
 
       {selectedServices.length > 0 && (
-          <View style={styles.footer}>
-             <View>
-                <Text style={styles.footerPrice}>₹{calculateTotal()}</Text>
-                <Text style={styles.footerSub}>{selectedServices.length} services selected</Text>
+          <View style={[styles.footer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff', borderTopColor: colors.border}]}>
+             <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                <View>
+                    <Text style={[styles.footerSub, {color: colors.textMuted}]}>{selectedServices.length} services</Text>
+                    <Text style={[styles.footerPrice, {color: colors.text}]}>₹{calculateTotal()}</Text>
+                </View>
+
+                {step < 3 ? (
+                    <TouchableOpacity
+                    style={[styles.nextBtn, {backgroundColor: colors.tint}, (step === 2 && !selectedTime) && {opacity: 0.5}]}
+                    disabled={step === 2 && !selectedTime}
+                    onPress={() => setStep(step + 1)}
+                    >
+                    <Text style={styles.nextBtnText}>Continue</Text>
+                    <ChevronLeft size={16} color="#0f172a" style={{transform: [{rotate: '180deg'}]}} />
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity style={[styles.nextBtn, {backgroundColor: colors.tint}]} onPress={handleBook}>
+                        {loading ? <ActivityIndicator color="black"/> : <Text style={styles.nextBtnText}>Confirm Booking</Text>}
+                    </TouchableOpacity>
+                )}
              </View>
-             
-             {step < 3 ? (
-                <TouchableOpacity 
-                   style={[styles.nextBtn, (step === 2 && !selectedTime) && {opacity: 0.5}]}
-                   disabled={step === 2 && !selectedTime}
-                   onPress={() => setStep(step + 1)}
-                >
-                   <Text style={styles.nextBtnText}>Continue</Text>
-                </TouchableOpacity>
-             ) : (
-                <TouchableOpacity style={styles.nextBtn} onPress={handleBook}>
-                    {loading ? <ActivityIndicator color="black"/> : <Text style={styles.nextBtnText}>Confirm Booking</Text>}
-                </TouchableOpacity>
-             )}
           </View>
       )}
     </View>
@@ -426,8 +444,8 @@ export default function ShopDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   headerImageContainer: { height: 250, width: '100%', position: 'relative' },
   headerImage: { width: '100%', height: '100%' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
@@ -436,44 +454,40 @@ const styles = StyleSheet.create({
   shopMeta: { position: 'absolute', bottom: 20, left: 20 },
   shopTitle: { fontSize: 28, fontWeight: 'bold', color: 'white' },
   shopAddress: { color: '#cbd5e1', fontSize: 14, marginTop: 4 },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 8 },
-  navHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20, backgroundColor: Colors.background, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  navTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  sectionTitle: { color: Colors.textMuted, marginBottom: 16, marginTop: 24, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1, fontWeight: 'bold' },
-  serviceCard: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, backgroundColor: Colors.card, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
-  serviceCardActive: { borderColor: Colors.primary, backgroundColor: 'rgba(234, 179, 8, 0.05)' },
-  serviceName: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  serviceDuration: { color: Colors.textMuted, fontSize: 12, marginTop: 4 },
-  servicePrice: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  barberChip: { width: 100, padding: 12, backgroundColor: Colors.card, borderRadius: 12, marginRight: 12, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
-  barberChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  avatarCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  barberName: { color: 'white', fontSize: 12, fontWeight: '600' },
-  dateChip: { width: 60, height: 70, backgroundColor: Colors.card, borderRadius: 12, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
-  dateChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  dayText: { color: Colors.textMuted, fontSize: 12, textTransform: 'uppercase' },
-  dateText: { color: 'white', fontSize: 20, fontWeight: 'bold', marginTop: 4 },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 8 },
+  navHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20, borderBottomWidth: 1 },
+  navTitle: { fontSize: 18, fontWeight: 'bold' },
+  sectionTitle: { marginBottom: 16, marginTop: 24, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1, fontWeight: 'bold' },
+  serviceCard: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1 },
+  serviceName: { fontWeight: 'bold', fontSize: 16 },
+  serviceDuration: { fontSize: 12, marginTop: 4 },
+  servicePrice: { fontWeight: 'bold', fontSize: 16 },
+  barberChip: { width: 100, padding: 12, borderRadius: 12, marginRight: 12, alignItems: 'center', borderWidth: 1 },
+  avatarCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  barberName: { fontSize: 12, fontWeight: '600' },
+  dateChip: { width: 60, height: 70, borderRadius: 12, marginRight: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  dayText: { fontSize: 12, textTransform: 'uppercase' },
+  dateText: { fontSize: 20, fontWeight: 'bold', marginTop: 4 },
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  slotChip: { width: '30%', paddingVertical: 12, backgroundColor: Colors.card, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
-  slotChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  slotText: { color: 'white', fontSize: 14, fontWeight: '500' },
-  summaryCard: { backgroundColor: Colors.card, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: Colors.border },
-  summaryTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
+  slotChip: { width: '30%', paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1 },
+  slotText: { fontSize: 14, fontWeight: '500' },
+  summaryCard: { padding: 20, borderRadius: 16, borderWidth: 1 },
+  summaryTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  summaryText: { color: 'white', fontSize: 14 },
-  divider: { height: 1, backgroundColor: '#334155', marginVertical: 16 },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#0f172a', padding: 20, paddingBottom: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: Colors.border },
-  footerPrice: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  footerSub: { color: Colors.textMuted, fontSize: 12 },
-  nextBtn: { backgroundColor: Colors.primary, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12 },
+  summaryText: { fontSize: 14 },
+  divider: { height: 1, marginVertical: 16 },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 40, borderTopWidth: 1 },
+  footerPrice: { fontSize: 24, fontWeight: 'bold' },
+  footerSub: { fontSize: 12, textTransform: 'uppercase' },
+  nextBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   nextBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
-  paymentCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
-  paymentCardActive: { borderColor: Colors.primary, backgroundColor: 'rgba(234, 179, 8, 0.05)' },
-  paymentTitle: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  paymentSub: { color: Colors.textMuted, fontSize: 12 },
-  toggleContainer: { flexDirection: 'row', backgroundColor: Colors.card, padding: 4, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: Colors.border },
+  paymentCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1 },
+  paymentTitle: { fontWeight: 'bold', fontSize: 16 },
+  paymentSub: { fontSize: 12 },
+  checkCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  checkInner: { width: 10, height: 10, borderRadius: 5 },
+  toggleContainer: { flexDirection: 'row', padding: 4, borderRadius: 12, marginBottom: 24, borderWidth: 1 },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  toggleBtnActive: { backgroundColor: Colors.primary },
-  toggleText: { color: Colors.textMuted, fontWeight: 'bold', fontSize: 14 },
-  earliestCard: { backgroundColor: Colors.card, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: Colors.primary, marginBottom: 24 },
+  toggleText: { fontWeight: 'bold', fontSize: 14 },
+  earliestCard: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
 });
