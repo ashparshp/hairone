@@ -103,7 +103,10 @@ export default function AdminDashboard() {
   );
 
   const renderShop = ({ item }: { item: any }) => (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => router.push(`/admin/shop/${item._id}` as any)}
+    >
         <View style={{flexDirection:'row', alignItems:'center', gap: 12}}>
             <Image source={{ uri: item.image || 'https://via.placeholder.com/100' }} style={{width: 50, height: 50, borderRadius: 8}} />
             <View style={{flex:1}}>
@@ -122,7 +125,7 @@ export default function AdminDashboard() {
               {item.isDisabled ? <Text style={{color: '#ef4444', fontWeight:'bold'}}>SUSPENDED</Text> : item.ownerId?.phone}
             </Text>
         </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderStats = () => {

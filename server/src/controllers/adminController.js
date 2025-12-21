@@ -154,3 +154,26 @@ exports.getSystemStats = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch stats" });
     }
 };
+
+// ADMIN: Get Shop Bookings
+exports.getShopBookings = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+        const { status, limit = 50 } = req.query;
+
+        const query = { shopId };
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const bookings = await Booking.find(query)
+            .populate('userId', 'name phone')
+            .populate('barberId', 'name')
+            .sort({ createdAt: -1 })
+            .limit(parseInt(limit));
+
+        res.json(bookings);
+    } catch (e) {
+        res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+};
