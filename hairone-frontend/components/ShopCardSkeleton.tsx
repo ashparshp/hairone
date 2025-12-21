@@ -32,7 +32,7 @@ export const ShopCardSkeleton = () => {
   const isDark = theme === 'dark';
   const bg = isDark ? '#1e293b' : '#e2e8f0';
   const cardBg = isDark ? '#0f172a' : '#ffffff';
-  const border = isDark ? '#1e293b' : '#f1f5f9';
+  const border = isDark ? '#334155' : '#e2e8f0';
 
   return (
     <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
@@ -66,7 +66,7 @@ export const ShopCardSkeleton = () => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 35,
+    borderRadius: 24,
     marginHorizontal: 24,
     marginBottom: 20,
     borderWidth: 1,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   },
   image: {
     height: 160,
-    borderRadius: 25,
+    borderRadius: 16,
     marginTop: 12,
     marginHorizontal: 12,
   },

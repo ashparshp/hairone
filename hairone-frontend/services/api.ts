@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 // REPLACE 'localhost' or '10.0.2.2' with your actual IP '192.168.1.39'
 const API_URL = "http://192.168.1.20:8000/api";
@@ -9,7 +10,13 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync("token");
+  let token;
+  if (Platform.OS === 'web') {
+    token = localStorage.getItem("token");
+  } else {
+    token = await SecureStore.getItemAsync("token");
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
