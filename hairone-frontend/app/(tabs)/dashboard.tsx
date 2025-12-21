@@ -22,13 +22,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
+import { FadeInView } from "../../components/AnimatedViews";
 import api from "../../services/api";
 import type { Barber } from "../../types";
 
 export default function DashboardScreen() {
   const { user } = useAuth();
+  const { colors, theme } = useTheme();
   const router = useRouter();
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [shop, setShop] = useState<any>(null);
@@ -70,27 +72,28 @@ export default function DashboardScreen() {
     title,
     sub,
     onPress,
-    color = Colors.primary,
+    color,
   }: any) => (
-    <TouchableOpacity style={styles.actionCard} onPress={onPress}>
-      <View style={[styles.actionIcon, { backgroundColor: color }]}>
+    <TouchableOpacity style={[styles.actionCard, {backgroundColor: colors.card, borderColor: colors.border}]} onPress={onPress}>
+      <View style={[styles.actionIcon, { backgroundColor: color || colors.tint }]}>
         <Icon size={24} color="#0f172a" />
       </View>
       <View>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionSub}>{sub}</Text>
+        <Text style={[styles.actionTitle, {color: colors.text}]}>{title}</Text>
+        <Text style={[styles.actionSub, {color: colors.textMuted}]}>{sub}</Text>
       </View>
       <ChevronRight
         size={20}
-        color={Colors.textMuted}
+        color={colors.textMuted}
         style={{ marginLeft: "auto" }}
       />
     </TouchableOpacity>
   );
 
-  const renderBarber = ({ item }: { item: any }) => (
+  const renderBarber = ({ item, index }: { item: any, index: number }) => (
+    <FadeInView delay={index * 100}>
     <TouchableOpacity
-      style={styles.barberCard}
+      style={[styles.barberCard, {backgroundColor: colors.card, borderColor: colors.border}]}
       onPress={() =>
         router.push({
           pathname: "/salon/manage-barber",
@@ -99,11 +102,11 @@ export default function DashboardScreen() {
       }
     >
       <View style={styles.barberRow}>
-        <View style={styles.avatar}>
-          <User size={20} color="white" />
+        <View style={[styles.avatar, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}>
+          <User size={20} color={colors.text} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.barberName}>{item.name}</Text>
+          <Text style={[styles.barberName, {color: colors.text}]}>{item.name}</Text>
           <View
             style={{
               flexDirection: "row",
@@ -112,8 +115,8 @@ export default function DashboardScreen() {
               gap: 6,
             }}
           >
-            <Clock size={12} color={Colors.textMuted} />
-            <Text style={styles.barberTime}>
+            <Clock size={12} color={colors.textMuted} />
+            <Text style={[styles.barberTime, {color: colors.textMuted}]}>
               {item.startHour} - {item.endHour}
             </Text>
             {item.isAvailable ? (
@@ -131,36 +134,37 @@ export default function DashboardScreen() {
             )}
           </View>
         </View>
-        <View style={styles.editBtn}>
-          <Settings size={16} color="white" />
+        <View style={[styles.editBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}>
+          <Settings size={16} color={colors.text} />
         </View>
       </View>
     </TouchableOpacity>
+    </FadeInView>
   );
 
   if (loading)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.center, {backgroundColor: colors.background}]}>
+        <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
 
   // --- NO SHOP STATE (Welcome Screen) ---
   if (!shop)
     return (
-      <View style={styles.welcomeContainer}>
+      <View style={[styles.welcomeContainer, {backgroundColor: colors.background}]}>
         <View style={styles.welcomeContent}>
-          <View style={styles.iconCircle}>
-            <Briefcase size={48} color={Colors.primary} />
+          <View style={[styles.iconCircle, {backgroundColor: 'rgba(245, 158, 11, 0.1)'}]}>
+            <Briefcase size={48} color={colors.tint} />
           </View>
-          <Text style={styles.welcomeTitle}>Welcome Partner!</Text>
-          <Text style={styles.welcomeSub}>
+          <Text style={[styles.welcomeTitle, {color: colors.text}]}>Welcome Partner!</Text>
+          <Text style={[styles.welcomeSub, {color: colors.textMuted}]}>
             You have been approved. Create your digital storefront to start
             managing bookings and growing your business.
           </Text>
 
           <TouchableOpacity
-            style={styles.createBtn}
+            style={[styles.createBtn, {backgroundColor: colors.tint}]}
             onPress={() => router.push("/salon/create-shop" as any)}
           >
             <Text style={styles.createBtnText}>Create Shop Now</Text>
@@ -171,19 +175,19 @@ export default function DashboardScreen() {
 
   // --- DASHBOARD STATE ---
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       {/* HEADER */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.shopName}>{shop.name}</Text>
+          <Text style={[styles.shopName, {color: colors.text}]}>{shop.name}</Text>
           <View style={styles.locationRow}>
-            <MapPin size={12} color={Colors.textMuted} />
-            <Text style={styles.shopLocation} numberOfLines={1}>
+            <MapPin size={12} color={colors.textMuted} />
+            <Text style={[styles.shopLocation, {color: colors.textMuted}]} numberOfLines={1}>
               {shop.address}
             </Text>
           </View>
         </View>
-        <View style={styles.ratingBox}>
+        <View style={[styles.ratingBox, {backgroundColor: colors.tint}]}>
           <Star size={12} color="black" fill="black" />
           <Text style={styles.ratingText}>{shop.rating}</Text>
         </View>
@@ -195,13 +199,13 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.primary}
+            tintColor={colors.tint}
           />
         }
         showsVerticalScrollIndicator={false}
       >
         {/* QUICK ACTIONS GRID */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Quick Actions</Text>
         <View style={styles.grid}>
           <ActionCard
             icon={Calendar}
@@ -227,26 +231,26 @@ export default function DashboardScreen() {
 
         {/* TEAM SECTION */}
         <View style={styles.teamHeader}>
-          <Text style={styles.sectionTitle}>My Team ({barbers.length})</Text>
+          <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>My Team ({barbers.length})</Text>
           <TouchableOpacity
             style={styles.addBarberBtn}
             onPress={() => router.push("/salon/manage-barber" as any)}
           >
-            <UserPlus size={16} color={Colors.primary} />
-            <Text style={styles.addBarberText}>Add New</Text>
+            <UserPlus size={16} color={colors.tint} />
+            <Text style={[styles.addBarberText, {color: colors.tint}]}>Add New</Text>
           </TouchableOpacity>
         </View>
 
         {barbers.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={{ color: Colors.textMuted }}>
+          <View style={[styles.emptyState, {borderColor: colors.border}]}>
+            <Text style={{ color: colors.textMuted }}>
               No team members added yet.
             </Text>
           </View>
         ) : (
           <View>
-            {barbers.map((item) => (
-              <View key={item._id}>{renderBarber({ item })}</View>
+            {barbers.map((item, index) => (
+              <View key={item._id}>{renderBarber({ item, index })}</View>
             ))}
           </View>
         )}
@@ -258,13 +262,11 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
     padding: 20,
     paddingTop: 60,
   },
   center: {
     flex: 1,
-    backgroundColor: Colors.background,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -276,18 +278,17 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 30,
   },
-  shopName: { fontSize: 26, fontWeight: "bold", color: "white" },
+  shopName: { fontSize: 26, fontWeight: "bold" },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     marginTop: 4,
   },
-  shopLocation: { color: Colors.textMuted, fontSize: 14, maxWidth: 200 },
+  shopLocation: { fontSize: 14, maxWidth: 200 },
   ratingBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -297,7 +298,6 @@ const styles = StyleSheet.create({
 
   // Sections
   sectionTitle: {
-    color: Colors.textMuted,
     marginBottom: 12,
     textTransform: "uppercase",
     fontSize: 12,
@@ -310,11 +310,9 @@ const styles = StyleSheet.create({
   actionCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.card,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
     gap: 16,
   },
   actionIcon: {
@@ -324,8 +322,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  actionTitle: { color: "white", fontWeight: "bold", fontSize: 16 },
-  actionSub: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
+  actionTitle: { fontWeight: "bold", fontSize: 16 },
+  actionSub: { fontSize: 12, marginTop: 2 },
 
   // Team Section
   teamHeader: {
@@ -335,28 +333,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addBarberBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
-  addBarberText: { color: Colors.primary, fontWeight: "bold", fontSize: 14 },
+  addBarberText: { fontWeight: "bold", fontSize: 14 },
 
   // Barber Card
   barberCard: {
-    backgroundColor: Colors.card,
     padding: 16,
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   barberRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#334155",
     alignItems: "center",
     justifyContent: "center",
   },
-  barberName: { color: "white", fontWeight: "bold", fontSize: 16 },
-  barberTime: { color: Colors.textMuted, fontSize: 12 },
+  barberName: { fontWeight: "bold", fontSize: 16 },
+  barberTime: { fontSize: 12 },
   statusBadge: {
     backgroundColor: "rgba(16, 185, 129, 0.1)",
     paddingHorizontal: 6,
@@ -366,7 +361,6 @@ const styles = StyleSheet.create({
   statusText: { color: "#10b981", fontSize: 10, fontWeight: "bold" },
   editBtn: {
     marginLeft: "auto",
-    backgroundColor: "#334155",
     padding: 8,
     borderRadius: 8,
   },
@@ -376,7 +370,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: Colors.border,
     borderStyle: "dashed",
     borderRadius: 12,
   },
@@ -384,7 +377,6 @@ const styles = StyleSheet.create({
   // Welcome / No Shop State
   welcomeContainer: {
     flex: 1,
-    backgroundColor: Colors.background,
     justifyContent: "center",
     padding: 20,
   },
@@ -393,7 +385,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "rgba(245, 158, 11, 0.1)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
@@ -401,18 +392,15 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "white",
     marginBottom: 12,
   },
   welcomeSub: {
     fontSize: 16,
-    color: Colors.textMuted,
     textAlign: "center",
     lineHeight: 24,
     marginBottom: 40,
   },
   createBtn: {
-    backgroundColor: Colors.primary,
     paddingVertical: 18,
     paddingHorizontal: 40,
     borderRadius: 16,
