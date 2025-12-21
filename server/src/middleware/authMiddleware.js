@@ -12,3 +12,11 @@ exports.protect = (req, res, next) => {
     res.status(401).json({ message: "Invalid Token" });
   }
 };
+
+exports.admin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: "Admin access required" });
+  }
+};
