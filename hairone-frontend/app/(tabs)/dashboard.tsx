@@ -11,7 +11,9 @@ import {
   UserPlus,
   Store,
   Scissors,
-  TrendingUp
+  TrendingUp,
+  ShieldAlert,
+  RotateCcw
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -149,6 +151,59 @@ export default function DashboardScreen() {
         <ActivityIndicator size="large" color={colors.tint} />
       </View>
     );
+
+  // --- SUSPENDED STATE ---
+  // @ts-ignore
+  if (user?.applicationStatus === 'suspended') {
+    const handleReapply = async () => {
+      try {
+        setLoading(true);
+        // @ts-ignore
+        const res = await api.post('/admin/reapply');
+        // Refresh local user state if possible, or force logout/reload
+        // Since we can't easily update Context user deep from here without a reload mechanism,
+        // we might need to alert the user.
+        // Ideally: update user context.
+        alert("Re-application submitted. Please wait for admin approval.");
+        fetchShopData(); // This might not refresh context user role immediately
+      } catch (e) {
+        alert("Failed to reapply");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <View style={[styles.welcomeContainer, {backgroundColor: colors.background}]}>
+         <View style={styles.welcomeContent}>
+            <View style={[styles.iconCircle, {backgroundColor: 'rgba(239, 68, 68, 0.1)'}]}>
+               <ShieldAlert size={48} color="#ef4444" />
+            </View>
+            <Text style={[styles.welcomeTitle, {color: colors.text}]}>Account Suspended</Text>
+            <Text style={[styles.welcomeSub, {color: colors.textMuted}]}>
+               Your shop has been suspended by the administrator.
+            </Text>
+
+            {/* @ts-ignore */}
+            {user?.suspensionReason && (
+               <View style={styles.reasonBox}>
+                  <Text style={styles.reasonLabel}>Reason:</Text>
+                  {/* @ts-ignore */}
+                  <Text style={styles.reasonText}>{user.suspensionReason}</Text>
+               </View>
+            )}
+
+            <TouchableOpacity
+               style={[styles.createBtn, {backgroundColor: colors.tint, marginTop: 20, flexDirection:'row', gap: 8, alignItems:'center'}]}
+               onPress={handleReapply}
+            >
+               <RotateCcw size={20} color="#0f172a" />
+               <Text style={styles.createBtnText}>Request Review</Text>
+            </TouchableOpacity>
+         </View>
+      </View>
+    );
+  }
 
   // --- NO SHOP STATE (Welcome Screen) ---
   if (!shop)
@@ -414,4 +469,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   createBtnText: { color: "#0f172a", fontWeight: "bold", fontSize: 18 },
+
+  reasonBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    width: '100%',
+    marginBottom: 10
+  },
+  reasonLabel: { color: '#ef4444', fontWeight: 'bold', marginBottom: 4 },
+  reasonText: { color: '#94a3b8' }
 });

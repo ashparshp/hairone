@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const Shop = require('../models/Shop');
+const Booking = require('../models/Booking');
 
 // USER: Submit Application
 exports.submitApplication = async (req, res) => {
@@ -36,13 +38,67 @@ exports.processApplication = async (req, res) => {
   const { userId, action } = req.body;
   try {
     if (action === 'approve') {
-      await User.findByIdAndUpdate(userId, { role: 'owner', applicationStatus: 'approved' });
+      const user = await User.findByIdAndUpdate(userId, { role: 'owner', applicationStatus: 'approved' }, { new: true });
+      // If shop exists (re-approval), enable it
+      if (user.myShopId) {
+        await Shop.findByIdAndUpdate(user.myShopId, { isDisabled: false });
+      }
     } else {
       await User.findByIdAndUpdate(userId, { applicationStatus: 'rejected' });
     }
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ message: "Process failed" });
+  }
+};
+
+// ADMIN: Suspend Shop
+exports.suspendShop = async (req, res) => {
+  const { shopId } = req.params;
+  const { reason } = req.body;
+
+  try {
+    if (!reason) return res.status(400).json({ message: "Suspension reason is required." });
+
+    // 1. Disable Shop
+    const shop = await Shop.findByIdAndUpdate(shopId, { isDisabled: true }, { new: true });
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    // 2. Suspend Owner
+    await User.findByIdAndUpdate(shop.ownerId, {
+      applicationStatus: 'suspended',
+      suspensionReason: reason
+    });
+
+    // 3. Cancel Upcoming Bookings
+    const cancelled = await Booking.updateMany(
+      { shopId: shop._id, status: 'upcoming' },
+      {
+        status: 'cancelled',
+        notes: `Cancelled due to shop suspension: ${reason}`
+      }
+    );
+
+    res.json({ message: "Shop suspended", cancelledBookings: cancelled.modifiedCount });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to suspend shop" });
+  }
+};
+
+// USER: Reapply (Recover from Suspension)
+exports.reapply = async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const user = await User.findByIdAndUpdate(userId, {
+      applicationStatus: 'pending'
+      // We keep suspensionReason for history or overwrite it?
+      // Let's leave it, it will be overwritten on next suspension or ignored on approval.
+    }, { new: true });
+
+    res.json({ message: "Re-application submitted", user });
+  } catch (e) {
+    res.status(500).json({ message: "Failed to reapply" });
   }
 };
 
