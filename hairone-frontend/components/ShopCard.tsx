@@ -24,8 +24,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
       style={[
         styles.card,
         {
-          // UPDATED: Use colors.card (Zinc-900) instead of Slate-900
-          backgroundColor: colors.card, 
+          backgroundColor: colors.background, 
           borderColor: colors.border, 
         }
       ]}

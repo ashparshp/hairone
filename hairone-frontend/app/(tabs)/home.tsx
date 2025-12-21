@@ -61,7 +61,7 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [genderFilter, setGenderFilter] = useState("All");
-  const [distanceFilter, setDistanceFilter] = useState(10);
+  const [distanceFilter, setDistanceFilter] = useState(1);
 
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(
@@ -276,7 +276,7 @@ export default function HomeScreen() {
               <View
                 style={[
                   styles.searchBox,
-                  { backgroundColor: colors.card, borderColor: colors.border },
+                  { backgroundColor: isDark ? colors.background : colors.card, borderColor: colors.border },
                 ]}
               >
                 <Search size={18} color={colors.textMuted} />
