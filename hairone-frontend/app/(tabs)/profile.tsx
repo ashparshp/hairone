@@ -61,6 +61,19 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleReapply = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await api.post('/admin/reapply');
+      if (token) login(token, res.data.user);
+      showToast("Re-application Submitted!", "success");
+    } catch (e) {
+      showToast("Re-application failed", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -164,6 +177,7 @@ export default function ProfileScreen() {
 
       <FadeInView>
       <View style={styles.section}>
+          {/* 1. New Application (Status: None) */}
           {user?.role === 'user' && user?.applicationStatus === 'none' && (
              <View style={[styles.promoCard, {backgroundColor: colors.tint}]}>
                 {!applying ? (
@@ -192,7 +206,46 @@ export default function ProfileScreen() {
                 )}
              </View>
           )}
-          {/* Status Cards omitted for brevity if unchanged logic, preserving if needed */}
+
+          {/* 2. Pending Application */}
+          {user?.applicationStatus === 'pending' && (
+             <View style={[styles.statusCard, {backgroundColor: colors.card, borderColor: '#f59e0b'}]}>
+                <Clock size={24} color="#f59e0b" />
+                <View style={{flex: 1}}>
+                    <Text style={[styles.statusTitle, {color: colors.text}]}>Application Pending</Text>
+                    <Text style={[styles.statusSub, {color: colors.textMuted}]}>Our team is reviewing your details.</Text>
+                </View>
+             </View>
+          )}
+
+          {/* 3. Rejected or Suspended */}
+          {(user?.applicationStatus === 'rejected' || user?.applicationStatus === 'suspended') && (
+             <View style={[styles.statusCard, {backgroundColor: colors.card, borderColor: '#ef4444'}]}>
+                <ShieldAlert size={24} color="#ef4444" />
+                <View style={{flex: 1}}>
+                    <Text style={[styles.statusTitle, {color: colors.text}]}>
+                        {user.applicationStatus === 'rejected' ? 'Application Rejected' : 'Account Suspended'}
+                    </Text>
+                    <Text style={[styles.statusSub, {color: colors.textMuted}]}>
+                        {user.suspensionReason || "Please contact support for more details."}
+                    </Text>
+                    <TouchableOpacity style={[styles.saveBtn, {backgroundColor: '#ef4444', marginTop: 12}]} onPress={handleReapply}>
+                        {isSubmitting ? <ActivityIndicator color="white"/> : <Text style={{color: 'white', fontWeight: 'bold'}}>Re-Apply</Text>}
+                    </TouchableOpacity>
+                </View>
+             </View>
+          )}
+
+          {/* 4. Approved (Owner) */}
+          {user?.role === 'owner' && user?.applicationStatus === 'approved' && (
+             <View style={[styles.statusCard, {backgroundColor: colors.card, borderColor: '#10b981'}]}>
+                <Briefcase size={24} color="#10b981" />
+                <View style={{flex: 1}}>
+                    <Text style={[styles.statusTitle, {color: colors.text}]}>Partner Account Active</Text>
+                    <Text style={[styles.statusSub, {color: colors.textMuted}]}>Manage your shop from the dashboard.</Text>
+                </View>
+             </View>
+          )}
       </View>
       </FadeInView>
 
