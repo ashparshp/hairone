@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
+import Logo from '../../components/Logo';
 import api from '../../services/api';
 
 export default function LoginScreen() {
@@ -78,7 +79,9 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, {backgroundColor: colors.background}]}>
       <FadeInView>
-        <Text style={[styles.title, {color: colors.tint}]}>HairOne</Text>
+        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+          <Logo width={280} height={110} />
+        </View>
         <Text style={[styles.sub, {color: colors.textMuted}]}>Production Booking App</Text>
 
         {step === 1 ? (
