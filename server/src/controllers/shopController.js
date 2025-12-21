@@ -127,7 +127,7 @@ exports.getAllShops = async (req, res) => {
   try {
     const { minTime, type } = req.query;
 
-    const query = {};
+    const query = { isDisabled: { $ne: true } };
     if (type && type !== 'all') {
         query.type = type.toLowerCase();
     }

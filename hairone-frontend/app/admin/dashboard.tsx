@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import Colors from '../../constants/Colors';
-import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks } from 'lucide-react-native';
+import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks, Ban } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
 export default function AdminDashboard() {
@@ -16,6 +16,11 @@ export default function AdminDashboard() {
   const [shops, setShops] = useState([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Suspension Modal
+  const [suspendModalVisible, setSuspendModalVisible] = useState(false);
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -51,6 +56,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const openSuspendModal = (shopId: string) => {
+    setSelectedShopId(shopId);
+    setSuspendReason('');
+    setSuspendModalVisible(true);
+  };
+
+  const handleSuspend = async () => {
+    if (!selectedShopId || !suspendReason.trim()) return;
+    try {
+      await api.post(`/admin/shops/${selectedShopId}/suspend`, { reason: suspendReason });
+      Alert.alert("Suspended", "Shop has been suspended and upcoming bookings cancelled.");
+      setSuspendModalVisible(false);
+      fetchData();
+    } catch (e) {
+      Alert.alert("Error", "Failed to suspend shop");
+    }
+  };
+
   const renderApplicant = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12}}>
@@ -83,14 +106,21 @@ export default function AdminDashboard() {
     <View style={styles.card}>
         <View style={{flexDirection:'row', alignItems:'center', gap: 12}}>
             <Image source={{ uri: item.image || 'https://via.placeholder.com/100' }} style={{width: 50, height: 50, borderRadius: 8}} />
-            <View>
+            <View style={{flex:1}}>
                 <Text style={styles.bizName}>{item.name}</Text>
                 <Text style={styles.userName}>{item.address}</Text>
             </View>
+            {!item.isDisabled && (
+              <TouchableOpacity style={styles.suspendBtn} onPress={() => openSuspendModal(item._id)}>
+                <Ban size={16} color="#ef4444" />
+              </TouchableOpacity>
+            )}
         </View>
         <View style={{marginTop: 12, flexDirection:'row', justifyContent:'space-between'}}>
             <Text style={{color:Colors.textMuted}}>Owner: {item.ownerId?.name || 'Unknown'}</Text>
-            <Text style={{color:Colors.textMuted}}>{item.ownerId?.phone}</Text>
+            <Text style={{color:Colors.textMuted}}>
+              {item.isDisabled ? <Text style={{color: '#ef4444', fontWeight:'bold'}}>SUSPENDED</Text> : item.ownerId?.phone}
+            </Text>
         </View>
     </View>
   );
@@ -198,6 +228,47 @@ export default function AdminDashboard() {
             )}
 
             {activeTab === 'reports' && renderStats()}
+
+            {/* Suspend Modal */}
+            <Modal
+              visible={suspendModalVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setSuspendModalVisible(false)}
+            >
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.modalOverlay}
+              >
+                <View style={styles.modalContent}>
+                   <View style={styles.modalHeader}>
+                     <ShieldAlert size={24} color="#ef4444" />
+                     <Text style={styles.modalTitle}>Suspend Shop</Text>
+                   </View>
+                   <Text style={styles.modalSub}>
+                     This will hide the shop from users and cancel all upcoming bookings. Action is reversible by re-approving the owner.
+                   </Text>
+
+                   <TextInput
+                      style={styles.input}
+                      placeholder="Reason for suspension..."
+                      placeholderTextColor={Colors.textMuted}
+                      multiline
+                      value={suspendReason}
+                      onChangeText={setSuspendReason}
+                   />
+
+                   <View style={styles.modalActions}>
+                      <TouchableOpacity style={styles.cancelBtn} onPress={() => setSuspendModalVisible(false)}>
+                         <Text style={styles.cancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.confirmSuspendBtn} onPress={handleSuspend}>
+                         <Text style={styles.suspendText}>Confirm Suspension</Text>
+                      </TouchableOpacity>
+                   </View>
+                </View>
+              </KeyboardAvoidingView>
+            </Modal>
         </>
       )}
     </View>
@@ -237,5 +308,20 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   statCard: { width: '48%', backgroundColor: Colors.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   statVal: { color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
-  statLabel: { color: Colors.textMuted, fontSize: 12, textTransform: 'uppercase', fontWeight: 'bold' }
+  statLabel: { color: Colors.textMuted, fontSize: 12, textTransform: 'uppercase', fontWeight: 'bold' },
+
+  suspendBtn: { padding: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: Colors.card, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: Colors.border },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  modalTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  modalSub: { color: Colors.textMuted, fontSize: 14, marginBottom: 20, lineHeight: 20 },
+  input: { backgroundColor: '#0f172a', borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 12, color: 'white', height: 100, textAlignVertical: 'top', marginBottom: 20 },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  cancelBtn: { flex: 1, padding: 14, alignItems: 'center', borderRadius: 10, backgroundColor: '#334155' },
+  cancelText: { color: 'white', fontWeight: 'bold' },
+  confirmSuspendBtn: { flex: 1, padding: 14, alignItems: 'center', borderRadius: 10, backgroundColor: '#ef4444' },
+  suspendText: { color: 'white', fontWeight: 'bold' }
 });

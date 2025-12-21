@@ -13,7 +13,8 @@ const userSchema = new mongoose.Schema({
   isPremium: { type: Boolean, default: false },
   
   businessName: { type: String },
-  applicationStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+  applicationStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected', 'suspended'], default: 'none' },
+  suspensionReason: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
