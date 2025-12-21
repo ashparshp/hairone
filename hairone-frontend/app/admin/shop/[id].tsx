@@ -6,6 +6,7 @@ import api from '../../../services/api';
 import { ArrowLeft, Ban, Calendar, CheckCircle, Clock, DollarSign, MapPin, Phone, ShieldCheck, User } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
+import { FadeInView } from '../../../components/AnimatedViews';
 
 export default function AdminShopDetails() {
   const { id } = useLocalSearchParams();
@@ -125,6 +126,7 @@ export default function AdminShopDetails() {
 
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
+             <FadeInView>
              <View style={{gap: 20}}>
                 <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
                     <Text style={[styles.sectionTitle, {color: colors.text}]}>Owner Details</Text>
@@ -154,10 +156,12 @@ export default function AdminShopDetails() {
                    </View>
                 </View>
              </View>
+             </FadeInView>
           )}
 
           {/* REVENUE TAB */}
           {activeTab === 'revenue' && (
+             <FadeInView>
              <View style={{gap: 16}}>
                 <View style={styles.grid}>
                    <StatCard title="This Week" amount={stats?.weekly} color="#3b82f6" />
@@ -203,10 +207,12 @@ export default function AdminShopDetails() {
                    )}
                 </View>
              </View>
+             </FadeInView>
           )}
 
           {/* BOOKINGS TAB */}
           {activeTab === 'bookings' && (
+             <FadeInView>
              <View>
                 <Text style={{color: colors.textMuted, marginBottom: 12}}>Recent 50 Bookings</Text>
                 {bookings.map((b: any) => (
@@ -226,6 +232,7 @@ export default function AdminShopDetails() {
                    </View>
                 ))}
              </View>
+             </FadeInView>
           )}
 
        </ScrollView>

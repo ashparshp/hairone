@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 import { ChevronLeft, MapPin, Save, Store, Camera } from 'lucide-react-native';
+import { FadeInView } from '../../components/AnimatedViews';
 
 export default function ShopDetailsScreen() {
   const router = useRouter();
@@ -183,6 +184,7 @@ export default function ShopDetailsScreen() {
       <ScrollView contentContainerStyle={{paddingBottom: 40}} showsVerticalScrollIndicator={false}>
 
         {/* --- SECTION 1: SHOP DETAILS --- */}
+        <FadeInView>
         <View style={styles.section}>
             <Text style={[styles.sectionTitle, {color: colors.text}]}>Shop Details</Text>
             <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -248,8 +250,10 @@ export default function ShopDetailsScreen() {
                 </View>
             </View>
         </View>
+        </FadeInView>
 
         {/* --- SECTION 2: SCHEDULING RULES --- */}
+        <FadeInView delay={200}>
         <View style={styles.section}>
             <Text style={[styles.sectionTitle, {color: colors.text}]}>Scheduling Rules</Text>
             <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
@@ -329,6 +333,7 @@ export default function ShopDetailsScreen() {
 
             </View>
         </View>
+        </FadeInView>
 
       </ScrollView>
     </View>
