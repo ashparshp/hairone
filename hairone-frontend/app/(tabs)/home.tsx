@@ -368,12 +368,12 @@ export default function HomeScreen() {
           </>
         }
         ListEmptyComponent={
-          !loading && (
+          !loading ? (
             <View style={styles.emptyState}>
               <AlertCircle size={48} color={isDark ? '#334155' : '#cbd5e1'} />
               <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>No salons found nearby.</Text>
             </View>
-          )
+          ) : null
         }
       />
 
