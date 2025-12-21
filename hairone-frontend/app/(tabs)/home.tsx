@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useMemo } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Search, MapPin, Filter, Sun, Moon, AlertCircle } from "lucide-react-native";
 import {
@@ -40,7 +40,6 @@ export default function HomeScreen() {
   const { colors, theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [shops, setShops] = useState([]);
   const [rawShops, setRawShops] = useState([]); // Unfiltered API data
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,8 +108,8 @@ export default function HomeScreen() {
     }, [location, distanceFilter, genderFilter]) // Removed activeCategory from fetch dependency to handle it locally if possible, but backend doesn't support it anyway so filtering locally is better
   );
 
-  // Live Filtering Effect
-  useEffect(() => {
+  // Live Filtering
+  const shops = useMemo(() => {
     let filtered = rawShops;
 
     // Text Search
@@ -128,7 +127,7 @@ export default function HomeScreen() {
       );
     }
 
-    setShops(filtered);
+    return filtered;
   }, [rawShops, searchText, activeCategory]);
 
   const toggleFavorite = async (shopId: string) => {
