@@ -1,14 +1,15 @@
 import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Home, Calendar, User, Briefcase } from 'lucide-react-native';
-import Colors from '../../constants/Colors';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function TabLayout() {
   const { user, isLoading } = useAuth();
+  const { colors } = useTheme();
 
   if (isLoading) {
-    return <View style={{flex:1, backgroundColor: Colors.background, justifyContent:'center'}}><ActivityIndicator /></View>;
+    return <View style={{flex:1, backgroundColor: colors.background, justifyContent:'center'}}><ActivityIndicator color={colors.tint} /></View>;
   }
 
   // 1. If ADMIN -> Redirect out of Tabs to Admin Stack
@@ -18,8 +19,8 @@ export default function TabLayout() {
 
   return (
     <Tabs screenOptions={{
-      tabBarStyle: { backgroundColor: Colors.background, borderTopColor: Colors.border },
-      tabBarActiveTintColor: Colors.primary,
+      tabBarStyle: { backgroundColor: colors.background, borderTopColor: colors.border },
+      tabBarActiveTintColor: colors.tint,
       headerShown: false
     }}>
 

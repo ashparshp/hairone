@@ -128,9 +128,9 @@ export default function DashboardScreen() {
               </View>
             ) : (
               <View
-                style={[styles.statusBadge, { backgroundColor: "#334155" }]}
+                style={[styles.statusBadge, { backgroundColor: theme === 'dark' ? "#334155" : "#e2e8f0" }]}
               >
-                <Text style={[styles.statusText, { color: "#94a3b8" }]}>
+                <Text style={[styles.statusText, { color: theme === 'dark' ? "#94a3b8" : "#64748b" }]}>
                   OFF
                 </Text>
               </View>
@@ -471,14 +471,14 @@ const styles = StyleSheet.create({
   createBtnText: { color: "#0f172a", fontWeight: "bold", fontSize: 18 },
 
   reasonBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.2)',
     width: '100%',
     marginBottom: 10
   },
   reasonLabel: { color: '#ef4444', fontWeight: 'bold', marginBottom: 4 },
-  reasonText: { color: '#94a3b8' }
+  reasonText: { color: '#ef4444' }
 });

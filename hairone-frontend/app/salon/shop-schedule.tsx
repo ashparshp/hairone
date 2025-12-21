@@ -183,7 +183,7 @@ export default function ShopScheduleScreen() {
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.header}>
-         <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card}]}>
+         <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card, borderColor: colors.border}]}>
             <ChevronLeft size={24} color={colors.text}/>
          </TouchableOpacity>
          <Text style={[styles.title, {color: colors.text}]}>Today's Schedule</Text>
@@ -216,26 +216,26 @@ export default function ShopScheduleScreen() {
           <View style={styles.modalBg}>
               <View style={[styles.modalCard, {backgroundColor: colors.card}]}>
                   <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
-                      <Text style={[styles.modalTitle, {color: colors.text, marginBottom: 0}]}>Add Slot</Text>
+                      <Text style={[styles.modalTitle, {color: colors.text}]}>Add Slot</Text>
                       <TouchableOpacity onPress={() => setShowModal(false)}>
-                          <Text style={{color: colors.tint, fontWeight: 'bold'}}>Close</Text>
+                          <Text style={{color: colors.textMuted, fontWeight: 'bold'}}>Close</Text>
                       </TouchableOpacity>
                   </View>
 
-                  <ScrollView>
+                  <ScrollView showsVerticalScrollIndicator={false}>
                   <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                  <View style={{flexDirection:'row', marginBottom: 16}}>
+                  <View style={[styles.segmentContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', borderColor: colors.border}]}>
                       <TouchableOpacity
-                        style={[styles.typeBtn, {borderColor: colors.tint}, blockType === 'walk-in' && {backgroundColor: colors.tint}]}
+                        style={[styles.segmentBtn, blockType === 'walk-in' && {backgroundColor: colors.tint}]}
                         onPress={() => setBlockType('walk-in')}
                       >
-                          <Text style={{color: blockType === 'walk-in' ? '#0f172a' : colors.text}}>Walk-in</Text>
+                          <Text style={[styles.segmentText, {color: colors.textMuted}, blockType === 'walk-in' && {color: '#0f172a', fontWeight: 'bold'}]}>Walk-in</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.typeBtn, {borderColor: colors.tint}, blockType === 'blocked' && {backgroundColor: colors.tint}]}
+                        style={[styles.segmentBtn, blockType === 'blocked' && {backgroundColor: colors.tint}]}
                         onPress={() => setBlockType('blocked')}
                       >
-                          <Text style={{color: blockType === 'blocked' ? '#0f172a' : colors.text}}>Block Time</Text>
+                          <Text style={[styles.segmentText, {color: colors.textMuted}, blockType === 'blocked' && {color: '#0f172a', fontWeight: 'bold'}]}>Block Time</Text>
                       </TouchableOpacity>
                   </View>
 
@@ -262,7 +262,7 @@ export default function ShopScheduleScreen() {
                   </View>
 
                   <Text style={[styles.label, {marginTop: 12, color: colors.textMuted}]}>Assign Barber</Text>
-                  <View style={{flexDirection:'row', flexWrap:'wrap', gap: 8, marginTop: 4}}>
+                  <View style={{flexDirection:'row', flexWrap:'wrap', gap: 8, marginTop: 4, marginBottom: 12}}>
                       {barbers.map((b: any) => (
                           <TouchableOpacity
                             key={b._id}
@@ -270,33 +270,11 @@ export default function ShopScheduleScreen() {
                             onPress={() => setSelectedBarberId(b._id)}
                           >
                               <Text style={{color: selectedBarberId === b._id ? '#0f172a' : colors.textMuted}}>{b.name}</Text>
-      <Modal visible={showModal} transparent animationType="fade">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
-              <View style={styles.modalCard}>
-                  <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Add Slot</Text>
-                      <TouchableOpacity onPress={() => setShowModal(false)} style={styles.closeBtn}>
-                          <Text style={{color: Colors.textMuted, fontSize: 14, fontWeight: 'bold'}}>Close</Text>
-                      </TouchableOpacity>
+                          </TouchableOpacity>
+                      ))}
                   </View>
 
-                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 20}}>
-                      <View style={styles.segmentContainer}>
-                          <TouchableOpacity
-                            style={[styles.segmentBtn, blockType === 'walk-in' && styles.segmentBtnActive]}
-                            onPress={() => setBlockType('walk-in')}
-                          >
-                              <Text style={[styles.segmentText, blockType === 'walk-in' && {color: '#0f172a', fontWeight: 'bold'}]}>Walk-in</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.segmentBtn, blockType === 'blocked' && styles.segmentBtnActive]}
-                            onPress={() => setBlockType('blocked')}
-                          >
-                              <Text style={[styles.segmentText, blockType === 'blocked' && {color: '#0f172a', fontWeight: 'bold'}]}>Block Time</Text>
-                          </TouchableOpacity>
-                      </View>
-
-                  <Text style={[styles.label, {marginTop: 12, color: colors.textMuted}]}>Notes / Customer Name</Text>
+                  <Text style={[styles.label, {color: colors.textMuted}]}>Notes / Customer Name</Text>
                   <TextInput
                     style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
                     value={blockNotes}
@@ -306,59 +284,17 @@ export default function ShopScheduleScreen() {
                   />
 
                   <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
-                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor:'#334155'}]} onPress={() => setShowModal(false)}>
-                          <Text style={{color:'white'}}>Cancel</Text>
+                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setShowModal(false)}>
+                          <Text style={{color: colors.text}}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.modalBtn, {backgroundColor: colors.tint}]} onPress={handleCreateBlock} disabled={submitting}>
                           {submitting ? <ActivityIndicator color="#0f172a"/> : <Text style={{color:'#0f172a', fontWeight:'bold'}}>Create</Text>}
                       </TouchableOpacity>
                   </View>
                   </KeyboardAvoidingView>
-                      <View style={{flexDirection:'row', gap: 12, marginBottom: 16}}>
-                          <View style={{flex:1}}>
-                             <Text style={styles.label}>Time (HH:mm)</Text>
-                             <TextInput style={styles.input} value={blockTime} onChangeText={setBlockTime} placeholder="14:30" placeholderTextColor="#64748b"/>
-                          </View>
-                          <View style={{flex:1}}>
-                             <Text style={styles.label}>Duration (min)</Text>
-                             <TextInput style={styles.input} value={blockDuration} onChangeText={setBlockDuration} keyboardType="numeric" />
-                          </View>
-                      </View>
-
-                      <Text style={styles.label}>Assign Barber</Text>
-                      <View style={{flexDirection:'row', flexWrap:'wrap', gap: 8, marginTop: 8, marginBottom: 16}}>
-                          {barbers.map((b: any) => (
-                              <TouchableOpacity
-                                key={b._id}
-                                style={[styles.chip, selectedBarberId === b._id && styles.chipActive]}
-                                onPress={() => setSelectedBarberId(b._id)}
-                              >
-                                  <Text style={{color: selectedBarberId === b._id ? '#0f172a' : Colors.textMuted, fontSize: 12}}>{b.name}</Text>
-                              </TouchableOpacity>
-                          ))}
-                      </View>
-
-                      <Text style={styles.label}>Notes / Customer Name</Text>
-                      <TextInput
-                        style={[styles.input, {height: 80, textAlignVertical: 'top'}]}
-                        value={blockNotes}
-                        onChangeText={setBlockNotes}
-                        placeholder={blockType === 'walk-in' ? "Customer Name" : "Reason for blocking"}
-                        placeholderTextColor="#64748b"
-                        multiline
-                      />
-
-                      <View style={{flexDirection:'row', gap: 12, marginTop: 24}}>
-                          <TouchableOpacity style={[styles.modalBtn, {backgroundColor:'#334155'}]} onPress={() => setShowModal(false)}>
-                              <Text style={{color:'white', fontWeight: '600'}}>Cancel</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity style={[styles.modalBtn, {backgroundColor:Colors.primary}]} onPress={handleCreateBlock} disabled={submitting}>
-                              {submitting ? <ActivityIndicator color="#0f172a"/> : <Text style={{color:'#0f172a', fontWeight:'bold'}}>Create Slot</Text>}
-                          </TouchableOpacity>
-                      </View>
                   </ScrollView>
               </View>
-          </KeyboardAvoidingView>
+          </View>
       </Modal>
 
     </View>
@@ -368,7 +304,7 @@ export default function ShopScheduleScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   title: { fontSize: 20, fontWeight: 'bold', marginLeft: 16, flex: 1 },
   addBtn: { flexDirection:'row', alignItems:'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 4 },
   addBtnText: { color: '#0f172a', fontWeight:'bold', fontSize: 12 },
@@ -390,29 +326,15 @@ const styles = StyleSheet.create({
 
   // Modal
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent:'center', padding: 20 },
-  modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%' },
+  modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%', width: '100%' },
   modalTitle: { fontSize: 20, fontWeight:'bold', marginBottom: 20 },
   modalBtn: { flex: 1, padding: 16, borderRadius: 12, alignItems:'center' },
-  label: { fontSize: 12, marginBottom: 6 },
+  label: { fontSize: 12, marginBottom: 6, fontWeight: '600' },
   input: { padding: 12, borderRadius: 8, borderWidth: 1 },
 
-  typeBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems:'center', borderWidth: 1 },
+  segmentContainer: { flexDirection: 'row', borderRadius: 12, padding: 4, marginBottom: 20, borderWidth: 1 },
+  segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  segmentText: { fontSize: 14, fontWeight: '500' },
 
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-});
-  modalCard: { backgroundColor: Colors.card, padding: 20, borderRadius: 20, maxHeight: '80%', width: '100%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight:'bold', color:'white' },
-  closeBtn: { padding: 4 },
-  modalBtn: { flex: 1, padding: 16, borderRadius: 12, alignItems:'center' },
-  label: { color: Colors.textMuted, fontSize: 12, marginBottom: 8, fontWeight: '600' },
-  input: { backgroundColor: '#0f172a', color: 'white', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#334155', fontSize: 14 },
-
-  segmentContainer: { flexDirection: 'row', backgroundColor: '#0f172a', borderRadius: 12, padding: 4, marginBottom: 20, borderWidth: 1, borderColor: '#334155' },
-  segmentBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  segmentBtnActive: { backgroundColor: Colors.primary },
-  segmentText: { color: Colors.textMuted, fontSize: 14, fontWeight: '500' },
-
-  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, borderWidth: 1, borderColor: '#334155', backgroundColor: '#0f172a' },
-  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary }
 });
