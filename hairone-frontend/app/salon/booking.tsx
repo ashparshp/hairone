@@ -1,68 +1,73 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
-import Colors from '../../constants/Colors';
-import { Booking } from '../../types';
+import React, { useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useTheme } from '../../context/ThemeContext';
+import { useBooking } from '../../context/BookingContext';
+import { ChevronLeft, Calendar, Clock } from 'lucide-react-native';
+import { FadeInView } from '../../components/AnimatedViews';
 
-export default function MyBookingsScreen() {
-  const { user } = useAuth();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchBookings = async () => {
-    if (!user) return;
-    try {
-      const res = await api.get(`/bookings/user/${user._id}`);
-      setBookings(res.data);
-    } catch (e) {
-      console.log('Error fetching bookings', e);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+export default function BookingScreen() {
+  const router = useRouter();
+  const { colors, theme } = useTheme();
+  const { myBookings, fetchBookings } = useBooking();
 
   useEffect(() => {
-    fetchBookings();
+    if (fetchBookings) fetchBookings();
   }, []);
 
-  const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.card}>
-      <View style={{flexDirection:'row', justifyContent:'space-between'}}>
-         <Text style={styles.barberName}>{item.barberId?.name || 'Unknown Barber'}</Text>
-         <Text style={[styles.status, { color: item.status === 'upcoming' ? Colors.primary : Colors.textMuted }]}>
-            {item.status.toUpperCase()}
-         </Text>
+  const renderItem = ({ item, index }: { item: any, index: number }) => (
+    <FadeInView delay={index * 100}>
+      <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+         <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
+            <Text style={[styles.shopName, {color: colors.text}]}>{item.shopId?.name || 'Shop'}</Text>
+            <Text style={[styles.status, {color: item.status === 'upcoming' ? colors.tint : colors.textMuted}]}>{item.status.toUpperCase()}</Text>
+         </View>
+         <View style={{flexDirection: 'row', gap: 12}}>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                <Calendar size={14} color={colors.textMuted} />
+                <Text style={{color: colors.textMuted}}>{item.date}</Text>
+            </View>
+            <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                <Clock size={14} color={colors.textMuted} />
+                <Text style={{color: colors.textMuted}}>{item.startTime}</Text>
+            </View>
+         </View>
       </View>
-      <Text style={{color: 'white', fontSize: 12}}>Service: {item.serviceNames.join(', ')}</Text>
-      <View style={styles.divider} />
-      <View style={{flexDirection:'row', justifyContent:'space-between'}}>
-          <Text style={{color: 'white', fontWeight:'bold'}}>{item.date}</Text>
-          <Text style={{color: 'white', fontWeight:'bold'}}>{item.startTime}</Text>
-      </View>
-    </View>
+    </FadeInView>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>My Bookings</Text>
-      <FlatList 
-        data={bookings}
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
+      <View style={styles.header}>
+         <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card, borderColor: colors.border}]}>
+            <ChevronLeft size={24} color={colors.text}/>
+         </TouchableOpacity>
+         <Text style={[styles.title, {color: colors.text}]}>My Bookings</Text>
+      </View>
+
+      <FlatList
+        data={myBookings}
         renderItem={renderItem}
-        keyExtractor={item => item._id}
-        contentContainerStyle={{padding: 20}}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchBookings();}} tintColor={Colors.primary} />}
-        ListEmptyComponent={<Text style={{color: Colors.textMuted, textAlign:'center', marginTop: 50}}>No bookings yet.</Text>}
+        keyExtractor={(item: any) => item._id || item.id}
+        contentContainerStyle={{paddingBottom: 20}}
+        ListEmptyComponent={
+            <View style={styles.center}>
+                <Text style={{color: colors.textMuted}}>No bookings found.</Text>
+            </View>
+        }
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, paddingTop: 60 },
-  header: { fontSize: 24, fontWeight: 'bold', color: 'white', paddingHorizontal: 20, marginBottom: 10 },
-  card: { backgroundColor: Colors.card, padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: Colors.border },
-  barberName: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  status: { fontSize: 12, fontWeight: 'bold' },
-  divider: { height: 1, backgroundColor: '#334155', marginVertical: 12 }
+  container: { flex: 1, padding: 20, paddingTop: 60 },
+  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 1 },
+  title: { fontSize: 24, fontWeight: 'bold' },
+  center: { alignItems: 'center', marginTop: 50 },
+
+  card: { padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1 },
+  shopName: { fontWeight: 'bold', fontSize: 16 },
+  status: { fontSize: 12, fontWeight: 'bold' }
 });
