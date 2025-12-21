@@ -19,8 +19,11 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
   const { colors, theme } = useTheme();
   const isDark = theme === 'dark';
 
+  // Cap delay to prevent excessive staggering on long lists/filtering
+  const delay = Math.min(index * 50, 300);
+
   return (
-    <FadeInView delay={index * 100}>
+    <FadeInView delay={delay} duration={400}>
       <ScalePress
         onPress={onPress}
         style={[

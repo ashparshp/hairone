@@ -21,6 +21,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { ShopCard } from "../../components/ShopCard";
+import { ShopCardSkeleton } from "../../components/ShopCardSkeleton";
 import api from "../../services/api";
 
 const { width } = Dimensions.get('window');
@@ -366,12 +367,16 @@ export default function HomeScreen() {
           </>
         }
         ListEmptyComponent={
-          !loading ? (
+          loading ? (
+            <View>
+               {[1, 2, 3].map(i => <ShopCardSkeleton key={i} />)}
+            </View>
+          ) : (
             <View style={styles.emptyState}>
               <AlertCircle size={48} color={isDark ? '#334155' : '#cbd5e1'} />
               <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>No salons found nearby.</Text>
             </View>
-          ) : null
+          )
         }
       />
 
