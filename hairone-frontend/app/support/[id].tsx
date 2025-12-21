@@ -7,10 +7,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import api from '../../services/api';
 import { ChevronLeft, Send } from 'lucide-react-native';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
