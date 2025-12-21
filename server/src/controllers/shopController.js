@@ -62,9 +62,9 @@ exports.createShop = async (req, res) => {
       services: [],
       rating: 5.0,
       type: 'unisex',
-      bufferTime: bufferTime !== undefined ? parseInt(bufferTime) : 0,
-      minBookingNotice: minBookingNotice !== undefined ? parseInt(minBookingNotice) : 60,
-      maxBookingNotice: maxBookingNotice !== undefined ? parseInt(maxBookingNotice) : 30,
+      bufferTime: bufferTime ? parseInt(bufferTime) : 0,
+      minBookingNotice: minBookingNotice ? parseInt(minBookingNotice) : 60,
+      maxBookingNotice: maxBookingNotice ? parseInt(maxBookingNotice) : 30,
       autoApproveBookings: autoApproveBookings !== undefined ? autoApproveBookings : true
     };
 

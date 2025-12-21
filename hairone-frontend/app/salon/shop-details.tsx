@@ -64,9 +64,9 @@ export default function ShopDetailsScreen() {
       setImage(s.image || null);
 
       // Scheduling
-      setBufferTime(s.bufferTime !== undefined ? String(s.bufferTime) : '0');
-      setMinNotice(s.minBookingNotice !== undefined ? String(s.minBookingNotice) : '60');
-      setMaxNotice(s.maxBookingNotice !== undefined ? String(s.maxBookingNotice) : '30');
+      setBufferTime(String(s.bufferTime || 0));
+      setMinNotice(String(s.minBookingNotice || 60));
+      setMaxNotice(String(s.maxBookingNotice || 30));
       setAutoApprove(s.autoApproveBookings !== false);
     } catch (e) {
       console.log(e);
