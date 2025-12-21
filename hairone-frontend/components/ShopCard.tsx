@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Heart, Star, MapPin, Clock } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
-import { FadeInView } from './AnimatedViews';
 import { ScalePress } from './ScalePress';
 
 const { width } = Dimensions.get('window');
@@ -19,15 +18,11 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
   const { colors, theme } = useTheme();
   const isDark = theme === 'dark';
 
-  // Cap delay to prevent excessive staggering on long lists/filtering
-  const delay = Math.min(index * 50, 300);
-
   return (
-    <FadeInView delay={delay} duration={400}>
-      <ScalePress
-        onPress={onPress}
-        style={[
-          styles.card,
+    <ScalePress
+      onPress={onPress}
+      style={[
+        styles.card,
           {
             backgroundColor: isDark ? '#0f172a' : '#ffffff', // Slate-900 or White
             borderColor: isDark ? '#1e293b' : '#f8fafc', // Slate-800 or Slate-50
@@ -99,7 +94,6 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
           </View>
         </View>
       </ScalePress>
-    </FadeInView>
   );
 };
 
