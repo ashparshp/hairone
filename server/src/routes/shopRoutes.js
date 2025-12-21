@@ -16,7 +16,8 @@ const {
   updateShop,
   getUserFavorites,
   deleteShopService,
-  updateShopService
+  updateShopService,
+  getShopRevenue
 } = require('../controllers/shopController'); 
 
 // 1. DigitalOcean Spaces Configuration from ENV
@@ -53,5 +54,6 @@ router.post('/:id/services', protect, addShopService);
 router.delete('/:id/services/:serviceId', protect, deleteShopService);
 router.put('/:id/services/:serviceId', protect, updateShopService);
 router.put('/:id', protect, upload.single('image'), updateShop);
+router.get('/:id/revenue', protect, getShopRevenue);
 
 module.exports = router;

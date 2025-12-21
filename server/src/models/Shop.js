@@ -19,6 +19,6 @@ const shopSchema = new mongoose.Schema({
   minBookingNotice: { type: Number, default: 60 }, // Minutes before booking
   maxBookingNotice: { type: Number, default: 30 }, // Days in advance
   autoApproveBookings: { type: Boolean, default: true }
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Shop', shopSchema);
