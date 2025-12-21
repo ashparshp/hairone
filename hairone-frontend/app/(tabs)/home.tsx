@@ -337,7 +337,7 @@ export default function HomeScreen() {
 
             {/* Categories */}
             <View style={styles.categoriesSection}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingHorizontal: 20}}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{paddingHorizontal: 24}}>
                 {CATEGORIES.map((cat) => (
                   <TouchableOpacity
                     key={cat.id}
@@ -456,7 +456,8 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 20,
     borderWidth: 1,
     gap: 12,
