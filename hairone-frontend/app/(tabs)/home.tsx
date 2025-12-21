@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: {width: 0, height: 4}
   },
-  cardImage: { width: "100%", height: 180, backgroundColor: "#1e293b" },
+  cardImage: { width: "100%", height: 180 },
   badgeContainer: { position: 'absolute', top: 12, right: 12 },
   typeBadge: { backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backdropFilter: 'blur(10px)' },
   typeBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
