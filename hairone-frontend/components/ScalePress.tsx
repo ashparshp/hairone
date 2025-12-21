@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { TouchableWithoutFeedback, Animated, ViewStyle, StyleProp } from 'react-native';
+import { Pressable, Animated, ViewStyle, StyleProp } from 'react-native';
 
 interface ScalePressProps {
   children: React.ReactNode;
@@ -40,7 +40,7 @@ export const ScalePress = ({
   };
 
   return (
-    <TouchableWithoutFeedback
+    <Pressable
       onPressIn={!disabled ? onPressIn : undefined}
       onPressOut={!disabled ? onPressOut : undefined}
       onPress={!disabled ? onPress : undefined}
@@ -48,6 +48,6 @@ export const ScalePress = ({
       <Animated.View style={[style, { transform: [{ scale: scaleValue }] }]}>
         {children}
       </Animated.View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 };
