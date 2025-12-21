@@ -130,8 +130,8 @@ const styles = StyleSheet.create({
   },
   heartButton: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 12,
+    right: 12,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
   },
   ratingBadge: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
+    top: 12,
+    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
