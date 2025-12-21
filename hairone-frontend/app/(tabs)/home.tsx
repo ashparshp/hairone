@@ -580,14 +580,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 12,
   },
-  // Update these specific styles in your home.tsx StyleSheet
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap", // Allows chips to flow to next line if screen is too narrow
     gap: 10, // Increased gap for better breathing room
   },
   chip: {
-    // REMOVE flex: 1 to allow dynamic width
     paddingHorizontal: 16, // Add horizontal padding for internal spacing
     paddingVertical: 10,
     borderRadius: 12,
