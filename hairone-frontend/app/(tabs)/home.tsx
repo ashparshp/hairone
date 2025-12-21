@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { FadeInView } from "../../components/AnimatedViews";
+import { ScalePress } from "../../components/ScalePress";
 import api from "../../services/api";
 
 export default function HomeScreen() {
@@ -73,14 +74,13 @@ export default function HomeScreen() {
 
   const renderShop = ({ item, index }: { item: any, index: number }) => (
     <FadeInView delay={index * 100}>
-        <TouchableOpacity
+        <ScalePress
         style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-        activeOpacity={0.9}
         onPress={() => router.push(`/salon/${item._id}`)}
         >
         <Image
             source={{ uri: item.image || 'https://via.placeholder.com/400' }}
-            style={styles.cardImage}
+            style={[styles.cardImage, {backgroundColor: theme === 'dark' ? '#1e293b' : '#f1f5f9'}]}
             resizeMode="cover"
         />
         <View style={styles.badgeContainer}>
@@ -112,7 +112,7 @@ export default function HomeScreen() {
             </Text>
             </View>
         </View>
-        </TouchableOpacity>
+        </ScalePress>
     </FadeInView>
   );
 

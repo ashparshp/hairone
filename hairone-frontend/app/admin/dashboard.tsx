@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks, Ban } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { FadeInView } from '../../components/AnimatedViews';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -75,7 +76,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const renderApplicant = ({ item }: { item: any }) => (
+  const renderApplicant = ({ item, index }: { item: any, index: number }) => (
+    <FadeInView delay={index * 50}>
     <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
       <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12}}>
         <View>
@@ -101,9 +103,11 @@ export default function AdminDashboard() {
          </TouchableOpacity>
       </View>
     </View>
+    </FadeInView>
   );
 
-  const renderShop = ({ item }: { item: any }) => (
+  const renderShop = ({ item, index }: { item: any, index: number }) => (
+    <FadeInView delay={index * 50}>
     <TouchableOpacity
       style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}
       onPress={() => router.push(`/admin/shop/${item._id}` as any)}
@@ -127,12 +131,14 @@ export default function AdminDashboard() {
             </Text>
         </View>
     </TouchableOpacity>
+    </FadeInView>
   );
 
   const renderStats = () => {
       if (!stats) return null;
       return (
           <ScrollView contentContainerStyle={{paddingBottom: 20}}>
+              <FadeInView>
               <View style={styles.statsGrid}>
                   <View style={[styles.statCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
                       <Text style={[styles.statVal, {color: colors.text}]}>{stats.totalBookings}</Text>
@@ -159,6 +165,7 @@ export default function AdminDashboard() {
                       <Text style={[styles.statLabel, {color: colors.textMuted}]}>Completed</Text>
                   </View>
               </View>
+              </FadeInView>
           </ScrollView>
       )
   };
