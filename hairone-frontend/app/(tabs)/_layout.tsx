@@ -28,43 +28,44 @@ export default function TabLayout() {
         headerShown: false
       }}
     >
-      {/* OWNER: Dashboard first */}
-      {user?.role === 'owner' && (
-        <Tabs.Screen name="dashboard" options={{
-          title: 'My Shop',
-          href: '/(tabs)/dashboard',
-        }} />
-      )}
+      {[
+        // OWNER: Dashboard first
+        user?.role === 'owner' ? (
+          <Tabs.Screen key="dashboard-owner" name="dashboard" options={{
+            title: 'My Shop',
+            href: '/(tabs)/dashboard',
+          }} />
+        ) : null,
 
-      {/* USER TABS */}
-      <Tabs.Screen name="home" options={{
-        title: 'Explore',
-        // Hide if Owner (Owners manage, don't usually book via this flow in this specific UI)
-        href: user?.role === 'owner' ? null : '/(tabs)/home',
-      }} />
+        // USER TABS
+        <Tabs.Screen key="home" name="home" options={{
+          title: 'Explore',
+          // Hide if Owner (Owners manage, don't usually book via this flow in this specific UI)
+          href: user?.role === 'owner' ? null : '/(tabs)/home',
+        }} />,
 
-      <Tabs.Screen name="bookings" options={{
-        title: 'Bookings',
-        href: user?.role === 'owner' ? null : '/(tabs)/bookings',
-      }} />
+        <Tabs.Screen key="bookings" name="bookings" options={{
+          title: 'Bookings',
+          href: user?.role === 'owner' ? null : '/(tabs)/bookings',
+        }} />,
 
-      {/* Added Favorites Screen Route */}
-      <Tabs.Screen name="favorites" options={{
-        title: 'Saved',
-        href: user?.role === 'owner' ? null : '/(tabs)/favorites',
-      }} />
+        <Tabs.Screen key="favorites" name="favorites" options={{
+          title: 'Saved',
+          href: user?.role === 'owner' ? null : '/(tabs)/favorites',
+        }} />,
 
-      <Tabs.Screen name="profile" options={{
-        title: 'Profile',
-      }} />
+        <Tabs.Screen key="profile" name="profile" options={{
+          title: 'Profile',
+        }} />,
 
-      {/* NON-OWNER: Dashboard last (hidden) */}
-      {user?.role !== 'owner' && (
-        <Tabs.Screen name="dashboard" options={{
-          title: 'My Shop',
-          href: null,
-        }} />
-      )}
+        // NON-OWNER: Dashboard last (hidden)
+        user?.role !== 'owner' ? (
+          <Tabs.Screen key="dashboard-user" name="dashboard" options={{
+            title: 'My Shop',
+            href: null,
+          }} />
+        ) : null,
+      ].filter(Boolean)}
     </Tabs>
   );
 }
