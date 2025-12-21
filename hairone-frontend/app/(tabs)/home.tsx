@@ -40,6 +40,7 @@ export default function HomeScreen() {
   const isDark = theme === 'dark';
 
   const [shops, setShops] = useState([]);
+  const [rawShops, setRawShops] = useState([]); // Unfiltered API data
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   // Favorites now managed via AuthContext (user.favorites)
@@ -104,9 +105,30 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-      // fetchFavorites(); // No longer needed, user.favorites is source of truth
-    }, [location, distanceFilter, genderFilter, activeCategory])
+    }, [location, distanceFilter, genderFilter]) // Removed activeCategory from fetch dependency to handle it locally if possible, but backend doesn't support it anyway so filtering locally is better
   );
+
+  // Live Filtering Effect
+  useEffect(() => {
+    let filtered = rawShops;
+
+    // Text Search
+    if (searchText) {
+      filtered = filtered.filter((s: any) =>
+        s.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        s.address.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    // Category Filter (Client-side)
+    if (activeCategory !== 'all') {
+      filtered = filtered.filter((s: any) =>
+         s.services?.some((svc: any) => svc.name.toLowerCase().includes(activeCategory.toLowerCase()))
+      );
+    }
+
+    setShops(filtered);
+  }, [rawShops, searchText, activeCategory]);
 
   const toggleFavorite = async (shopId: string) => {
     if (!user) return; // or show toast
@@ -150,35 +172,8 @@ export default function HomeScreen() {
       // Note: 'minTime' logic from previous version omitted for clarity, can be re-added if needed.
 
       const res = await api.get(`/shops?${params.toString()}`);
-
-      // Client-side text filtering if API doesn't support search q
-      // Also Client-side Category filtering if backend doesn't support 'category' param yet
-      // Assuming backend 'type' covers gender.
-      // For service categories (Hair, Beard), we might need to filter by service names.
-      // Since backend doesn't filter by service tags yet, let's filter client side for 'Category'
-
-      let fetchedShops = res.data;
-
-      // Text Search Filter
-      if (searchText) {
-          fetchedShops = fetchedShops.filter((s: any) =>
-            s.name.toLowerCase().includes(searchText.toLowerCase()) ||
-            s.address.toLowerCase().includes(searchText.toLowerCase())
-          );
-      }
-
-      // Category Filter (Mock logic: checking if services include keyword)
-      // This requires shop.services populated.
-      // Backend 'getAllShops' might not populate services deeply or we rely on tags.
-      // For now, if activeCategory != all, we filter by service name.
-      if (activeCategory !== 'all') {
-         fetchedShops = fetchedShops.filter((s: any) =>
-            s.services?.some((svc: any) => svc.name.toLowerCase().includes(activeCategory.toLowerCase()))
-         );
-      }
-
-      setShops(fetchedShops);
-
+      setRawShops(res.data);
+      // setShops will be handled by useEffect based on rawShops
     } catch (e) {
       console.log("Error fetching shops:", e);
     } finally {
@@ -275,7 +270,7 @@ export default function HomeScreen() {
                   style={[styles.input, { color: isDark ? 'white' : '#0f172a' }]}
                   value={searchText}
                   onChangeText={setSearchText}
-                  onSubmitEditing={() => fetchShops()}
+                  // Removed onSubmitEditing as filtering is now live via useEffect
                 />
                 <TouchableOpacity
                   onPress={() => setShowFilters(!showFilters)}
