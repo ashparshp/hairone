@@ -20,7 +20,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { colors, theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
-  const isDark = theme === 'dark'; // Helper
+  const isDark = theme === 'dark'; 
   
   const [applying, setApplying] = useState(false);
   const [bizName, setBizName] = useState('');
@@ -145,7 +145,6 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={[styles.header, {backgroundColor: colors.card}]}>
          <View style={styles.avatarContainer}>
-            {/* UPDATED: Background uses colors.border in dark mode */}
             <View style={[styles.avatar, {backgroundColor: isDark ? colors.border : '#e2e8f0', borderColor: colors.background}]}>
                 {user?.avatar ? (
                     <Image source={{ uri: user.avatar }} style={{width: '100%', height: '100%', borderRadius: 44}} />
@@ -154,13 +153,13 @@ export default function ProfileScreen() {
                 )}
             </View>
             <TouchableOpacity style={[styles.editAvatarBtn, {backgroundColor: colors.tint, borderColor: colors.background}]} onPress={() => { setAvatar(user?.avatar || null); setEditModalVisible(true); }}>
-                <Edit2 size={12} color={isDark ? 'black' : 'white'} />
+                <Edit2 size={12} color={isDark ? '#000000' : 'white'} />
             </TouchableOpacity>
          </View>
          <Text style={[styles.name, {color: colors.text}]}>{user?.name || 'Guest User'}</Text>
          {user?.email && <Text style={[styles.email, {color: colors.textMuted}]}>{user?.email}</Text>}
          <View style={[styles.roleBadge, user?.role === 'admin' ? { backgroundColor: '#ef4444' } : user?.role === 'owner' ? { backgroundColor: colors.tint } : { backgroundColor: isDark ? colors.border : '#e2e8f0' }]}>
-            <Text style={[styles.roleText, {color: user?.role === 'owner' ? '#0f172a' : colors.text}]}>{user?.role?.toUpperCase()}</Text>
+            <Text style={[styles.roleText, {color: user?.role === 'owner' ? '#000000' : colors.text}]}>{user?.role?.toUpperCase()}</Text>
          </View>
       </View>
 
@@ -179,12 +178,12 @@ export default function ProfileScreen() {
 
       <FadeInView>
       <View style={styles.section}>
-          {/* 1. New Application (Status: None) */}
+          {/* New Application State */}
           {user?.role === 'user' && user?.applicationStatus === 'none' && (
              <View style={[styles.promoCard, {backgroundColor: colors.tint}]}>
                 {!applying ? (
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 16}}>
-                    <View style={styles.promoIcon}><Briefcase size={24} color="#0f172a" /></View>
+                    <View style={styles.promoIcon}><Briefcase size={24} color="#000000" /></View>
                     <View style={{flex: 1}}>
                         <Text style={styles.promoTitle}>Partner with HairOne</Text>
                         <Text style={styles.promoSub}>List your shop & manage bookings.</Text>
@@ -200,7 +199,7 @@ export default function ProfileScreen() {
                      <TextInput style={styles.inputLight} value={bizName} onChangeText={setBizName} placeholder="Business Name" />
                      <View style={{flexDirection: 'row', gap: 10, marginTop: 12}}>
                         <TouchableOpacity style={[styles.actionBtn, {backgroundColor: '#cbd5e1'}]} onPress={() => setApplying(false)}><Text style={{fontWeight: 'bold'}}>Cancel</Text></TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, {backgroundColor: '#0f172a', flex: 1}]} onPress={handleApply}>
+                        <TouchableOpacity style={[styles.actionBtn, {backgroundColor: '#000000', flex: 1}]} onPress={handleApply}>
                             {isSubmitting ? <ActivityIndicator color="white"/> : <Text style={{color: 'white', fontWeight: 'bold'}}>Submit Application</Text>}
                         </TouchableOpacity>
                      </View>
@@ -209,7 +208,7 @@ export default function ProfileScreen() {
              </View>
           )}
 
-          {/* 2. Pending Application */}
+          {/* Pending Application State */}
           {user?.applicationStatus === 'pending' && (
              <View style={[styles.statusCard, {backgroundColor: colors.card, borderColor: '#f59e0b'}]}>
                 <Clock size={24} color="#f59e0b" />
@@ -220,7 +219,7 @@ export default function ProfileScreen() {
              </View>
           )}
 
-          {/* 3. Rejected or Suspended */}
+          {/* Rejected or Suspended State */}
           {(user?.applicationStatus === 'rejected' || user?.applicationStatus === 'suspended') && (
              <View style={[styles.statusCard, {backgroundColor: colors.card, borderColor: '#ef4444'}]}>
                 <ShieldAlert size={24} color="#ef4444" />
@@ -238,7 +237,7 @@ export default function ProfileScreen() {
              </View>
           )}
 
-          {/* 4. Approved (Owner) */}
+          {/* Approved State */}
           {user?.role === 'owner' && user?.applicationStatus === 'approved' && (
              <View style={[styles.statusCard, {backgroundColor: colors.card, borderColor: '#10b981'}]}>
                 <Briefcase size={24} color="#10b981" />
@@ -251,7 +250,7 @@ export default function ProfileScreen() {
       </View>
       </FadeInView>
 
-      {/* Menu */}
+      {/* Menu Settings */}
       <View style={styles.menuContainer}>
           <Text style={[styles.sectionHeader, {color: colors.textMuted}]}>Account Settings</Text>
           <MenuItem 
@@ -286,56 +285,51 @@ export default function ProfileScreen() {
       </View>
       <Text style={[styles.versionText, {color: colors.textMuted}]}>Version 1.0.3</Text>
 
-      {/* Edit Profile Modal */}
+      {/* Corrected Edit Profile Modal */}
       <Modal visible={editModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
               <FadeInView style={{...styles.modalContent, backgroundColor: colors.card}}>
                   <View style={styles.modalHeader}>
                       <Text style={[styles.modalTitle, {color: colors.text}]}>Update Profile</Text>
-                      {/* UPDATED: Close button background */}
-                      <TouchableOpacity onPress={() => setEditModalVisible(false)} style={[styles.closeBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]}><X size={20} color={colors.text} /></TouchableOpacity>
+                      {/* UPDATED: Close button background matches Zinc theme */}
+                      <TouchableOpacity onPress={() => setEditModalVisible(false)} style={[styles.closeBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]}>
+                          <X size={20} color={colors.text} />
+                      </TouchableOpacity>
                   </View>
 
-                  {/* Image Picker in Modal */}
                   <View style={{alignItems:'center', marginBottom: 20}}>
                       <TouchableOpacity onPress={pickImage} style={[styles.avatarBig, {borderColor: colors.border}]}>
                           {avatar ? <Image source={{uri: avatar}} style={{width:'100%', height:'100%', borderRadius: 50}} /> : <User size={40} color={colors.textMuted}/>}
-                          <View style={styles.camIcon}><Camera size={14} color="white"/></View>
+                          <View style={[styles.camIcon, {backgroundColor: colors.tint}]}><Camera size={14} color="#000000"/></View>
                       </TouchableOpacity>
-                      {avatar && (
-                          <TouchableOpacity onPress={() => setAvatar(null)} style={{marginTop: 8}}>
-                              <Text style={{color: '#ef4444', fontSize: 12}}>Remove Image</Text>
-                          </TouchableOpacity>
-                      )}
                   </View>
 
                   <View style={styles.modalBody}>
                       <Text style={[styles.label, {color: colors.textMuted}]}>Full Name</Text>
-                      {/* UPDATED: Input background from Slate to colors.background (Black) */}
+                      {/* UPDATED: Input background changed to True Black (colors.background) */}
                       <View style={[styles.inputContainer, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}]}>
                           <User size={20} color={colors.textMuted} style={{marginLeft: 12}} />
                           <TextInput style={[styles.modalInput, {color: colors.text}]} value={editName} onChangeText={setEditName} placeholder="Your Name" placeholderTextColor={colors.textMuted} />
                       </View>
 
                       <Text style={[styles.label, {color: colors.textMuted}]}>Email</Text>
-                      {/* UPDATED: Input background */}
                       <View style={[styles.inputContainer, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}]}>
                           <Mail size={20} color={colors.textMuted} style={{marginLeft: 12}} />
                           <TextInput style={[styles.modalInput, {color: colors.text}]} value={editEmail} onChangeText={setEditEmail} placeholder="john@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" />
                       </View>
 
                       <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.tint}]} onPress={handleUpdateProfile} disabled={savingProfile}>
-                          {savingProfile ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+                          {savingProfile ? <ActivityIndicator color="#000000" /> : <Text style={[styles.saveBtnText, {color: '#000000'}]}>Save Changes</Text>}
                       </TouchableOpacity>
                   </View>
               </FadeInView>
           </View>
       </Modal>
 
-      {/* Custom Logout Modal */}
+      {/* Logout Confirmation Modal */}
       <Modal visible={logoutModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-              <FadeInView style={{...styles.alertContent, backgroundColor: colors.card, borderColor: colors.border}}>
+              <FadeInView style={{ ...styles.alertContent, backgroundColor: colors.card, borderColor: colors.border }}>
                   <Text style={[styles.modalTitle, { color: colors.text, fontSize: 18 }]}>Sign out?</Text>
                   <Text style={{color: colors.textMuted, textAlign: 'center', marginVertical: 16}}>
                       You will need to sign in again to access your account.
@@ -351,14 +345,12 @@ export default function ProfileScreen() {
               </FadeInView>
           </View>
       </Modal>
-
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   avatarContainer: { position: 'relative', marginBottom: 12 },
   avatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 4 },
@@ -375,13 +367,13 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, marginBottom: 24 },
   promoCard: { padding: 16, borderRadius: 16, marginBottom: 8 },
   promoIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
-  promoTitle: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
-  promoSub: { color: '#0f172a', opacity: 0.8, fontSize: 12 },
-  applyBtn: { backgroundColor: '#0f172a', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  promoTitle: { fontWeight: 'bold', fontSize: 16 },
+  promoSub: { opacity: 0.8, fontSize: 12 },
+  applyBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   applyBtnText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  sectionTitleBlack: { fontSize: 18, fontWeight: 'bold', color: '#0f172a', marginBottom: 10 },
-  inputLabelDark: { fontSize: 12, fontWeight: 'bold', color: '#0f172a', marginBottom: 4, marginTop: 8 },
-  inputLight: { backgroundColor: 'white', borderRadius: 8, padding: 10, color: '#0f172a' },
+  sectionTitleBlack: { fontSize: 18, fontWeight: 'bold', color: '#000000', marginBottom: 10 },
+  inputLabelDark: { fontSize: 12, fontWeight: 'bold', color: '#000000', marginBottom: 4, marginTop: 8 },
+  inputLight: { backgroundColor: 'white', borderRadius: 8, padding: 10, color: '#000000' },
   actionBtn: { padding: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   menuContainer: { paddingHorizontal: 20 },
   sectionHeader: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8, marginLeft: 8 },
@@ -390,8 +382,6 @@ const styles = StyleSheet.create({
   menuLabel: { fontSize: 16, fontWeight: '500' },
   menuSubLabel: { fontSize: 12 },
   versionText: { textAlign: 'center', fontSize: 12, marginTop: 20, marginBottom: 40 },
-
-  // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
   modalContent: { padding: 24, borderRadius: 24, paddingBottom: 40, width: '100%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -401,21 +391,14 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: 'bold', marginBottom: 6 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, height: 50 },
   modalInput: { flex: 1, paddingHorizontal: 12, fontSize: 16, height: '100%' },
-  genderRow: { flexDirection: 'row', gap: 10 },
-  genderChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
   saveBtn: { padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  saveBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+  saveBtnText: { fontWeight: 'bold', fontSize: 16 },
   statusCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, borderWidth: 1 },
   statusTitle: { fontWeight: 'bold', fontSize: 16 },
   statusSub: { fontSize: 12 },
-
-  // Avatar Picker
   avatarBig: { width: 100, height: 100, borderRadius: 50, borderWidth: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  camIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#0f172a', padding: 6, borderRadius: 15 },
-
-  // Logout Alert
+  camIcon: { position: 'absolute', bottom: 0, right: 0, padding: 6, borderRadius: 15 },
   alertContent: { padding: 24, borderRadius: 24, alignItems: 'center', borderWidth: 1 },
-  alertIconBox: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   alertBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  alertBtnDestructive: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+  alertBtnDestructive: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
 });

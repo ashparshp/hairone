@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const { colors, theme } = useTheme();
   const router = useRouter();
+  const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<'approvals' | 'reports' | 'shops' | 'support'>('approvals');
 
   // Data State
@@ -56,7 +57,7 @@ export default function AdminDashboard() {
     try {
       await api.post('/admin/process', { userId, action });
       Alert.alert("Success", `User ${action}d successfully.`);
-      fetchData(); // Refresh list
+      fetchData(); 
     } catch (e) {
       Alert.alert("Error", "Action failed");
     }
@@ -102,8 +103,8 @@ export default function AdminDashboard() {
          </TouchableOpacity>
          
          <TouchableOpacity style={[styles.approveBtn, {backgroundColor: colors.tint}]} onPress={() => handleProcess(item._id, 'approve')}>
-            <Check size={16} color="#0f172a" />
-            <Text style={styles.approveText}>Approve</Text>
+            <Check size={16} color="#000000" />
+            <Text style={[styles.approveText, {color: '#000000'}]}>Approve</Text>
          </TouchableOpacity>
       </View>
     </View>
@@ -197,28 +198,30 @@ export default function AdminDashboard() {
              <Text style={[styles.title, {color: colors.text}]}>Admin Panel</Text>
              <Text style={[styles.subtitle, {color: colors.tint}]}>System Management</Text>
          </View>
-         <TouchableOpacity style={[styles.logoutBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={logout}>
+         {/* UPDATED: Logout button background matches Zinc theme */}
+         <TouchableOpacity style={[styles.logoutBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]} onPress={logout}>
              <LogOut size={20} color={colors.text} />
          </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View style={[styles.tabContainer, {backgroundColor: theme === 'dark' ? '#1e293b' : '#f1f5f9'}]}>
+      {/* UPDATED: Tab container uses dynamic colors for Pure Black/Zinc contrast */}
+      <View style={[styles.tabContainer, {backgroundColor: isDark ? colors.card : '#f1f5f9'}]}>
           <TouchableOpacity style={[styles.tab, activeTab === 'approvals' && {backgroundColor: colors.tint}]} onPress={() => setActiveTab('approvals')}>
-              <ListChecks size={18} color={activeTab === 'approvals' ? '#0f172a' : colors.textMuted} />
-              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'approvals' && styles.activeTabText]}>Approvals</Text>
+              <ListChecks size={18} color={activeTab === 'approvals' ? '#000000' : colors.textMuted} />
+              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'approvals' && {color: '#000000'}]}>Approvals</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.tab, activeTab === 'reports' && {backgroundColor: colors.tint}]} onPress={() => setActiveTab('reports')}>
-              <BarChart size={18} color={activeTab === 'reports' ? '#0f172a' : colors.textMuted} />
-              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'reports' && styles.activeTabText]}>Reports</Text>
+              <BarChart size={18} color={activeTab === 'reports' ? '#000000' : colors.textMuted} />
+              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'reports' && {color: '#000000'}]}>Reports</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.tab, activeTab === 'shops' && {backgroundColor: colors.tint}]} onPress={() => setActiveTab('shops')}>
-              <ShoppingBag size={18} color={activeTab === 'shops' ? '#0f172a' : colors.textMuted} />
-              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'shops' && styles.activeTabText]}>Shops</Text>
+              <ShoppingBag size={18} color={activeTab === 'shops' ? '#000000' : colors.textMuted} />
+              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'shops' && {color: '#000000'}]}>Shops</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.tab, activeTab === 'support' && {backgroundColor: colors.tint}]} onPress={() => setActiveTab('support')}>
-              <MessageSquare size={18} color={activeTab === 'support' ? '#0f172a' : colors.textMuted} />
-              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'support' && styles.activeTabText]}>Support</Text>
+              <MessageSquare size={18} color={activeTab === 'support' ? '#000000' : colors.textMuted} />
+              <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'support' && {color: '#000000'}]}>Support</Text>
           </TouchableOpacity>
       </View>
 
@@ -301,7 +304,8 @@ export default function AdminDashboard() {
                    </Text>
 
                    <TextInput
-                      style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                      // UPDATED: Input background changed to True Black (colors.background)
+                      style={[styles.input, {backgroundColor: isDark ? colors.background : '#f8fafc', color: colors.text, borderColor: colors.border}]}
                       placeholder="Reason for suspension..."
                       placeholderTextColor={colors.textMuted}
                       multiline
@@ -310,7 +314,8 @@ export default function AdminDashboard() {
                    />
 
                    <View style={styles.modalActions}>
-                      <TouchableOpacity style={[styles.cancelBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setSuspendModalVisible(false)}>
+                      {/* UPDATED: Cancel button background matches Zinc theme */}
+                      <TouchableOpacity style={[styles.cancelBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]} onPress={() => setSuspendModalVisible(false)}>
                          <Text style={{color: colors.text, fontWeight: 'bold'}}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.confirmSuspendBtn} onPress={handleSuspend}>
@@ -332,38 +337,27 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold' },
   subtitle: { fontSize: 14, fontWeight: 'bold', letterSpacing: 1 },
   logoutBtn: { padding: 10, borderRadius: 12 },
-  
   tabContainer: { flexDirection: 'row', borderRadius: 12, padding: 4, marginBottom: 20 },
   tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8, gap: 8 },
   tabText: { fontWeight: 'bold', fontSize: 12 },
-  activeTabText: { color: '#0f172a' },
-
   sectionHeader: { marginBottom: 16, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1, fontWeight: 'bold' },
-  
   card: { padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1 },
   bizName: { fontWeight: 'bold', fontSize: 18 },
   userName: { fontSize: 14, marginTop: 2 },
   sub: { fontSize: 12, marginVertical: 12 },
   status: { fontSize: 10, fontWeight: 'bold' },
-  
   badge: { backgroundColor: 'rgba(234, 179, 8, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
   badgeText: { color: '#eab308', fontSize: 10, fontWeight: 'bold' },
-  
   actionRow: { flexDirection: 'row', gap: 12 },
   approveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8 },
-  approveText: { color: '#0f172a', fontWeight: 'bold' },
+  approveText: { fontWeight: 'bold' },
   rejectBtn: { flex: 1, backgroundColor: 'rgba(239, 68, 68, 0.1)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
   rejectText: { color: '#ef4444', fontWeight: 'bold' },
-
-  // Stats Grid
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   statCard: { width: '48%', padding: 16, borderRadius: 16, borderWidth: 1, alignItems: 'center' },
   statVal: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
   statLabel: { fontSize: 12, textTransform: 'uppercase', fontWeight: 'bold' },
-
   suspendBtn: { padding: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 },
-
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
   modalContent: { borderRadius: 16, padding: 20, borderWidth: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
