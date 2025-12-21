@@ -136,12 +136,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     position: 'relative',
   },
   activeIndicator: {
     position: 'absolute',
-    inset: 0,
+    top: 4,
+    bottom: 4,
+    left: 8,
+    right: 8,
     borderRadius: 16,
     opacity: 0,
     transform: [{ scale: 0.75 }],
@@ -150,5 +153,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     marginTop: 4,
+    textAlign: 'center',
+    width: '100%',
   }
 });

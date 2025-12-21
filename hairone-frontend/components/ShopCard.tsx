@@ -95,6 +95,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index }) => {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 35, // 2.2rem approx
+    marginHorizontal: 24, // Fix for edge-to-edge
     marginBottom: 20,
     borderWidth: 1,
     overflow: 'hidden',
@@ -111,8 +112,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 12,
     marginHorizontal: 12,
-    alignSelf: 'center',
-    width: width - 64, // adjusting for padding
   },
   image: {
     width: '100%',

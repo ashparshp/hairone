@@ -182,7 +182,7 @@ export default function HomeScreen() {
                <View style={[
                  styles.themeIconContainer,
                  {
-                    transform: [{ translateX: isDark ? 14 : 0 }],
+                    transform: [{ translateX: isDark ? 28 : 0 }],
                     backgroundColor: isDark ? '#475569' : 'white'
                  }
                ]}>
@@ -376,9 +376,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   themeIconContainer: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   filterGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   filterLabel: {
     fontSize: 10,
@@ -466,11 +466,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   catChip: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 16,
     marginRight: 12,
     borderWidth: 1,
+    minWidth: 80,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 8,
