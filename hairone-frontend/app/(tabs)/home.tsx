@@ -2,7 +2,6 @@ import React, { useCallback, useState, useEffect, useMemo } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Search, MapPin, Filter, Sun, Moon, AlertCircle } from "lucide-react-native";
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   ScrollView,
@@ -38,21 +37,20 @@ const CATEGORIES = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, login, token } = useAuth(); // Destructure login & token for syncing
+  const { user, login, token } = useAuth(); 
   const { colors, theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [rawShops, setRawShops] = useState([]); // Unfiltered API data
+  const [rawShops, setRawShops] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  // Favorites now managed via AuthContext (user.favorites)
 
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [genderFilter, setGenderFilter] = useState('All');
-  const [distanceFilter, setDistanceFilter] = useState(10); // Default 10km (max)
+  const [distanceFilter, setDistanceFilter] = useState(10); 
 
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -107,14 +105,13 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [location, distanceFilter, genderFilter]) // Removed activeCategory from fetch dependency to handle it locally if possible, but backend doesn't support it anyway so filtering locally is better
+    }, [location, distanceFilter, genderFilter]) 
   );
 
   // Live Filtering
   const shops = useMemo(() => {
     let filtered = rawShops;
 
-    // Text Search
     if (searchText) {
       filtered = filtered.filter((s: any) =>
         s.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -122,7 +119,6 @@ export default function HomeScreen() {
       );
     }
 
-    // Category Filter (Client-side)
     if (activeCategory !== 'all') {
       filtered = filtered.filter((s: any) =>
          s.services?.some((svc: any) => svc.name.toLowerCase().includes(activeCategory.toLowerCase()))
@@ -133,16 +129,10 @@ export default function HomeScreen() {
   }, [rawShops, searchText, activeCategory]);
 
   const toggleFavorite = async (shopId: string) => {
-    if (!user) return; // or show toast
-
-    // Optimistic Update Logic for Context
-    // We can't easily set Context optimistically without a dedicated method,
-    // so we will rely on the API response to update it,
-    // OR we manually mutate and call login().
+    if (!user) return; 
 
     try {
       const res = await api.post('/auth/favorites', { shopId });
-      // API returns the updated favorites array
       const updatedUser = { ...user, favorites: res.data };
       if (token) login(token, updatedUser);
     } catch (e) {
@@ -155,27 +145,21 @@ export default function HomeScreen() {
     try {
       const params = new URLSearchParams();
 
-      // Basic Filters
-      if (activeCategory !== 'all') params.append('category', activeCategory); // Backend might not support category search yet, using text search for now or type
+      if (activeCategory !== 'all') params.append('category', activeCategory); 
 
-      // If Gender Filter is active (mapping UI 'Men' -> API 'male')
       if (genderFilter !== 'All') {
           const typeMap: any = { 'Men': 'male', 'Women': 'female', 'Unisex': 'unisex' };
           params.append('type', typeMap[genderFilter] || 'all');
       }
 
-      // Location & Distance
       if (location) {
           params.append('lat', location.coords.latitude.toString());
           params.append('lng', location.coords.longitude.toString());
           params.append('radius', distanceFilter.toString());
       }
 
-      // Note: 'minTime' logic from previous version omitted for clarity, can be re-added if needed.
-
       const res = await api.get(`/shops?${params.toString()}`);
       setRawShops(res.data);
-      // setShops will be handled by useEffect based on rawShops
     } catch (e) {
       console.log("Error fetching shops:", e);
     } finally {
@@ -190,7 +174,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+    // UPDATED: Use colors.background
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -202,8 +187,9 @@ export default function HomeScreen() {
             style={styles.locationRow}
             onPress={refreshLocation}
           >
-             <MapPin size={14} color="#f59e0b" fill="#f59e0b" />
-             <Text style={[styles.locationText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
+             <MapPin size={14} color={colors.primary} fill={colors.primary} />
+             {/* UPDATED: Use colors.textMuted */}
+             <Text style={[styles.locationText, { color: colors.textMuted }]}>
                {locationName}
              </Text>
           </TouchableOpacity>
@@ -214,9 +200,10 @@ export default function HomeScreen() {
                onPress={toggleTheme}
                style={[
                  styles.themeToggle,
+                 // UPDATED: Use colors.card and colors.border
                  {
-                    backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
-                    borderColor: isDark ? '#334155' : '#e2e8f0'
+                    backgroundColor: colors.card,
+                    borderColor: colors.border
                  }
                ]}
              >
@@ -224,15 +211,16 @@ export default function HomeScreen() {
                  styles.themeIconContainer,
                  animatedToggleStyle,
                  {
-                    backgroundColor: isDark ? '#475569' : 'white'
+                    // UPDATED: Use colors.border for the sliding knob in dark mode
+                    backgroundColor: isDark ? colors.border : 'white'
                  }
                ]}>
-                  {isDark ? <Moon size={10} color="#fcd34d" /> : <Sun size={10} color="#f59e0b" />}
+                  {isDark ? <Moon size={10} color={colors.tint} /> : <Sun size={10} color={colors.primary} />}
                </Animated.View>
              </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.avatarContainer, { borderColor: isDark ? '#334155' : 'white' }]}
+              style={[styles.avatarContainer, { borderColor: isDark ? colors.border : 'white' }]}
               onPress={() => router.push('/(tabs)/profile')}
             >
               <Image
@@ -264,32 +252,34 @@ export default function HomeScreen() {
           <>
             {/* Search Bar */}
             <View style={styles.searchSection}>
-              <View style={[styles.searchBox, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
-                <Search size={18} color={isDark ? '#94a3b8' : '#cbd5e1'} />
+              {/* UPDATED: Use colors.card and colors.border */}
+              <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Search size={18} color={colors.textMuted} />
                 <TextInput
                   placeholder="Find a salon or service..."
-                  placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
-                  style={[styles.input, { color: isDark ? 'white' : '#0f172a' }]}
+                  placeholderTextColor={colors.textMuted}
+                  // UPDATED: Use colors.text
+                  style={[styles.input, { color: colors.text }]}
                   value={searchText}
                   onChangeText={setSearchText}
-                  // Removed onSubmitEditing as filtering is now live via useEffect
                 />
                 <ScalePress
                   onPress={() => setShowFilters(!showFilters)}
-                  style={[styles.filterBtn, showFilters && { backgroundColor: '#f59e0b' }]}
+                  style={[styles.filterBtn, showFilters && { backgroundColor: colors.primary }]}
                 >
-                  <Filter size={18} color={showFilters ? 'white' : (isDark ? '#94a3b8' : '#cbd5e1')} />
+                  <Filter size={18} color={showFilters ? 'white' : colors.textMuted} />
                 </ScalePress>
               </View>
             </View>
 
             {/* Collapsible Filters */}
             {showFilters && (
-              <View style={[styles.filterContainer, { backgroundColor: isDark ? '#1e293b' : 'white', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+              // UPDATED: Use colors.card and colors.border
+              <View style={[styles.filterContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
 
                 {/* Gender Filter */}
                 <View style={styles.filterGroup}>
-                  <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>Gender</Text>
+                  <Text style={[styles.filterLabel, { color: colors.textMuted }]}>Gender</Text>
                   <View style={styles.chipRow}>
                     {['All', 'Men', 'Women', 'Unisex'].map(g => (
                       <ScalePress
@@ -298,14 +288,15 @@ export default function HomeScreen() {
                         style={[
                           styles.chip,
                           {
-                            backgroundColor: genderFilter === g ? '#f59e0b' : (isDark ? '#334155' : '#f8fafc'),
-                            borderColor: isDark ? '#334155' : '#e2e8f0'
+                            // UPDATED: Background logic
+                            backgroundColor: genderFilter === g ? colors.primary : (isDark ? colors.border : colors.background),
+                            borderColor: colors.border
                           }
                         ]}
                       >
                         <Text style={[
                           styles.chipText,
-                          { color: genderFilter === g ? 'white' : (isDark ? '#cbd5e1' : '#64748b') }
+                          { color: genderFilter === g ? 'white' : colors.textMuted }
                         ]}>{g}</Text>
                       </ScalePress>
                     ))}
@@ -315,8 +306,8 @@ export default function HomeScreen() {
                 {/* Distance Filter */}
                 <View style={styles.filterGroup}>
                   <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
-                     <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>Distance</Text>
-                     <Text style={{color: '#f59e0b', fontWeight: 'bold', fontSize: 12}}>
+                     <Text style={[styles.filterLabel, { color: colors.textMuted }]}>Distance</Text>
+                     <Text style={{color: colors.primary, fontWeight: 'bold', fontSize: 12}}>
                         {distanceFilter === 10 ? 'All' : `< ${distanceFilter} km`}
                      </Text>
                   </View>
@@ -327,9 +318,9 @@ export default function HomeScreen() {
                     step={1}
                     value={distanceFilter}
                     onValueChange={setDistanceFilter}
-                    minimumTrackTintColor="#f59e0b"
-                    maximumTrackTintColor={isDark ? "#334155" : "#e2e8f0"}
-                    thumbTintColor="#f59e0b"
+                    minimumTrackTintColor={colors.primary}
+                    maximumTrackTintColor={colors.border}
+                    thumbTintColor={colors.primary}
                   />
                 </View>
 
@@ -346,16 +337,17 @@ export default function HomeScreen() {
                     style={[
                       styles.catChip,
                       {
+                        // UPDATED: Background logic
                         backgroundColor: activeCategory === cat.id
-                           ? (isDark ? '#f59e0b' : '#0f172a')
-                           : (isDark ? '#1e293b' : '#ffffff'),
-                        borderColor: isDark ? '#334155' : '#e2e8f0'
+                           ? (isDark ? colors.tint : '#0f172a')
+                           : colors.card,
+                        borderColor: colors.border
                       }
                     ]}
                   >
                     <Text style={[
                       styles.catText,
-                      { color: activeCategory === cat.id ? (isDark ? '#0f172a' : 'white') : (isDark ? '#94a3b8' : '#64748b') }
+                      { color: activeCategory === cat.id ? (isDark ? '#0f172a' : 'white') : colors.textMuted }
                     ]}>{cat.label}</Text>
                   </ScalePress>
                 ))}
@@ -363,7 +355,8 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.listHeader}>
-              <Text style={[styles.heading, { color: isDark ? 'white' : '#0f172a' }]}>Nearby Salons</Text>
+              {/* UPDATED: Use colors.text */}
+              <Text style={[styles.heading, { color: colors.text }]}>Nearby Salons</Text>
             </View>
           </>
         }
@@ -374,8 +367,8 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <AlertCircle size={48} color={isDark ? '#334155' : '#cbd5e1'} />
-              <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>No salons found nearby.</Text>
+              <AlertCircle size={48} color={colors.border} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>No salons found nearby.</Text>
             </View>
           )
         }
@@ -385,6 +378,7 @@ export default function HomeScreen() {
   );
 }
 
+// ... styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -555,5 +549,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   }
-
 });
