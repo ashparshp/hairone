@@ -125,14 +125,36 @@ exports.updateShop = async (req, res) => {
 // --- 3. Get All Shops ---
 exports.getAllShops = async (req, res) => {
   try {
-    const { minTime, type } = req.query;
+    const { minTime, type, lat, lng, radius } = req.query;
 
     const query = { isDisabled: { $ne: true } };
     if (type && type !== 'all') {
         query.type = type.toLowerCase();
     }
 
-    const shops = await Shop.find(query).lean();
+    let shops = await Shop.find(query).lean();
+
+    // 1. Distance Calculation & Filtering
+    if (lat && lng) {
+        const userLat = parseFloat(lat);
+        const userLng = parseFloat(lng);
+        const searchRadius = radius ? parseFloat(radius) : null;
+
+        shops = shops.map(shop => {
+            if (shop.coordinates && shop.coordinates.lat !== undefined && shop.coordinates.lng !== undefined) {
+                const dist = calculateDistance(userLat, userLng, shop.coordinates.lat, shop.coordinates.lng);
+                return { ...shop, distance: dist };
+            }
+            return { ...shop, distance: null };
+        });
+
+        if (searchRadius) {
+            shops = shops.filter(s => s.distance !== null && s.distance <= searchRadius);
+        }
+
+        // Sort by distance ascending
+        shops.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+    }
 
     const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
       const nextSlot = await findEarliestSlotForShop(shop, minTime);
@@ -144,17 +166,33 @@ exports.getAllShops = async (req, res) => {
         ? shopsWithSlots.filter(s => s.nextAvailableSlot !== null)
         : shopsWithSlots;
 
-    filteredShops.sort((a, b) => {
-      if (!a.nextAvailableSlot) return 1;
-      if (!b.nextAvailableSlot) return -1;
-      return timeToMinutes(a.nextAvailableSlot) - timeToMinutes(b.nextAvailableSlot);
-    });
+    // If NOT sorting by distance (i.e. no location provided), sort by slot availability
+    if (!lat || !lng) {
+        filteredShops.sort((a, b) => {
+            if (!a.nextAvailableSlot) return 1;
+            if (!b.nextAvailableSlot) return -1;
+            return timeToMinutes(a.nextAvailableSlot) - timeToMinutes(b.nextAvailableSlot);
+        });
+    }
 
     res.json(filteredShops);
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Server Error" });
   }
+};
+
+// Haversine Formula (km)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 };
 
 // Helper for Home Screen Card Slot
