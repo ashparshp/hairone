@@ -230,7 +230,7 @@ export default function ShopDetailsScreen() {
       {step === 1 && (
         <SlideInView key="step1" from="right" style={{flex: 1}}>
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 140}}>
-            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Services</Text>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Services</Text>
             {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                 const isSelected = selectedServices.find(s => s.name === service.name);
                 return (
@@ -254,7 +254,7 @@ export default function ShopDetailsScreen() {
       {step === 2 && (
         <SlideInView key="step2" from="right" style={{flex: 1}}>
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 160}}>
-            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Choose Professional</Text>
+            <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Choose Professional</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 <TouchableOpacity 
                    style={[styles.barberChip, {backgroundColor: colors.card, borderColor: colors.border}, selectedBarberId === 'any' && {backgroundColor: colors.tint, borderColor: colors.tint}]}
