@@ -1,5 +1,6 @@
 import React from 'react';
 import Svg, { G, Circle, Path, Rect, Text, TSpan } from 'react-native-svg';
+import { useTheme } from '../context/ThemeContext';
 
 interface LogoProps {
   width?: number;
@@ -7,14 +8,18 @@ interface LogoProps {
 }
 
 export default function Logo({ width = 256, height = 100 }: LogoProps) {
+  const { colors, theme } = useTheme();
+  // Use text color for logo elements: White in Dark Mode, Black in Light Mode
+  const fill = theme === 'dark' ? '#FFFFFF' : '#000000';
+
   return (
     <Svg viewBox="0 0 512 200" width={width} height={height}>
       <G transform="translate(80, 100)">
         {/* Icon Circle */}
         <Circle cx="0" cy="0" r="70" fill="#D4AF37" />
 
-        {/* Icon Details (Comb/Scissors) - White for Dark Mode */}
-        <G fill="#FFFFFF">
+        {/* Icon Details (Comb/Scissors) */}
+        <G fill={fill}>
           <Path d="M-35,10 C-35,-20 -20,-40 0,-40 C20,-40 35,-20 35,10 L25,10 C25,-10 15,-25 0,-25 C-15,-25 -25,-10 -25,10 Z" />
           <Rect x="-10" y="-15" width="6" height="40" rx="3" />
           <Rect x="4" y="-15" width="6" height="40" rx="3" />
@@ -28,7 +33,7 @@ export default function Logo({ width = 256, height = 100 }: LogoProps) {
           fontFamily="Helvetica, Arial, sans-serif"
           fontSize="80"
           fontWeight="bold"
-          fill="#FFFFFF" // "hair" text - White for Dark Mode
+          fill={fill}
         >
           hair
           <TSpan fill="#D4AF37">one</TSpan> {/* "one" text - Gold */}
