@@ -234,12 +234,15 @@ export default function HomeScreen() {
                </Animated.View>
              </TouchableOpacity>
 
-            <View style={[styles.avatarContainer, { borderColor: isDark ? '#334155' : 'white' }]}>
+            <TouchableOpacity
+              style={[styles.avatarContainer, { borderColor: isDark ? '#334155' : 'white' }]}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
               <Image
-                source={{ uri: 'https://via.placeholder.com/100' }} // Replace with user.avatar
+                source={{ uri: user?.avatar || 'https://via.placeholder.com/100' }}
                 style={styles.avatar}
               />
-            </View>
+            </TouchableOpacity>
         </View>
       </View>
 
