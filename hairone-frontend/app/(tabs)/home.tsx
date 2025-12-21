@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   filterContainer: {
     marginHorizontal: 24,
     marginBottom: 24,
-    padding: 16, // UPDATED: Reduced padding from 20 to 16
+    padding: 16,
     borderRadius: 24,
     borderWidth: 1,
     shadowColor: "#000",
@@ -582,17 +582,17 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     flexDirection: "row",
-    flexWrap: "wrap", // Allows chips to flow to next line if screen is too narrow
-    gap: 10, // Increased gap for better breathing room
+    flexWrap: "wrap",
+    gap: 10,
   },
   chip: {
-    paddingHorizontal: 16, // Add horizontal padding for internal spacing
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 60, // Ensures "All" or "Men" aren't too tiny
+    minWidth: 60,
   },
   chipText: {
     fontSize: 13,
