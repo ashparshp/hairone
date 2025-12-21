@@ -331,19 +331,16 @@ export default function ProfileScreen() {
       <Modal visible={logoutModalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
               <FadeInView style={[styles.alertContent, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                  <View style={[styles.alertIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-                      <LogOut size={32} color="#ef4444" />
-                  </View>
-                  <Text style={[styles.modalTitle, {marginTop: 16, color: colors.text}]}>Log Out</Text>
-                  <Text style={{color: colors.textMuted, textAlign: 'center', marginVertical: 12}}>
-                      Are you sure you want to sign out?
+                  <Text style={[styles.modalTitle, { color: colors.text, fontSize: 18 }]}>Sign out?</Text>
+                  <Text style={{color: colors.textMuted, textAlign: 'center', marginVertical: 16}}>
+                      You will need to sign in again to access your account.
                   </Text>
-                  <View style={{flexDirection: 'row', gap: 12, width: '100%', marginTop: 12}}>
-                      <TouchableOpacity style={[styles.alertBtnSecondary, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setLogoutModalVisible(false)}>
+                  <View style={{flexDirection: 'row', gap: 12, width: '100%'}}>
+                      <TouchableOpacity style={[styles.alertBtnSecondary, {backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border}]} onPress={() => setLogoutModalVisible(false)}>
                           <Text style={{color: colors.text, fontWeight: '600'}}>Cancel</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.alertBtnDestructive} onPress={handleLogout}>
-                          <Text style={{color: '#ef4444', fontWeight: '600'}}>Log Out</Text>
+                      <TouchableOpacity style={[styles.alertBtnDestructive, {backgroundColor: '#ef4444', borderWidth: 0}]} onPress={handleLogout}>
+                          <Text style={{color: 'white', fontWeight: 'bold'}}>Log Out</Text>
                       </TouchableOpacity>
                   </View>
               </FadeInView>
