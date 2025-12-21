@@ -1,0 +1,41 @@
+Starting project at /app/hairone-frontend
+React Compiler enabled
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  @react-native-community/datetimepicker@8.5.1 - expected version: 8.4.4
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓░░░░░░░░░░░░░ 19.8% ( 29/127)
+λ node_modules/expo-router/node/render.js ▓▓░░░░░░░░░░░░░░ 15.2% (126/327)
+Web node_modules/expo-router/entry.js ▓▓▓░░░░░░░░░░░░░ 23.7% ( 90/185)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓░░░░░░░░░░ 43.2% (322/490)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 50.2% (228/386)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 62.0% (492/824)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 50.2% (325/490)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 62.0% ( 517/2509)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 51.9% (379/526)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 62.0% (1364/2565)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.6% (434/553)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.2% (2450/2565)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 63.5% ( 748/2594)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.2% (2638/2676)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 77.3% (2338/2659)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.2% (2638/2676)
+λ Bundled 31247ms node_modules/expo-router/node/render.js (2889 modules)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2849/2849)
+Web Bundled 35954ms node_modules/expo-router/entry.js (2849 modules)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2849/2849)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 44.7% (343/517)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.8% ( 943/2570)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.2% (2295/2595)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (2848/2850)
+Web Bundled 14430ms node_modules/expo-router/entry.js (2850 modules)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 89ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 807ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 161ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

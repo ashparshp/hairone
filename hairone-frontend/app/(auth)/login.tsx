@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import api from '../../services/api';
+import { Scissors, Phone, Lock, ChevronRight } from 'lucide-react-native';
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -77,46 +78,83 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, {backgroundColor: colors.background}]}>
-      <FadeInView>
-        <Text style={[styles.title, {color: colors.text}]}>HairOne</Text>
-        <Text style={[styles.sub, {color: colors.textMuted}]}>Production Booking App</Text>
+      <FadeInView style={styles.content}>
+
+        <View style={styles.header}>
+          <View style={[styles.logoContainer, { backgroundColor: colors.card, shadowColor: colors.tint }]}>
+            <Scissors size={40} color={colors.tint} />
+          </View>
+          <Text style={[styles.title, {color: colors.text}]}>HairOne</Text>
+          <Text style={[styles.sub, {color: colors.textMuted}]}>Book Haircut in seconds</Text>
+        </View>
 
         {step === 1 ? (
-          <View>
-            <Text style={[styles.label, {color: colors.textMuted}]}>Phone Number</Text>
-            <TextInput
-              style={[styles.input, {backgroundColor: colors.card, color: colors.text, borderColor: colors.border}]}
-              placeholder="9876543210"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
-              value={phone}
-              onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
-              maxLength={10}
-              editable={!loading}
-            />
-            <TouchableOpacity style={[styles.btn, {backgroundColor: colors.tint}]} onPress={handleSendOtp} disabled={loading}>
-              {loading ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.btnText}>Send OTP</Text>}
+          <View style={styles.form}>
+            <Text style={[styles.label, {color: colors.textMuted}]}>Mobile Number</Text>
+
+            <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+              <Phone size={20} color={colors.textMuted} />
+              <Text style={[styles.prefix, { color: colors.text }]}>+91</Text>
+              <View style={[styles.verticalDivider, { backgroundColor: colors.border }]} />
+              <TextInput
+                style={[styles.inputField, { color: colors.text }]}
+                placeholder="9876543210"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+                value={phone}
+                onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ''))}
+                maxLength={10}
+                editable={!loading}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.btn, {backgroundColor: colors.tint, shadowColor: colors.tint}]}
+              onPress={handleSendOtp}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#0f172a" />
+              ) : (
+                <View style={styles.btnContent}>
+                  <Text style={styles.btnText}>Continue</Text>
+                  <ChevronRight size={20} color="#0f172a" style={{marginLeft: 4}}/>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         ) : (
-          <View>
-            <Text style={[styles.label, {color: colors.textMuted}]}>Enter OTP (Use 1234)</Text>
-            <TextInput
-              style={[styles.input, {backgroundColor: colors.card, color: colors.text, borderColor: colors.border, letterSpacing: 8, textAlign: 'center' }]}
-              placeholder="XXXX"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
-              value={otp}
-              onChangeText={setOtp}
-              maxLength={4}
-              editable={!loading}
-            />
-            <TouchableOpacity style={[styles.btn, {backgroundColor: colors.tint}]} onPress={handleLogin} disabled={loading}>
+          <View style={styles.form}>
+             <Text style={[styles.label, {color: colors.textMuted}]}>Verification Code</Text>
+             <Text style={[styles.helperText, {color: colors.textMuted}]}>Sent to +91 {phone} (Use 1234)</Text>
+
+            <View style={[styles.inputRow, { borderBottomColor: colors.border }]}>
+              <Lock size={20} color={colors.textMuted} />
+              <TextInput
+                style={[styles.inputField, { color: colors.text, textAlign: 'center', letterSpacing: 8, fontSize: 24 }]}
+                placeholder="••••"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+                value={otp}
+                onChangeText={setOtp}
+                maxLength={4}
+                editable={!loading}
+                autoFocus
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.btn, {backgroundColor: colors.tint, shadowColor: colors.tint}]}
+              onPress={handleLogin}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
               {loading ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.btnText}>Login</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setStep(1)} style={{marginTop: 20}} disabled={loading}>
-              <Text style={{color: colors.tint, textAlign: 'center', fontWeight: 'bold'}}>Change Number</Text>
+            <TouchableOpacity onPress={() => setStep(1)} style={styles.changeNumberLink} disabled={loading}>
+              <Text style={{color: colors.tint, textAlign: 'center', fontWeight: '600'}}>Change Mobile Number</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -126,11 +164,66 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center' },
-  sub: { fontSize: 14, textAlign: 'center', marginBottom: 40 },
-  label: { marginBottom: 8, fontSize: 12, fontWeight: 'bold' },
-  input: { padding: 16, borderRadius: 12, marginBottom: 20, fontSize: 18, borderWidth: 1 },
-  btn: { padding: 16, borderRadius: 12, alignItems: 'center' },
-  btnText: { fontWeight: 'bold', color: '#0f172a', fontSize: 16 },
+  container: { flex: 1 },
+  content: { flex: 1, justifyContent: 'center', padding: 32 },
+
+  header: { alignItems: 'center', marginBottom: 40 },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  title: { fontSize: 36, fontWeight: '800', textAlign: 'center', marginBottom: 8, letterSpacing: -1 },
+  sub: { fontSize: 16, textAlign: 'center' },
+
+  form: { width: '100%' },
+  label: { marginBottom: 12, fontSize: 14, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
+  helperText: { marginBottom: 20, fontSize: 14 },
+
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1.5,
+    marginBottom: 32,
+    paddingBottom: 8,
+    height: 50,
+  },
+  prefix: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginLeft: 12,
+    marginRight: 12,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 24,
+    marginRight: 12,
+  },
+  inputField: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '500',
+    padding: 0, // Reset default padding
+  },
+
+  btn: {
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  btnContent: { flexDirection: 'row', alignItems: 'center' },
+  btnText: { fontWeight: 'bold', color: '#0f172a', fontSize: 18 },
+
+  changeNumberLink: { marginTop: 24, padding: 8 },
 });
