@@ -268,7 +268,7 @@ export default function HomeScreen() {
 
             {/* Collapsible Filters */}
             {showFilters && (
-              // UPDATED: Background changed to colors.background (True Black) instead of Card
+              // UPDATED: Background colors.background (True Black), reduced padding to 16
               <View style={[styles.filterContainer, { backgroundColor: colors.background, borderColor: colors.border }]}>
 
                 {/* Gender Filter */}
@@ -282,7 +282,6 @@ export default function HomeScreen() {
                         style={[
                           styles.chip,
                           {
-                            // UPDATED: Inactive state uses colors.card (Zinc) for better button appearance on Black bg
                             backgroundColor: genderFilter === g ? colors.primary : (isDark ? colors.card : colors.background),
                             borderColor: colors.border
                           }
@@ -462,7 +461,7 @@ const styles = StyleSheet.create({
   filterContainer: {
     marginHorizontal: 24,
     marginBottom: 24,
-    padding: 20,
+    padding: 16, // UPDATED: Reduced padding from 20 to 16
     borderRadius: 24,
     borderWidth: 1,
     shadowColor: '#000',
@@ -488,12 +487,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14, // UPDATED: Larger tap area (approx 44px+ height)
-    borderRadius: 14,
+    paddingVertical: 12, // UPDATED: Reduced from 14 to 12
+    borderRadius: 12,    // UPDATED: Adjusted radius
     borderWidth: 1,
   },
   chipText: {
-    fontSize: 14,        // UPDATED: Larger text (was 10)
+    fontSize: 13,        // UPDATED: Balanced font size (was 14)
     fontWeight: 'bold',
   },
 
