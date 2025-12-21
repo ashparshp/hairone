@@ -11,7 +11,7 @@ interface TabItem {
 }
 
 export const CustomTabBar = ({ state, navigation, user }: any) => {
-  const { theme } = useTheme();
+  const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
 
   let tabs: TabItem[] = [];
@@ -34,33 +34,17 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
     <View style={[
       styles.container,
       {
-        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        borderColor: isDark ? '#1e293b' : '#f1f5f9'
+        // UPDATED: Use colors.card (Zinc) instead of Slate for background
+        // Using rgba for potential blur effect support if needed, or fallback to solid colors.card
+        backgroundColor: isDark ? 'rgba(24, 24, 27, 0.95)' : 'rgba(255, 255, 255, 0.95)', 
+        borderColor: colors.border
       }
     ]}>
       <View style={styles.content}>
         {tabs.map((item, index) => {
-          // Check active state based on route
-          // Simple check: does current pathname contain the item path?
-          // Or strictly equal? Expo router paths can be tricky.
-          // Let's use state.index if possible, but we are building a custom UI for standard tabs.
-          // Standard tab bar uses state.routes[state.index].name to determine active.
-
-          // However, since we are mapping arbitrary items to routes that might not exactly match the state routes order
-          // (e.g. Owner vs User), we need to be careful.
-          // Simplest is to map the 'name' in `_layout.tsx` to these IDs.
-
-          // Let's rely on the route names defined in _layout.tsx: 'home', 'bookings', 'profile', 'dashboard'
-          // We need to match `item.id` to the route name if possible.
-
-          // But wait, the list above uses 'appts' and 'favs'.
-          // 'bookings' screen is named 'bookings'.
-          // 'favorites' screen? We don't have one in tabs yet. We have 'bookings'.
-          // Let's stick to the route names in `_layout.tsx`: home, bookings, profile, dashboard.
-
           const isActive = state.routes[state.index].name === item.id ||
                            (item.id === 'appts' && state.routes[state.index].name === 'bookings') ||
-                           (item.id === 'favs' && state.routes[state.index].name === 'favorites'); // if exists
+                           (item.id === 'favs' && state.routes[state.index].name === 'favorites');
 
           const onPress = () => {
             const event = navigation.emit({
@@ -70,19 +54,17 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
             });
 
             if (!isActive && !event.defaultPrevented) {
-              // Navigate
-              // Find the route name mapping
               let routeName = item.id;
               if (item.id === 'appts') routeName = 'bookings';
               if (item.id === 'favs') routeName = 'favorites';
-
               navigation.navigate(routeName);
             }
           };
 
           const Icon = item.icon;
-          const activeColor = isDark ? '#fbbf24' : '#0f172a'; // Amber-400 or Slate-900
-          const inactiveColor = isDark ? '#475569' : '#94a3b8'; // Slate-600 or Slate-400
+          // UPDATED: Use colors.tint and colors.text/textMuted
+          const activeColor = colors.tint; 
+          const inactiveColor = colors.textMuted; 
 
           return (
             <TouchableOpacity
@@ -94,7 +76,8 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
               <View style={[
                 styles.activeIndicator,
                 isActive && {
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#f1f5f9',
+                  // UPDATED: Use colors.tint with low opacity for indicator
+                  backgroundColor: isDark ? 'rgba(251, 191, 36, 0.15)' : '#f1f5f9', 
                   opacity: 1,
                   transform: [{ scale: 1 }]
                 }
@@ -129,7 +112,6 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     paddingTop: 8,
     paddingHorizontal: 16,
-    // Blur effect is tricky in RN without Expo Blur, but background opacity works ok
   },
   content: {
     flexDirection: 'row',

@@ -174,7 +174,6 @@ export default function HomeScreen() {
   };
 
   return (
-    // UPDATED: Use colors.background
     <View style={[styles.container, { backgroundColor: colors.background }]}>
 
       {/* Header */}
@@ -188,7 +187,6 @@ export default function HomeScreen() {
             onPress={refreshLocation}
           >
              <MapPin size={14} color={colors.primary} fill={colors.primary} />
-             {/* UPDATED: Use colors.textMuted */}
              <Text style={[styles.locationText, { color: colors.textMuted }]}>
                {locationName}
              </Text>
@@ -200,7 +198,6 @@ export default function HomeScreen() {
                onPress={toggleTheme}
                style={[
                  styles.themeToggle,
-                 // UPDATED: Use colors.card and colors.border
                  {
                     backgroundColor: colors.card,
                     borderColor: colors.border
@@ -211,7 +208,6 @@ export default function HomeScreen() {
                  styles.themeIconContainer,
                  animatedToggleStyle,
                  {
-                    // UPDATED: Use colors.border for the sliding knob in dark mode
                     backgroundColor: isDark ? colors.border : 'white'
                  }
                ]}>
@@ -252,13 +248,11 @@ export default function HomeScreen() {
           <>
             {/* Search Bar */}
             <View style={styles.searchSection}>
-              {/* UPDATED: Use colors.card and colors.border */}
               <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Search size={18} color={colors.textMuted} />
                 <TextInput
                   placeholder="Find a salon or service..."
                   placeholderTextColor={colors.textMuted}
-                  // UPDATED: Use colors.text
                   style={[styles.input, { color: colors.text }]}
                   value={searchText}
                   onChangeText={setSearchText}
@@ -274,7 +268,6 @@ export default function HomeScreen() {
 
             {/* Collapsible Filters */}
             {showFilters && (
-              // UPDATED: Use colors.card and colors.border
               <View style={[styles.filterContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
 
                 {/* Gender Filter */}
@@ -288,7 +281,6 @@ export default function HomeScreen() {
                         style={[
                           styles.chip,
                           {
-                            // UPDATED: Background logic
                             backgroundColor: genderFilter === g ? colors.primary : (isDark ? colors.border : colors.background),
                             borderColor: colors.border
                           }
@@ -337,7 +329,6 @@ export default function HomeScreen() {
                     style={[
                       styles.catChip,
                       {
-                        // UPDATED: Background logic
                         backgroundColor: activeCategory === cat.id
                            ? (isDark ? colors.tint : '#0f172a')
                            : colors.card,
@@ -355,7 +346,6 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.listHeader}>
-              {/* UPDATED: Use colors.text */}
               <Text style={[styles.heading, { color: colors.text }]}>Nearby Salons</Text>
             </View>
           </>
@@ -378,7 +368,6 @@ export default function HomeScreen() {
   );
 }
 
-// ... styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -497,12 +486,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 14, // UPDATED: Increased from 10
+    borderRadius: 14,    // UPDATED: Increased from 12
     borderWidth: 1,
   },
   chipText: {
-    fontSize: 10,
+    fontSize: 14,        // UPDATED: Increased from 10
     fontWeight: 'bold',
   },
 
@@ -537,7 +526,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContent: {
-    paddingBottom: 100, // Space for bottom nav
+    paddingBottom: 100,
   },
   emptyState: {
     alignItems: 'center',

@@ -4,13 +4,14 @@ export interface User {
   role: "user" | "owner" | "admin";
   name?: string;
   myShopId?: string;
-  applicationStatus: "none" | "pending" | "approved" | "rejected";
+  applicationStatus: "none" | "pending" | "approved" | "rejected" | "suspended";
   businessName?: string;
   isPremium?: boolean;
   email?: string;
   favorites?: string[];
   gender?: string;
   avatar?: string;
+  suspensionReason?: string;
 }
 
 export interface Service {

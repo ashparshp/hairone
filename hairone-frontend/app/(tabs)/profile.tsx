@@ -20,6 +20,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { colors, theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
+  const isDark = theme === 'dark'; // Helper
   
   const [applying, setApplying] = useState(false);
   const [bizName, setBizName] = useState('');
@@ -144,7 +145,8 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={[styles.header, {backgroundColor: colors.card}]}>
          <View style={styles.avatarContainer}>
-            <View style={[styles.avatar, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0', borderColor: colors.background}]}>
+            {/* UPDATED: Background uses colors.border in dark mode */}
+            <View style={[styles.avatar, {backgroundColor: isDark ? colors.border : '#e2e8f0', borderColor: colors.background}]}>
                 {user?.avatar ? (
                     <Image source={{ uri: user.avatar }} style={{width: '100%', height: '100%', borderRadius: 44}} />
                 ) : (
@@ -152,12 +154,12 @@ export default function ProfileScreen() {
                 )}
             </View>
             <TouchableOpacity style={[styles.editAvatarBtn, {backgroundColor: colors.tint, borderColor: colors.background}]} onPress={() => { setAvatar(user?.avatar || null); setEditModalVisible(true); }}>
-                <Edit2 size={12} color={theme === 'dark' ? 'black' : 'white'} />
+                <Edit2 size={12} color={isDark ? 'black' : 'white'} />
             </TouchableOpacity>
          </View>
          <Text style={[styles.name, {color: colors.text}]}>{user?.name || 'Guest User'}</Text>
          {user?.email && <Text style={[styles.email, {color: colors.textMuted}]}>{user?.email}</Text>}
-         <View style={[styles.roleBadge, user?.role === 'admin' ? { backgroundColor: '#ef4444' } : user?.role === 'owner' ? { backgroundColor: colors.tint } : { backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0' }]}>
+         <View style={[styles.roleBadge, user?.role === 'admin' ? { backgroundColor: '#ef4444' } : user?.role === 'owner' ? { backgroundColor: colors.tint } : { backgroundColor: isDark ? colors.border : '#e2e8f0' }]}>
             <Text style={[styles.roleText, {color: user?.role === 'owner' ? '#0f172a' : colors.text}]}>{user?.role?.toUpperCase()}</Text>
          </View>
       </View>
@@ -272,9 +274,9 @@ export default function ProfileScreen() {
           )}
 
           <MenuItem 
-            icon={theme === 'dark' ? Moon : Sun}
+            icon={isDark ? Moon : Sun}
             label="App Theme"
-            subLabel={theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+            subLabel={isDark ? 'Dark Mode' : 'Light Mode'}
             onPress={toggleTheme}
           />
           
@@ -290,7 +292,8 @@ export default function ProfileScreen() {
               <FadeInView style={[styles.modalContent, {backgroundColor: colors.card}]}>
                   <View style={styles.modalHeader}>
                       <Text style={[styles.modalTitle, {color: colors.text}]}>Update Profile</Text>
-                      <TouchableOpacity onPress={() => setEditModalVisible(false)} style={[styles.closeBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}><X size={20} color={colors.text} /></TouchableOpacity>
+                      {/* UPDATED: Close button background */}
+                      <TouchableOpacity onPress={() => setEditModalVisible(false)} style={[styles.closeBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]}><X size={20} color={colors.text} /></TouchableOpacity>
                   </View>
 
                   {/* Image Picker in Modal */}
@@ -308,13 +311,15 @@ export default function ProfileScreen() {
 
                   <View style={styles.modalBody}>
                       <Text style={[styles.label, {color: colors.textMuted}]}>Full Name</Text>
-                      <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                      {/* UPDATED: Input background from Slate to colors.background (Black) */}
+                      <View style={[styles.inputContainer, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}]}>
                           <User size={20} color={colors.textMuted} style={{marginLeft: 12}} />
                           <TextInput style={[styles.modalInput, {color: colors.text}]} value={editName} onChangeText={setEditName} placeholder="Your Name" placeholderTextColor={colors.textMuted} />
                       </View>
 
                       <Text style={[styles.label, {color: colors.textMuted}]}>Email</Text>
-                      <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                      {/* UPDATED: Input background */}
+                      <View style={[styles.inputContainer, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}]}>
                           <Mail size={20} color={colors.textMuted} style={{marginLeft: 12}} />
                           <TextInput style={[styles.modalInput, {color: colors.text}]} value={editEmail} onChangeText={setEditEmail} placeholder="john@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" />
                       </View>
