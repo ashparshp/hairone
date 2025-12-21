@@ -2,7 +2,7 @@ import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 
 // REPLACE 'localhost' or '10.0.2.2' with your actual IP '192.168.1.39'
-const API_URL = "http://192.168.1.39:8080/api";
+const API_URL = "http://192.168.1.20:8000/api";
 
 const api = axios.create({
   baseURL: API_URL,
@@ -73,7 +73,7 @@ export default api;
 // import { Alert } from "react-native";
 
 // // 1. Safe access to the environment variable (fallback to empty string or throw error if missing)
-// const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.39:8080/api";
+// const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.39:8000/api";
 
 // const api = axios.create({
 //   baseURL: API_URL,
