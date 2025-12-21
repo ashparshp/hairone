@@ -72,9 +72,9 @@ export default function ManageServicesScreen() {
       setServices(s.services || []);
 
       // Scheduling
-      setBufferTime(String(s.bufferTime || 0));
-      setMinNotice(String(s.minBookingNotice || 60));
-      setMaxNotice(String(s.maxBookingNotice || 30));
+      setBufferTime(s.bufferTime !== undefined ? String(s.bufferTime) : '0');
+      setMinNotice(s.minBookingNotice !== undefined ? String(s.minBookingNotice) : '60');
+      setMaxNotice(s.maxBookingNotice !== undefined ? String(s.maxBookingNotice) : '30');
       setAutoApprove(s.autoApproveBookings !== false); // Default true
     } catch (e) {
       console.log(e);
