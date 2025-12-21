@@ -5,7 +5,9 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
-import Colors from '../../constants/Colors';
+import { useTheme } from '../../context/ThemeContext';
+import { useToast } from '../../context/ToastContext';
+import { FadeInView } from '../../components/AnimatedViews';
 import { 
   LogOut, User, Briefcase, ChevronRight, Edit2, Heart, 
   Settings, HelpCircle, FileText, X, Clock, ShieldAlert, Mail
@@ -15,6 +17,8 @@ import api from '../../services/api';
 export default function ProfileScreen() {
   const { user, logout, login, token } = useAuth();
   const router = useRouter();
+  const { colors, theme } = useTheme();
+  const { showToast } = useToast();
   
   const [applying, setApplying] = useState(false);
   const [bizName, setBizName] = useState('');
@@ -34,20 +38,28 @@ export default function ProfileScreen() {
       { text: "Cancel", style: "cancel" },
       { text: "Log Out", style: "destructive", onPress: () => {
           setIsLoggingOut(true);
-          setTimeout(() => logout(), 500); 
+          setTimeout(() => {
+              logout();
+              showToast("Logged out successfully", "success");
+          }, 500);
       }}
     ]);
   };
 
   const handleApply = async () => {
-    if (!bizName.trim() || !ownerName.trim()) return Alert.alert("Required", "Please enter Shop Name and Your Name");
+    if (!bizName.trim() || !ownerName.trim()) {
+        showToast("Please enter Shop Name and Your Name", "error");
+        return;
+    }
     setIsSubmitting(true);
     try {
       const res = await api.post('/admin/apply', { businessName: bizName, ownerName });
       if (token) login(token, res.data);
-      Alert.alert("Success", "Application Submitted!", [{ text: "OK", onPress: () => { setApplying(false); setIsSubmitting(false); } }]);
+      showToast("Application Submitted!", "success");
+      setApplying(false);
     } catch (e) {
-      Alert.alert("Error", "Application failed.");
+      showToast("Application failed", "error");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -58,61 +70,62 @@ export default function ProfileScreen() {
           const res = await api.put('/auth/profile', { name: editName, email: editEmail, gender: editGender });
           if (token) login(token, { ...user, ...res.data });
           setEditModalVisible(false);
-          Alert.alert("Success", "Profile Updated");
+          showToast("Profile Updated", "success");
       } catch (e) {
-          Alert.alert("Error", "Failed to update profile");
+          showToast("Failed to update profile", "error");
       } finally {
           setSavingProfile(false);
       }
   };
 
   const MenuItem = ({ icon: Icon, label, subLabel, onPress, destructive = false }: any) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+    <TouchableOpacity style={[styles.menuItem, {backgroundColor: colors.card}]} onPress={onPress}>
       <View style={[styles.menuIconBox, destructive && { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-        <Icon size={20} color={destructive ? '#ef4444' : Colors.primary} />
+        <Icon size={20} color={destructive ? '#ef4444' : colors.tint} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.menuLabel, destructive && { color: '#ef4444' }]}>{label}</Text>
-        {subLabel && <Text style={styles.menuSubLabel}>{subLabel}</Text>}
+        <Text style={[styles.menuLabel, {color: colors.text}, destructive && { color: '#ef4444' }]}>{label}</Text>
+        {subLabel && <Text style={[styles.menuSubLabel, {color: colors.textMuted}]}>{subLabel}</Text>}
       </View>
-      <ChevronRight size={16} color="#475569" />
+      <ChevronRight size={16} color={colors.textMuted} />
     </TouchableOpacity>
   );
 
   const StatBox = ({ label, value }: any) => (
     <View style={styles.statBox}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statValue, {color: colors.text}]}>{value}</Text>
+      <Text style={[styles.statLabel, {color: colors.textMuted}]}>{label}</Text>
     </View>
   );
 
-  if (isLoggingOut) return <View style={styles.centerLoading}><ActivityIndicator size="large" color={Colors.primary} /><Text style={{color:Colors.textMuted, marginTop:16}}>Logging out...</Text></View>;
+  if (isLoggingOut) return <View style={[styles.centerLoading, {backgroundColor: colors.background}]}><ActivityIndicator size="large" color={colors.tint} /><Text style={{color:colors.textMuted, marginTop:16}}>Logging out...</Text></View>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, {backgroundColor: colors.background}]} contentContainerStyle={{ paddingBottom: 100 }}>
+      <View style={[styles.header, {backgroundColor: colors.card}]}>
          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}><User size={40} color="#94a3b8" /></View>
-            <TouchableOpacity style={styles.editAvatarBtn} onPress={() => setEditModalVisible(true)}><Edit2 size={12} color="white" /></TouchableOpacity>
+            <View style={[styles.avatar, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0', borderColor: colors.background}]}><User size={40} color={colors.textMuted} /></View>
+            <TouchableOpacity style={[styles.editAvatarBtn, {backgroundColor: colors.tint, borderColor: colors.background}]} onPress={() => setEditModalVisible(true)}><Edit2 size={12} color={theme === 'dark' ? 'black' : 'white'} /></TouchableOpacity>
          </View>
-         <Text style={styles.name}>{user?.name || 'Guest User'}</Text>
-         {user?.email && <Text style={styles.email}>{user?.email}</Text>}
-         <View style={[styles.roleBadge, user?.role === 'admin' ? { backgroundColor: '#ef4444' } : user?.role === 'owner' ? { backgroundColor: Colors.primary } : { backgroundColor: '#334155' }]}>
-            <Text style={[styles.roleText, user?.role === 'user' && {color: 'white'}]}>{user?.role?.toUpperCase()}</Text>
+         <Text style={[styles.name, {color: colors.text}]}>{user?.name || 'Guest User'}</Text>
+         {user?.email && <Text style={[styles.email, {color: colors.textMuted}]}>{user?.email}</Text>}
+         <View style={[styles.roleBadge, user?.role === 'admin' ? { backgroundColor: '#ef4444' } : user?.role === 'owner' ? { backgroundColor: colors.tint } : { backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0' }]}>
+            <Text style={[styles.roleText, {color: user?.role === 'owner' ? '#0f172a' : colors.text}]}>{user?.role?.toUpperCase()}</Text>
          </View>
       </View>
 
       <View style={styles.statsRow}>
           <StatBox value={user?.favorites?.length || 0} label="Favorites" />
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, {backgroundColor: colors.border}]} />
           <StatBox value={user?.role === 'user' ? '0' : 'N/A'} label="Bookings" />
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, {backgroundColor: colors.border}]} />
           <StatBox value={user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : '-'} label="Gender" />
       </View>
 
+      <FadeInView>
       <View style={styles.section}>
           {user?.role === 'user' && user?.applicationStatus === 'none' && (
-             <View style={styles.promoCard}>
+             <View style={[styles.promoCard, {backgroundColor: colors.tint}]}>
                 {!applying ? (
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 16}}>
                     <View style={styles.promoIcon}><Briefcase size={24} color="#0f172a" /></View>
@@ -144,7 +157,7 @@ export default function ProfileScreen() {
                 <Clock size={24} color="#eab308" />
                 <View style={{flex: 1}}>
                     <Text style={[styles.statusTitle, {color: '#eab308'}]}>Application Pending</Text>
-                    <Text style={styles.statusSub}>We are reviewing your request.</Text>
+                    <Text style={[styles.statusSub, {color: colors.textMuted}]}>We are reviewing your request.</Text>
                 </View>
              </View>
           )}
@@ -153,14 +166,15 @@ export default function ProfileScreen() {
                 <ShieldAlert size={24} color="#ef4444" />
                 <View style={{flex: 1}}>
                     <Text style={[styles.statusTitle, {color: '#ef4444'}]}>Application Rejected</Text>
-                    <Text style={styles.statusSub}>Please contact support for details.</Text>
+                    <Text style={[styles.statusSub, {color: colors.textMuted}]}>Please contact support for details.</Text>
                 </View>
              </View>
           )}
       </View>
+      </FadeInView>
 
       <View style={styles.menuContainer}>
-          <Text style={styles.sectionHeader}>Account Settings</Text>
+          <Text style={[styles.sectionHeader, {color: colors.textMuted}]}>Account Settings</Text>
           <MenuItem 
             icon={Edit2} label="Edit Profile" subLabel="Update details" 
             onPress={() => {
@@ -176,39 +190,39 @@ export default function ProfileScreen() {
             onPress={() => router.push('/salon/favorites' as any)} 
           />
           
-          <Text style={[styles.sectionHeader, {marginTop: 24}]}>Support</Text>
+          <Text style={[styles.sectionHeader, {color: colors.textMuted, marginTop: 24}]}>Support</Text>
           <MenuItem icon={HelpCircle} label="Help & Support" onPress={() => {}} />
           <MenuItem icon={LogOut} label="Log Out" destructive onPress={handleLogout} />
       </View>
-      <Text style={styles.versionText}>Version 1.0.2</Text>
+      <Text style={[styles.versionText, {color: colors.textMuted}]}>Version 1.0.2</Text>
 
       <Modal visible={editModalVisible} transparent animationType="slide">
           <View style={styles.modalOverlay}>
-              <View style={styles.modalContent}>
+              <View style={[styles.modalContent, {backgroundColor: colors.card}]}>
                   <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Update Profile</Text>
-                      <TouchableOpacity onPress={() => setEditModalVisible(false)} style={styles.closeBtn}><X size={20} color="white" /></TouchableOpacity>
+                      <Text style={[styles.modalTitle, {color: colors.text}]}>Update Profile</Text>
+                      <TouchableOpacity onPress={() => setEditModalVisible(false)} style={[styles.closeBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}><X size={20} color={colors.text} /></TouchableOpacity>
                   </View>
                   <View style={styles.modalBody}>
-                      <Text style={styles.label}>Full Name</Text>
-                      <View style={styles.inputContainer}>
-                          <User size={20} color={Colors.textMuted} style={{marginLeft: 12}} />
-                          <TextInput style={styles.modalInput} value={editName} onChangeText={setEditName} placeholder="Your Name" placeholderTextColor="#64748b" />
+                      <Text style={[styles.label, {color: colors.textMuted}]}>Full Name</Text>
+                      <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                          <User size={20} color={colors.textMuted} style={{marginLeft: 12}} />
+                          <TextInput style={[styles.modalInput, {color: colors.text}]} value={editName} onChangeText={setEditName} placeholder="Your Name" placeholderTextColor={colors.textMuted} />
                       </View>
-                      <Text style={styles.label}>Email Address</Text>
-                      <View style={styles.inputContainer}>
-                          <Mail size={20} color={Colors.textMuted} style={{marginLeft: 12}} />
-                          <TextInput style={styles.modalInput} value={editEmail} onChangeText={setEditEmail} placeholder="john@example.com" placeholderTextColor="#64748b" keyboardType="email-address" />
+                      <Text style={[styles.label, {color: colors.textMuted}]}>Email Address</Text>
+                      <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                          <Mail size={20} color={colors.textMuted} style={{marginLeft: 12}} />
+                          <TextInput style={[styles.modalInput, {color: colors.text}]} value={editEmail} onChangeText={setEditEmail} placeholder="john@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" />
                       </View>
-                      <Text style={styles.label}>Gender</Text>
+                      <Text style={[styles.label, {color: colors.textMuted}]}>Gender</Text>
                       <View style={styles.genderRow}>
                           {['male', 'female', 'other'].map(g => (
-                              <TouchableOpacity key={g} style={[styles.genderChip, editGender === g && styles.genderChipActive]} onPress={() => setEditGender(g as any)}>
-                                  <Text style={[styles.genderText, editGender === g && {color: 'black', fontWeight: 'bold'}]}>{g.charAt(0).toUpperCase() + g.slice(1)}</Text>
+                              <TouchableOpacity key={g} style={[styles.genderChip, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}, editGender === g && {backgroundColor: colors.tint, borderColor: colors.tint}]} onPress={() => setEditGender(g as any)}>
+                                  <Text style={[styles.genderText, {color: colors.textMuted}, editGender === g && {color: 'black', fontWeight: 'bold'}]}>{g.charAt(0).toUpperCase() + g.slice(1)}</Text>
                               </TouchableOpacity>
                           ))}
                       </View>
-                      <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateProfile} disabled={savingProfile}>
+                      <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.tint}]} onPress={handleUpdateProfile} disabled={savingProfile}>
                           {savingProfile ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
                       </TouchableOpacity>
                   </View>
@@ -220,23 +234,23 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  centerLoading: { flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' },
-  header: { alignItems: 'center', paddingTop: 60, paddingBottom: 20, backgroundColor: Colors.card, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  container: { flex: 1 },
+  centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { alignItems: 'center', paddingTop: 60, paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   avatarContainer: { position: 'relative', marginBottom: 12 },
-  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#334155', alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: Colors.background },
-  editAvatarBtn: { position: 'absolute', bottom: 0, right: 0, backgroundColor: Colors.primary, padding: 6, borderRadius: 20, borderWidth: 2, borderColor: Colors.background },
-  name: { fontSize: 22, fontWeight: 'bold', color: 'white', marginBottom: 2 },
-  email: { fontSize: 14, color: Colors.textMuted, marginBottom: 12 },
+  avatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 4 },
+  editAvatarBtn: { position: 'absolute', bottom: 0, right: 0, padding: 6, borderRadius: 20, borderWidth: 2 },
+  name: { fontSize: 22, fontWeight: 'bold', marginBottom: 2 },
+  email: { fontSize: 14, marginBottom: 12 },
   roleBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  roleText: { color: '#0f172a', fontWeight: 'bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
+  roleText: { fontWeight: 'bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   statsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginVertical: 24, paddingHorizontal: 20 },
   statBox: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 18, fontWeight: 'bold', color: 'white' },
-  statLabel: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
-  statDivider: { width: 1, height: 24, backgroundColor: '#334155' },
+  statValue: { fontSize: 18, fontWeight: 'bold' },
+  statLabel: { fontSize: 12, marginTop: 2 },
+  statDivider: { width: 1, height: 24 },
   section: { paddingHorizontal: 20, marginBottom: 24 },
-  promoCard: { backgroundColor: Colors.primary, padding: 16, borderRadius: 16, marginBottom: 8 },
+  promoCard: { padding: 16, borderRadius: 16, marginBottom: 8 },
   promoIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
   promoTitle: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
   promoSub: { color: '#0f172a', opacity: 0.8, fontSize: 12 },
@@ -247,28 +261,28 @@ const styles = StyleSheet.create({
   inputLight: { backgroundColor: 'white', borderRadius: 8, padding: 10, color: '#0f172a' },
   actionBtn: { padding: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   menuContainer: { paddingHorizontal: 20 },
-  sectionHeader: { color: Colors.textMuted, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8, marginLeft: 8 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, padding: 16, borderRadius: 16, marginBottom: 10, gap: 12 },
+  sectionHeader: { fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 8, marginLeft: 8 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, marginBottom: 10, gap: 12 },
   menuIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { color: 'white', fontSize: 16, fontWeight: '500' },
-  menuSubLabel: { color: Colors.textMuted, fontSize: 12 },
-  versionText: { textAlign: 'center', color: '#334155', fontSize: 12, marginTop: 20, marginBottom: 40 },
+  menuLabel: { fontSize: 16, fontWeight: '500' },
+  menuSubLabel: { fontSize: 12 },
+  versionText: { textAlign: 'center', fontSize: 12, marginTop: 20, marginBottom: 40 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#1e293b', padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 },
+  modalContent: { padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 40 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  closeBtn: { backgroundColor: '#334155', padding: 8, borderRadius: 20 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  closeBtn: { padding: 8, borderRadius: 20 },
   modalBody: { gap: 16 },
-  label: { color: Colors.textMuted, fontSize: 12, fontWeight: 'bold', marginBottom: 6 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderRadius: 12, borderWidth: 1, borderColor: '#334155', height: 50 },
-  modalInput: { flex: 1, color: 'white', paddingHorizontal: 12, fontSize: 16, height: '100%' },
+  label: { fontSize: 12, fontWeight: 'bold', marginBottom: 6 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, height: 50 },
+  modalInput: { flex: 1, paddingHorizontal: 12, fontSize: 16, height: '100%' },
   genderRow: { flexDirection: 'row', gap: 10 },
-  genderChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#334155', alignItems: 'center', backgroundColor: '#0f172a' },
-  genderChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  genderText: { color: Colors.textMuted, fontSize: 14 },
-  saveBtn: { backgroundColor: Colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  genderChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center' },
+  genderChipActive: { },
+  genderText: { fontSize: 14 },
+  saveBtn: { padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   saveBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
   statusCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16, borderWidth: 1 },
   statusTitle: { fontWeight: 'bold', fontSize: 16 },
-  statusSub: { color: Colors.textMuted, fontSize: 12 },
+  statusSub: { fontSize: 12 },
 });

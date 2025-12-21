@@ -4,14 +4,19 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useToast } from '../../context/ToastContext';
+import { FadeInView } from '../../components/AnimatedViews';
 import api from '../../services/api';
-import Colors from '../../constants/Colors';
 import { ChevronLeft, User, Clock, Plus, X, Check, Search } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 
 export default function ShopScheduleScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors, theme } = useTheme();
+  const { showToast } = useToast();
+
   const [bookings, setBookings] = useState([]);
   const [barbers, setBarbers] = useState([]); // For dropdown
   const [loading, setLoading] = useState(true);
@@ -57,7 +62,10 @@ export default function ShopScheduleScreen() {
   }, []);
 
   const handleCreateBlock = async () => {
-      if (!blockTime || !blockDuration) return Alert.alert("Missing Fields", "Time and Duration are required");
+      if (!blockTime || !blockDuration) {
+          showToast("Time and Duration are required", "error");
+          return;
+      }
 
       setSubmitting(true);
       try {
@@ -74,7 +82,7 @@ export default function ShopScheduleScreen() {
               totalPrice: 0,
               notes: blockNotes
           });
-          Alert.alert("Success", "Slot added successfully");
+          showToast("Slot added successfully", "success");
           setShowModal(false);
           fetchSchedule();
 
@@ -82,7 +90,7 @@ export default function ShopScheduleScreen() {
           setBlockTime('');
           setBlockNotes('');
       } catch (e: any) {
-          Alert.alert("Error", e.response?.data?.message || "Failed to create slot");
+          showToast(e.response?.data?.message || "Failed to create slot", "error");
       } finally {
           setSubmitting(false);
       }
@@ -92,18 +100,20 @@ export default function ShopScheduleScreen() {
       try {
           await api.patch(`/bookings/${bookingId}/status`, { status: newStatus });
           fetchSchedule(); // Refresh
+          showToast(`Status updated to ${newStatus}`, "success");
       } catch (e) {
-          Alert.alert("Error", "Failed to update status");
+          showToast("Failed to update status", "error");
       }
   };
 
-  const renderBooking = ({ item }: { item: any }) => (
-    <View style={[styles.card, item.type === 'blocked' && { borderColor: '#ef4444', opacity: 0.8 }]}>
-       <View style={styles.timeCol}>
-          <Text style={styles.timeText}>{item.startTime}</Text>
-          <Text style={styles.dateText}>{item.date === today ? 'Today' : item.date}</Text>
+  const renderBooking = ({ item, index }: { item: any, index: number }) => (
+    <FadeInView delay={index * 50}>
+    <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}, item.type === 'blocked' && { borderColor: '#ef4444', opacity: 0.8 }]}>
+       <View style={[styles.timeCol, {backgroundColor: theme === 'dark' ? '#1e293b' : '#e2e8f0', borderColor: colors.border}]}>
+          <Text style={[styles.timeText, {color: colors.text}]}>{item.startTime}</Text>
+          <Text style={[styles.dateText, {color: colors.textMuted}]}>{item.date === today ? 'Today' : item.date}</Text>
           {item.type === 'blocked' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>BLOCKED</Text>}
-          {item.type === 'walk-in' && <Text style={{color:'#f59e0b', fontSize:10, fontWeight:'bold', marginTop:4}}>WALK-IN</Text>}
+          {item.type === 'walk-in' && <Text style={{color: colors.tint, fontSize:10, fontWeight:'bold', marginTop:4}}>WALK-IN</Text>}
           {item.status === 'checked-in' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>CHECKED-IN</Text>}
           {item.status === 'completed' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>DONE</Text>}
           {item.status === 'no-show' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>NO-SHOW</Text>}
@@ -111,18 +121,18 @@ export default function ShopScheduleScreen() {
 
        <View style={styles.detailsCol}>
           <View style={{flexDirection:'row', justifyContent:'space-between'}}>
-             <Text style={styles.customerName}>
+             <Text style={[styles.customerName, {color: colors.text}]}>
                  {item.userId?.phone ? `User: ${item.userId.phone}` : (item.notes || (item.type === 'blocked' ? 'Blocked' : 'Walk-in'))}
              </Text>
              {item.totalPrice > 0 && <View style={styles.priceTag}><Text style={styles.priceText}>₹{item.totalPrice}</Text></View>}
           </View>
           
           <View style={styles.barberRow}>
-             <User size={12} color={Colors.primary} />
-             <Text style={styles.barberName}>Assigned to: {item.barberId?.name}</Text>
+             <User size={12} color={colors.tint} />
+             <Text style={[styles.barberName, {color: colors.tint}]}>Assigned to: {item.barberId?.name}</Text>
           </View>
 
-          <Text style={styles.services}>{item.serviceNames.join(', ')}</Text>
+          <Text style={[styles.services, {color: colors.textMuted}]}>{item.serviceNames.join(', ')}</Text>
 
           {/* Pending Actions */}
           {item.status === 'pending' && (
@@ -167,40 +177,99 @@ export default function ShopScheduleScreen() {
           {item.status === 'no-show' && <Text style={{color:'#ef4444', fontSize:12, marginTop:6, fontStyle:'italic'}}>Marked as No-Show</Text>}
        </View>
     </View>
+    </FadeInView>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.header}>
-         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <ChevronLeft size={24} color="white"/>
+         <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card}]}>
+            <ChevronLeft size={24} color={colors.text}/>
          </TouchableOpacity>
-         <Text style={styles.title}>Today's Schedule</Text>
-         <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addBtn}>
+         <Text style={[styles.title, {color: colors.text}]}>Today's Schedule</Text>
+         <TouchableOpacity onPress={() => setShowModal(true)} style={[styles.addBtn, {backgroundColor: colors.tint}]}>
              <Plus size={20} color="#0f172a" />
              <Text style={styles.addBtnText}>Block / Walk-in</Text>
          </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{marginTop: 50}} color={Colors.primary} />
+        <ActivityIndicator style={{marginTop: 50}} color={colors.tint} />
       ) : (
         <FlatList 
           data={bookings}
           renderItem={renderBooking}
           keyExtractor={(item: any) => item._id}
           contentContainerStyle={{padding: 20}}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchSchedule();}} tintColor={Colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchSchedule();}} tintColor={colors.tint} />}
           ListEmptyComponent={
             <View style={{alignItems:'center', marginTop: 100}}>
-                <Clock size={48} color="#334155" />
-                <Text style={{color: Colors.textMuted, marginTop: 16}}>No bookings for today yet.</Text>
+                <Clock size={48} color={colors.textMuted} />
+                <Text style={{color: colors.textMuted, marginTop: 16}}>No bookings for today yet.</Text>
             </View>
           }
         />
       )}
 
       {/* Block/Walk-in Modal */}
+      <Modal visible={showModal} transparent animationType="slide">
+          <View style={styles.modalBg}>
+              <View style={[styles.modalCard, {backgroundColor: colors.card}]}>
+                  <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
+                      <Text style={[styles.modalTitle, {color: colors.text, marginBottom: 0}]}>Add Slot</Text>
+                      <TouchableOpacity onPress={() => setShowModal(false)}>
+                          <Text style={{color: colors.tint, fontWeight: 'bold'}}>Close</Text>
+                      </TouchableOpacity>
+                  </View>
+
+                  <ScrollView>
+                  <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                  <View style={{flexDirection:'row', marginBottom: 16}}>
+                      <TouchableOpacity
+                        style={[styles.typeBtn, {borderColor: colors.tint}, blockType === 'walk-in' && {backgroundColor: colors.tint}]}
+                        onPress={() => setBlockType('walk-in')}
+                      >
+                          <Text style={{color: blockType === 'walk-in' ? '#0f172a' : colors.text}}>Walk-in</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.typeBtn, {borderColor: colors.tint}, blockType === 'blocked' && {backgroundColor: colors.tint}]}
+                        onPress={() => setBlockType('blocked')}
+                      >
+                          <Text style={{color: blockType === 'blocked' ? '#0f172a' : colors.text}}>Block Time</Text>
+                      </TouchableOpacity>
+                  </View>
+
+                  <View style={{flexDirection:'row', gap: 10}}>
+                      <View style={{flex:1}}>
+                         <Text style={[styles.label, {color: colors.textMuted}]}>Time (HH:mm)</Text>
+                         <TextInput
+                            style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={blockTime}
+                            onChangeText={setBlockTime}
+                            placeholder="14:30"
+                            placeholderTextColor={colors.textMuted}
+                         />
+                      </View>
+                      <View style={{flex:1}}>
+                         <Text style={[styles.label, {color: colors.textMuted}]}>Duration (min)</Text>
+                         <TextInput
+                            style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={blockDuration}
+                            onChangeText={setBlockDuration}
+                            keyboardType="numeric"
+                         />
+                      </View>
+                  </View>
+
+                  <Text style={[styles.label, {marginTop: 12, color: colors.textMuted}]}>Assign Barber</Text>
+                  <View style={{flexDirection:'row', flexWrap:'wrap', gap: 8, marginTop: 4}}>
+                      {barbers.map((b: any) => (
+                          <TouchableOpacity
+                            key={b._id}
+                            style={[styles.chip, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}, selectedBarberId === b._id && {backgroundColor: colors.tint, borderColor: colors.tint}]}
+                            onPress={() => setSelectedBarberId(b._id)}
+                          >
+                              <Text style={{color: selectedBarberId === b._id ? '#0f172a' : colors.textMuted}}>{b.name}</Text>
       <Modal visible={showModal} transparent animationType="fade">
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBg}>
               <View style={styles.modalCard}>
@@ -227,6 +296,24 @@ export default function ShopScheduleScreen() {
                           </TouchableOpacity>
                       </View>
 
+                  <Text style={[styles.label, {marginTop: 12, color: colors.textMuted}]}>Notes / Customer Name</Text>
+                  <TextInput
+                    style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                    value={blockNotes}
+                    onChangeText={setBlockNotes}
+                    placeholder="Reason or Name"
+                    placeholderTextColor={colors.textMuted}
+                  />
+
+                  <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
+                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor:'#334155'}]} onPress={() => setShowModal(false)}>
+                          <Text style={{color:'white'}}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor: colors.tint}]} onPress={handleCreateBlock} disabled={submitting}>
+                          {submitting ? <ActivityIndicator color="#0f172a"/> : <Text style={{color:'#0f172a', fontWeight:'bold'}}>Create</Text>}
+                      </TouchableOpacity>
+                  </View>
+                  </KeyboardAvoidingView>
                       <View style={{flexDirection:'row', gap: 12, marginBottom: 16}}>
                           <View style={{flex:1}}>
                              <Text style={styles.label}>Time (HH:mm)</Text>
@@ -279,22 +366,22 @@ export default function ShopScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, paddingTop: 60 },
+  container: { flex: 1, paddingTop: 60 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.card, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold', color: 'white', marginLeft: 16, flex: 1 },
-  addBtn: { flexDirection:'row', alignItems:'center', backgroundColor: Colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 4 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 20, fontWeight: 'bold', marginLeft: 16, flex: 1 },
+  addBtn: { flexDirection:'row', alignItems:'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 4 },
   addBtnText: { color: '#0f172a', fontWeight:'bold', fontSize: 12 },
 
-  card: { flexDirection: 'row', backgroundColor: Colors.card, borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border },
-  timeCol: { backgroundColor: '#1e293b', padding: 16, alignItems: 'center', justifyContent: 'center', width: 80, borderRightWidth: 1, borderRightColor: Colors.border },
-  timeText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-  dateText: { color: Colors.textMuted, fontSize: 10, marginTop: 4 },
+  card: { flexDirection: 'row', borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1 },
+  timeCol: { padding: 16, alignItems: 'center', justifyContent: 'center', width: 80, borderRightWidth: 1 },
+  timeText: { fontWeight: 'bold', fontSize: 16 },
+  dateText: { fontSize: 10, marginTop: 4 },
   detailsCol: { flex: 1, padding: 12 },
-  customerName: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+  customerName: { fontWeight: 'bold', fontSize: 14 },
   barberRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 },
-  barberName: { color: Colors.primary, fontSize: 12, fontWeight: '600' },
-  services: { color: Colors.textMuted, fontSize: 12, marginTop: 6 },
+  barberName: { fontSize: 12, fontWeight: '600' },
+  services: { fontSize: 12, marginTop: 6 },
   priceTag: { backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   priceText: { color: '#10b981', fontSize: 10, fontWeight: 'bold' },
 
@@ -303,6 +390,16 @@ const styles = StyleSheet.create({
 
   // Modal
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent:'center', padding: 20 },
+  modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%' },
+  modalTitle: { fontSize: 20, fontWeight:'bold', marginBottom: 20 },
+  modalBtn: { flex: 1, padding: 16, borderRadius: 12, alignItems:'center' },
+  label: { fontSize: 12, marginBottom: 6 },
+  input: { padding: 12, borderRadius: 8, borderWidth: 1 },
+
+  typeBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems:'center', borderWidth: 1 },
+
+  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+});
   modalCard: { backgroundColor: Colors.card, padding: 20, borderRadius: 20, maxHeight: '80%', width: '100%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   modalTitle: { fontSize: 20, fontWeight:'bold', color:'white' },
