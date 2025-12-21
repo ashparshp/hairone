@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, minutesToTime, getBarberScheduleForDate } = require('../utils/scheduleUtils');
-const { subDays, format } = require('date-fns');
+const { subDays, format, startOfWeek, startOfMonth, startOfYear, parseISO, endOfDay } = require('date-fns');
 
 // --- HELPER: Check strict availability based on resolved schedule ---
 // Modified to accept duration INCLUDING buffer for the check
@@ -492,5 +492,98 @@ exports.getUserFavorites = async (req, res) => {
     res.json(user.favorites || []);
   } catch (e) {
     res.status(500).json({ message: "Failed to fetch favorites" });
+  }
+};
+
+// --- 12. Get Shop Revenue Stats ---
+exports.getShopRevenue = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const shop = await Shop.findById(id);
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    // Use current time in server's timezone for "Weekly/Monthly/Yearly" buckets
+    // Ideally this should use IST if the business is in India, but keeping it simple with server time or consistent UTC.
+    // The previous code uses `getISTTime` for slots, but here `date-fns` uses local system time by default.
+    // Let's stick to simple `new Date()` (UTC/Server Local) for date boundaries,
+    // comparing against the Booking `date` string "YYYY-MM-DD".
+
+    const now = new Date();
+    const todayStr = format(now, 'yyyy-MM-dd');
+
+    // Calculate start dates for buckets
+    const startWeek = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd'); // Monday start
+    const startMonth = format(startOfMonth(now), 'yyyy-MM-dd');
+    const startYear = format(startOfYear(now), 'yyyy-MM-dd');
+
+    // Default Custom Range: Shop Creation -> Today
+    // If shop.createdAt is undefined (old shops), use shop._id.getTimestamp() or a very old date.
+    const shopCreatedDate = shop.createdAt ? new Date(shop.createdAt) : shop._id.getTimestamp();
+    const defaultStart = format(shopCreatedDate, 'yyyy-MM-dd');
+
+    const customStart = startDate || defaultStart;
+    const customEnd = endDate || todayStr;
+
+    // Aggregation
+    // We match by ShopId and Status='completed'
+    // Then we bucket the revenue.
+    const stats = await Booking.aggregate([
+      {
+        $match: {
+          shopId: shop._id,
+          status: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          weekly: {
+            $sum: {
+              $cond: [{ $gte: ["$date", startWeek] }, "$totalPrice", 0]
+            }
+          },
+          monthly: {
+            $sum: {
+              $cond: [{ $gte: ["$date", startMonth] }, "$totalPrice", 0]
+            }
+          },
+          yearly: {
+            $sum: {
+              $cond: [{ $gte: ["$date", startYear] }, "$totalPrice", 0]
+            }
+          },
+          custom: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gte: ["$date", customStart] },
+                    { $lte: ["$date", customEnd] }
+                  ]
+                },
+                "$totalPrice",
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const result = stats[0] || { weekly: 0, monthly: 0, yearly: 0, custom: 0 };
+
+    res.json({
+      weekly: result.weekly,
+      monthly: result.monthly,
+      yearly: result.yearly,
+      custom: result.custom,
+      customRange: { start: customStart, end: customEnd }
+    });
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to calculate revenue" });
   }
 };

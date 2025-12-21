@@ -10,7 +10,8 @@ import {
   User,
   UserPlus,
   Store,
-  Scissors
+  Scissors,
+  TrendingUp
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -226,6 +227,13 @@ export default function DashboardScreen() {
             sub="Manage services & pricing"
             color="#60a5fa"
             onPress={() => router.push("/salon/manage-services" as any)}
+          />
+          <ActionCard
+            icon={TrendingUp}
+            title="Revenue Stats"
+            sub="View earnings & reports"
+            color="#10b981"
+            onPress={() => router.push("/salon/revenue-stats" as any)}
           />
         </View>
 
