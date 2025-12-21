@@ -16,9 +16,10 @@ export default function ShopScheduleScreen() {
   const { user } = useAuth();
   const { colors, theme } = useTheme();
   const { showToast } = useToast();
+  const isDark = theme === 'dark';
 
   const [bookings, setBookings] = useState([]);
-  const [barbers, setBarbers] = useState([]); // For dropdown
+  const [barbers, setBarbers] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,7 +43,6 @@ export default function ShopScheduleScreen() {
       const res = await api.get(`/bookings/shop/${user.myShopId}?date=${today}`);
       setBookings(res.data);
 
-      // Also fetch barbers for the dropdown
       // @ts-ignore
       const shopRes = await api.get(`/shops/${user.myShopId}`);
       setBarbers(shopRes.data.barbers);
@@ -85,8 +85,6 @@ export default function ShopScheduleScreen() {
           showToast("Slot added successfully", "success");
           setShowModal(false);
           fetchSchedule();
-
-          // Reset
           setBlockTime('');
           setBlockNotes('');
       } catch (e: any) {
@@ -99,7 +97,7 @@ export default function ShopScheduleScreen() {
   const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
       try {
           await api.patch(`/bookings/${bookingId}/status`, { status: newStatus });
-          fetchSchedule(); // Refresh
+          fetchSchedule(); 
           showToast(`Status updated to ${newStatus}`, "success");
       } catch (e) {
           showToast("Failed to update status", "error");
@@ -109,7 +107,8 @@ export default function ShopScheduleScreen() {
   const renderBooking = ({ item, index }: { item: any, index: number }) => (
     <FadeInView delay={index * 50}>
     <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}, item.type === 'blocked' && { borderColor: '#ef4444', opacity: 0.8 }]}>
-       <View style={[styles.timeCol, {backgroundColor: theme === 'dark' ? '#1e293b' : '#e2e8f0', borderColor: colors.border}]}>
+       {/* UPDATED: Time column background now uses colors.background in dark mode */}
+       <View style={[styles.timeCol, {backgroundColor: isDark ? colors.background : '#e2e8f0', borderColor: colors.border}]}>
           <Text style={[styles.timeText, {color: colors.text}]}>{item.startTime}</Text>
           <Text style={[styles.dateText, {color: colors.textMuted}]}>{item.date === today ? 'Today' : item.date}</Text>
           {item.type === 'blocked' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>BLOCKED</Text>}
@@ -138,8 +137,8 @@ export default function ShopScheduleScreen() {
           {item.status === 'pending' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
                   <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'upcoming')}>
-                      <Check size={14} color="white" />
-                      <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Approve</Text>
+                      <Check size={14} color="#000000" />
+                      <Text style={{color:'#000000', fontWeight:'bold', fontSize: 12}}>Approve</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.rejectBtn} onPress={() => handleStatusUpdate(item._id, 'cancelled')}>
                       <X size={14} color="white" />
@@ -152,8 +151,8 @@ export default function ShopScheduleScreen() {
           {item.status === 'upcoming' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
                   <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'checked-in')}>
-                      <Check size={14} color="white" />
-                      <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Check In</Text>
+                      <Check size={14} color="#000000" />
+                      <Text style={{color:'#000000', fontWeight:'bold', fontSize: 12}}>Check In</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.rejectBtn, {backgroundColor: '#64748b', borderColor: '#475569'}]} onPress={() => handleStatusUpdate(item._id, 'no-show')}>
                       <X size={14} color="white" />
@@ -166,8 +165,8 @@ export default function ShopScheduleScreen() {
           {item.status === 'checked-in' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
                   <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'completed')}>
-                      <Check size={14} color="white" />
-                      <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Complete</Text>
+                      <Check size={14} color="#000000" />
+                      <Text style={{color:'#000000', fontWeight:'bold', fontSize: 12}}>Complete</Text>
                   </TouchableOpacity>
               </View>
           )}
@@ -188,8 +187,8 @@ export default function ShopScheduleScreen() {
          </TouchableOpacity>
          <Text style={[styles.title, {color: colors.text}]}>Today's Schedule</Text>
          <TouchableOpacity onPress={() => setShowModal(true)} style={[styles.addBtn, {backgroundColor: colors.tint}]}>
-             <Plus size={20} color="#0f172a" />
-             <Text style={styles.addBtnText}>Block / Walk-in</Text>
+             <Plus size={20} color="#000000" />
+             <Text style={[styles.addBtnText, {color: '#000000'}]}>Block / Walk-in</Text>
          </TouchableOpacity>
       </View>
 
@@ -224,26 +223,28 @@ export default function ShopScheduleScreen() {
 
                   <ScrollView showsVerticalScrollIndicator={false}>
                   <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                  <View style={[styles.segmentContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', borderColor: colors.border}]}>
+                  {/* UPDATED: Segment background to True Black in dark mode */}
+                  <View style={[styles.segmentContainer, {backgroundColor: isDark ? colors.background : '#f1f5f9', borderColor: colors.border}]}>
                       <TouchableOpacity
                         style={[styles.segmentBtn, blockType === 'walk-in' && {backgroundColor: colors.tint}]}
                         onPress={() => setBlockType('walk-in')}
                       >
-                          <Text style={[styles.segmentText, {color: colors.textMuted}, blockType === 'walk-in' && {color: '#0f172a', fontWeight: 'bold'}]}>Walk-in</Text>
+                          <Text style={[styles.segmentText, {color: colors.textMuted}, blockType === 'walk-in' && {color: '#000000', fontWeight: 'bold'}]}>Walk-in</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.segmentBtn, blockType === 'blocked' && {backgroundColor: colors.tint}]}
                         onPress={() => setBlockType('blocked')}
                       >
-                          <Text style={[styles.segmentText, {color: colors.textMuted}, blockType === 'blocked' && {color: '#0f172a', fontWeight: 'bold'}]}>Block Time</Text>
+                          <Text style={[styles.segmentText, {color: colors.textMuted}, blockType === 'blocked' && {color: '#000000', fontWeight: 'bold'}]}>Block Time</Text>
                       </TouchableOpacity>
                   </View>
 
                   <View style={{flexDirection:'row', gap: 10}}>
                       <View style={{flex:1}}>
                          <Text style={[styles.label, {color: colors.textMuted}]}>Time (HH:mm)</Text>
+                         {/* UPDATED: Input background to True Black in dark mode */}
                          <TextInput
-                            style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            style={[styles.input, {backgroundColor: isDark ? colors.background : '#f8fafc', color: colors.text, borderColor: colors.border}]}
                             value={blockTime}
                             onChangeText={setBlockTime}
                             placeholder="14:30"
@@ -253,7 +254,7 @@ export default function ShopScheduleScreen() {
                       <View style={{flex:1}}>
                          <Text style={[styles.label, {color: colors.textMuted}]}>Duration (min)</Text>
                          <TextInput
-                            style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            style={[styles.input, {backgroundColor: isDark ? colors.background : '#f8fafc', color: colors.text, borderColor: colors.border}]}
                             value={blockDuration}
                             onChangeText={setBlockDuration}
                             keyboardType="numeric"
@@ -266,17 +267,17 @@ export default function ShopScheduleScreen() {
                       {barbers.map((b: any) => (
                           <TouchableOpacity
                             key={b._id}
-                            style={[styles.chip, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}, selectedBarberId === b._id && {backgroundColor: colors.tint, borderColor: colors.tint}]}
+                            style={[styles.chip, {backgroundColor: isDark ? colors.background : '#f8fafc', borderColor: colors.border}, selectedBarberId === b._id && {backgroundColor: colors.tint, borderColor: colors.tint}]}
                             onPress={() => setSelectedBarberId(b._id)}
                           >
-                              <Text style={{color: selectedBarberId === b._id ? '#0f172a' : colors.textMuted}}>{b.name}</Text>
+                              <Text style={{color: selectedBarberId === b._id ? '#000000' : colors.textMuted}}>{b.name}</Text>
                           </TouchableOpacity>
                       ))}
                   </View>
 
                   <Text style={[styles.label, {color: colors.textMuted}]}>Notes / Customer Name</Text>
                   <TextInput
-                    style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                    style={[styles.input, {backgroundColor: isDark ? colors.background : '#f8fafc', color: colors.text, borderColor: colors.border}]}
                     value={blockNotes}
                     onChangeText={setBlockNotes}
                     placeholder="Reason or Name"
@@ -284,11 +285,11 @@ export default function ShopScheduleScreen() {
                   />
 
                   <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
-                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setShowModal(false)}>
+                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor: isDark ? colors.border : '#e2e8f0'}]} onPress={() => setShowModal(false)}>
                           <Text style={{color: colors.text}}>Cancel</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.modalBtn, {backgroundColor: colors.tint}]} onPress={handleCreateBlock} disabled={submitting}>
-                          {submitting ? <ActivityIndicator color="#0f172a"/> : <Text style={{color:'#0f172a', fontWeight:'bold'}}>Create</Text>}
+                          {submitting ? <ActivityIndicator color="#000000"/> : <Text style={{color:'#000000', fontWeight:'bold'}}>Create</Text>}
                       </TouchableOpacity>
                   </View>
                   </KeyboardAvoidingView>
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   title: { fontSize: 20, fontWeight: 'bold', marginLeft: 16, flex: 1 },
   addBtn: { flexDirection:'row', alignItems:'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 4 },
-  addBtnText: { color: '#0f172a', fontWeight:'bold', fontSize: 12 },
+  addBtnText: { fontWeight:'bold', fontSize: 12 },
 
   card: { flexDirection: 'row', borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1 },
   timeCol: { padding: 16, alignItems: 'center', justifyContent: 'center', width: 80, borderRightWidth: 1 },
@@ -324,7 +325,6 @@ const styles = StyleSheet.create({
   approveBtn: { flexDirection:'row', alignItems:'center', gap: 4, backgroundColor: '#10b981', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
   rejectBtn: { flexDirection:'row', alignItems:'center', gap: 4, backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
 
-  // Modal
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent:'center', padding: 20 },
   modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%', width: '100%' },
   modalTitle: { fontSize: 20, fontWeight:'bold', marginBottom: 20 },
