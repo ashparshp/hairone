@@ -78,7 +78,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, {backgroundColor: colors.background}]}>
       <FadeInView>
-        <Text style={[styles.title, {color: colors.text}]}>HairOne</Text>
+        <Text style={[styles.title, {color: colors.tint}]}>HairOne</Text>
         <Text style={[styles.sub, {color: colors.textMuted}]}>Production Booking App</Text>
 
         {step === 1 ? (
@@ -95,7 +95,7 @@ export default function LoginScreen() {
               editable={!loading}
             />
             <TouchableOpacity style={[styles.btn, {backgroundColor: colors.tint}]} onPress={handleSendOtp} disabled={loading}>
-              {loading ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.btnText}>Send OTP</Text>}
+              {loading ? <ActivityIndicator color="#000000" /> : <Text style={styles.btnText}>Send OTP</Text>}
             </TouchableOpacity>
           </View>
         ) : (
@@ -112,7 +112,7 @@ export default function LoginScreen() {
               editable={!loading}
             />
             <TouchableOpacity style={[styles.btn, {backgroundColor: colors.tint}]} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.btnText}>Login</Text>}
+              {loading ? <ActivityIndicator color="#000000" /> : <Text style={styles.btnText}>Login</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setStep(1)} style={{marginTop: 20}} disabled={loading}>
@@ -132,5 +132,5 @@ const styles = StyleSheet.create({
   label: { marginBottom: 8, fontSize: 12, fontWeight: 'bold' },
   input: { padding: 16, borderRadius: 12, marginBottom: 20, fontSize: 18, borderWidth: 1 },
   btn: { padding: 16, borderRadius: 12, alignItems: 'center' },
-  btnText: { fontWeight: 'bold', color: '#0f172a', fontSize: 16 },
+  btnText: { fontWeight: 'bold', color: '#000000', fontSize: 16 },
 });
