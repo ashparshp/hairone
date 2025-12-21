@@ -11,9 +11,11 @@ interface ShopCardProps {
   shop: any;
   onPress: () => void;
   index: number;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
 }
 
-export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index }) => {
+export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavorite, onToggleFavorite }) => {
   const { colors, theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -36,11 +38,14 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index }) => {
             style={styles.image}
             resizeMode="cover"
           />
-          <TouchableOpacity style={styles.heartButton}>
-            <Heart size={16} color="white" strokeWidth={2.5} />
+          <TouchableOpacity
+            style={styles.heartButton}
+            onPress={() => onToggleFavorite && onToggleFavorite(shop._id)}
+          >
+            <Heart size={16} color={isFavorite ? "#ef4444" : "white"} fill={isFavorite ? "#ef4444" : "transparent"} strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={styles.ratingBadge}>
-            <Star size={11} color="#fbbf24" fill="#fbbf24" />
+            <Star size={12} color="#fbbf24" fill="#fbbf24" />
             <Text style={styles.ratingText}>{shop.rating || 'New'}</Text>
             {/* <Text style={styles.reviewText}>({shop.reviews || 0})</Text> */}
           </View>
@@ -53,7 +58,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index }) => {
                 {shop.name}
               </Text>
               <View style={styles.locationRow}>
-                <MapPin size={11} color="#f59e0b" />
+                <MapPin size={12} color="#f59e0b" />
                 <Text style={[styles.locationText, { color: isDark ? '#94a3b8' : '#64748b' }]} numberOfLines={1}>
                   {shop.address} • {shop.distance ? `${shop.distance.toFixed(1)} km` : 'N/A'}
                 </Text>
@@ -82,7 +87,7 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index }) => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.bookBtn}>
+            <TouchableOpacity style={styles.bookBtn} onPress={onPress}>
               <Text style={styles.bookBtnText}>Book Now</Text>
             </TouchableOpacity>
           </View>
@@ -146,12 +151,12 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     color: 'white',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   reviewText: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
   },
   content: {
@@ -166,7 +171,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'System', // 'Poppins' if available
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },
@@ -176,7 +181,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   locationText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '500',
   },
   tagsRow: {
@@ -191,7 +196,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tagText: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -217,13 +222,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slotLabel: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   slotValue: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   bookBtn: {
@@ -238,7 +243,7 @@ const styles = StyleSheet.create({
   },
   bookBtnText: {
     color: 'white',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });

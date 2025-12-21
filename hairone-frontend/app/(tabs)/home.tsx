@@ -41,6 +41,7 @@ export default function HomeScreen() {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -82,8 +83,43 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchShops();
+      fetchFavorites();
     }, [location, distanceFilter, genderFilter, activeCategory])
   );
+
+  const fetchFavorites = async () => {
+    try {
+      const res = await api.get('/shops/favorites');
+      const favIds = res.data.map((s: any) => s._id);
+      setFavorites(favIds);
+    } catch (e) {
+      console.log("Error fetching favorites:", e);
+    }
+  };
+
+  const toggleFavorite = async (shopId: string) => {
+    // Optimistic Update
+    const isFav = favorites.includes(shopId);
+    let newFavs;
+    if (isFav) {
+      newFavs = favorites.filter(id => id !== shopId);
+    } else {
+      newFavs = [...favorites, shopId];
+    }
+    setFavorites(newFavs);
+
+    try {
+      await api.post('/auth/favorites', { shopId });
+    } catch (e) {
+      console.log("Error toggling favorite:", e);
+      // Revert on error
+      if (isFav) {
+         setFavorites([...newFavs, shopId]);
+      } else {
+         setFavorites(newFavs.filter(id => id !== shopId));
+      }
+    }
+  };
 
   const fetchShops = async () => {
     setLoading(true);
@@ -208,6 +244,8 @@ export default function HomeScreen() {
             shop={item}
             index={index}
             onPress={() => router.push(`/salon/${item._id}`)}
+            isFavorite={favorites.includes(item._id)}
+            onToggleFavorite={toggleFavorite}
           />
         )}
         contentContainerStyle={styles.listContent}
