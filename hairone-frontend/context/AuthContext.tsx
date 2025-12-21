@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // If NOT logged in and trying to access app -> Go to Login
     if (!user && !inAuthGroup) {
-      router.replace('/');
+      router.replace('/(auth)/login');
     } 
     // If Logged in and on Login screen -> Go to App
     else if (user && inAuthGroup) {
