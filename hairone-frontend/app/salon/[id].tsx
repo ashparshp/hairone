@@ -79,8 +79,23 @@ export default function ShopDetailsScreen() {
     }
   };
 
-  const calculateDuration = () => selectedServices.reduce((sum, s) => sum + s.duration, 0);
-  const calculateTotal = () => selectedServices.reduce((sum, s) => sum + s.price, 0);
+  /**
+   * Calculates the total duration of selected services.
+   * Robustly parses duration to ensure numerical addition, preventing string concatenation.
+   */
+  const calculateDuration = () => selectedServices.reduce((sum, s) => {
+    const val = parseInt(s.duration, 10);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
+
+  /**
+   * Calculates the total price of selected services.
+   * Robustly parses price to ensure numerical addition.
+   */
+  const calculateTotal = () => selectedServices.reduce((sum, s) => {
+    const val = parseFloat(s.price);
+    return sum + (isNaN(val) ? 0 : val);
+  }, 0);
 
   const fetchSlots = async () => {
     setLoadingSlots(true);
