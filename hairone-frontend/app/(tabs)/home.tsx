@@ -35,14 +35,14 @@ const CATEGORIES = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, login, token } = useAuth(); // Destructure login & token for syncing
   const { colors, theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  // Favorites now managed via AuthContext (user.favorites)
 
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -69,69 +69,60 @@ export default function HomeScreen() {
     };
   });
 
-  // Initial Location Fetch
+  // Location Logic
+  const refreshLocation = async () => {
+    setLocationName("Locating...");
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      setLocationName("Permission Denied");
+      return;
+    }
+    setPermissionGranted(true);
+
+    try {
+      let loc = await Location.getCurrentPositionAsync({});
+      setLocation(loc);
+
+      let address = await Location.reverseGeocodeAsync(loc.coords);
+      if (address[0]) {
+            const city = address[0].city || address[0].region || "Unknown City";
+            const country = address[0].isoCountryCode || "";
+            setLocationName(`${city}, ${country}`);
+      } else {
+            setLocationName("Current Location");
+      }
+
+    } catch (e) {
+      setLocationName("Location Unavailable");
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationName("Permission Denied");
-        return;
-      }
-      setPermissionGranted(true);
-
-      try {
-        let loc = await Location.getCurrentPositionAsync({});
-        setLocation(loc);
-        setLocationName("Current Location");
-
-        // Optional: Reverse geocoding to get city name
-        // let address = await Location.reverseGeocodeAsync(loc.coords);
-        // if (address[0]?.city) setLocationName(`${address[0].city}, ${address[0].isoCountryCode}`);
-
-      } catch (e) {
-        setLocationName("Location Unavailable");
-      }
-    })();
+    refreshLocation();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-      fetchFavorites();
+      // fetchFavorites(); // No longer needed, user.favorites is source of truth
     }, [location, distanceFilter, genderFilter, activeCategory])
   );
 
-  const fetchFavorites = async () => {
-    try {
-      const res = await api.get('/shops/favorites');
-      const favIds = res.data.map((s: any) => s._id);
-      setFavorites(favIds);
-    } catch (e) {
-      console.log("Error fetching favorites:", e);
-    }
-  };
-
   const toggleFavorite = async (shopId: string) => {
-    // Optimistic Update
-    const isFav = favorites.includes(shopId);
-    let newFavs;
-    if (isFav) {
-      newFavs = favorites.filter(id => id !== shopId);
-    } else {
-      newFavs = [...favorites, shopId];
-    }
-    setFavorites(newFavs);
+    if (!user) return; // or show toast
+
+    // Optimistic Update Logic for Context
+    // We can't easily set Context optimistically without a dedicated method,
+    // so we will rely on the API response to update it,
+    // OR we manually mutate and call login().
 
     try {
-      await api.post('/auth/favorites', { shopId });
+      const res = await api.post('/auth/favorites', { shopId });
+      // API returns the updated favorites array
+      const updatedUser = { ...user, favorites: res.data };
+      if (token) login(token, updatedUser);
     } catch (e) {
       console.log("Error toggling favorite:", e);
-      // Revert on error
-      if (isFav) {
-         setFavorites([...newFavs, shopId]);
-      } else {
-         setFavorites(newFavs.filter(id => id !== shopId));
-      }
     }
   };
 
@@ -207,12 +198,15 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <View style={styles.locationRow}>
+          <TouchableOpacity
+            style={styles.locationRow}
+            onPress={refreshLocation}
+          >
              <MapPin size={14} color="#f59e0b" fill="#f59e0b" />
              <Text style={[styles.locationText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
                {locationName}
              </Text>
-          </View>
+          </TouchableOpacity>
           <Text style={[styles.greeting, { color: isDark ? 'white' : '#0f172a' }]}>
             Hello, {user?.name?.split(' ')[0] || "Guest"}
           </Text>
@@ -258,7 +252,7 @@ export default function HomeScreen() {
             shop={item}
             index={index}
             onPress={() => router.push(`/salon/${item._id}`)}
-            isFavorite={favorites.includes(item._id)}
+            isFavorite={user?.favorites?.includes(item._id)}
             onToggleFavorite={toggleFavorite}
           />
         )}
