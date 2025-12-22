@@ -40,6 +40,11 @@ export default function ShopScheduleScreen() {
   const [blockNotes, setBlockNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Check-In PIN Modal
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [checkInBookingId, setCheckInBookingId] = useState<string | null>(null);
+  const [enteredPin, setEnteredPin] = useState('');
+
   const todayStr = formatLocalDate(new Date());
 
   // Helper to safely get shopId
@@ -136,14 +141,29 @@ export default function ShopScheduleScreen() {
       }
   };
 
-  const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
+  const handleStatusUpdate = async (bookingId: string, newStatus: string, pin?: string) => {
       try {
-          await api.patch(`/bookings/${bookingId}/status`, { status: newStatus });
+          const payload: any = { status: newStatus };
+          if (pin) payload.bookingKey = pin;
+
+          await api.patch(`/bookings/${bookingId}/status`, payload);
           fetchSchedule(); // Refresh
           showToast(`Status updated to ${newStatus}`, "success");
-      } catch (e) {
-          showToast("Failed to update status", "error");
+
+          if (newStatus === 'checked-in') {
+              setShowPinModal(false);
+              setEnteredPin('');
+              setCheckInBookingId(null);
+          }
+      } catch (e: any) {
+          showToast(e.response?.data?.message || "Failed to update status", "error");
       }
+  };
+
+  const promptCheckIn = (bookingId: string) => {
+      setCheckInBookingId(bookingId);
+      setEnteredPin('');
+      setShowPinModal(true);
   };
 
   const groupBookingsByDate = (bookings: any[]) => {
@@ -212,7 +232,7 @@ export default function ShopScheduleScreen() {
           {/* Upcoming: Check In / No-Show */}
           {item.status === 'upcoming' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'checked-in')}>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => promptCheckIn(item._id)}>
                       <Check size={14} color="white" />
                       <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Check In</Text>
                   </TouchableOpacity>
@@ -335,6 +355,38 @@ export default function ShopScheduleScreen() {
           stickySectionHeadersEnabled={false}
         />
       )}
+
+      {/* PIN Verification Modal */}
+      <Modal visible={showPinModal} transparent animationType="fade">
+          <View style={styles.modalBg}>
+              <View style={[styles.modalCard, {backgroundColor: colors.card, maxWidth: 320}]}>
+                  <Text style={[styles.modalTitle, {color: colors.text}]}>Verify Booking</Text>
+                  <Text style={{color: colors.textMuted, marginBottom: 16}}>Ask the customer for their 4-digit PIN.</Text>
+
+                  <TextInput
+                    style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border, textAlign: 'center', fontSize: 24, letterSpacing: 8}]}
+                    value={enteredPin}
+                    onChangeText={setEnteredPin}
+                    placeholder="0000"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+
+                  <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
+                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setShowPinModal(false)}>
+                          <Text style={{color: colors.text}}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.modalBtn, {backgroundColor: colors.tint}]}
+                        onPress={() => checkInBookingId && handleStatusUpdate(checkInBookingId, 'checked-in', enteredPin)}
+                      >
+                          <Text style={{color:'#0f172a', fontWeight:'bold'}}>Verify</Text>
+                      </TouchableOpacity>
+                  </View>
+              </View>
+          </View>
+      </Modal>
 
       {/* Block/Walk-in Modal */}
       <Modal visible={showModal} transparent animationType="slide">
