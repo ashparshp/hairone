@@ -11,7 +11,7 @@ export default function SplashScreen() {
         We use a larger logo for the splash screen.
         Width 300 is a safe size for most mobile screens.
       */}
-      <Logo width={300} height={120} />
+      <Logo width={300} height={120} color="#FFFFFF" />
     </View>
   );
 }
