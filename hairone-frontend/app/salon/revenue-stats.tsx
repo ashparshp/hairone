@@ -33,10 +33,18 @@ export default function ShopFinanceScreen() {
     fetchPendingBookings();
   }, []);
 
+  const getShopId = () => {
+      if (!user?.myShopId) return null;
+      // @ts-ignore
+      return user.myShopId._id || user.myShopId;
+  };
+
+  const shopId = getShopId();
+
   const fetchStats = async () => {
     try {
-      // @ts-ignore
-      const res = await api.get(`/shops/${user.myShopId}/finance/summary`);
+      if (!shopId) return;
+      const res = await api.get(`/shops/${shopId}/finance/summary`);
       setData(res.data);
     } catch (e) {
       console.log("Stats error", e);
@@ -47,8 +55,8 @@ export default function ShopFinanceScreen() {
 
   const fetchSettlements = async () => {
     try {
-        // @ts-ignore
-        const res = await api.get(`/shops/${user.myShopId}/finance/settlements`);
+        if (!shopId) return;
+        const res = await api.get(`/shops/${shopId}/finance/settlements`);
         setSettlements(res.data);
     } catch (e) {
         console.log("Settlements error", e);
@@ -57,9 +65,9 @@ export default function ShopFinanceScreen() {
 
   const fetchPendingBookings = async () => {
       try {
-          // @ts-ignore
+          if (!shopId) return;
           // Correct endpoint for shops to fetch their own pending bookings
-          const res = await api.get(`/shops/${user.myShopId}/finance/pending`);
+          const res = await api.get(`/shops/${shopId}/finance/pending`);
           setPendingBookings(res.data);
       } catch(e) {
           console.log("Pending error", e);
