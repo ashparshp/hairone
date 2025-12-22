@@ -256,11 +256,11 @@ exports.createBooking = async (req, res) => {
     const adminCommission = originalPrice * (adminRate / 100);
 
     // Net Revenues
-    // Admin Net = Commission - (User Discount Subsidy)
-    const adminNetRevenue = adminCommission - discountAmount;
+    // Admin Net = Commission (Shop bears discount cost)
+    const adminNetRevenue = adminCommission;
 
-    // Barber Net = Original - Commission
-    const barberNetRevenue = originalPrice - adminCommission;
+    // Barber Net = Final Price (what user paid) - Admin Commission
+    const barberNetRevenue = finalPrice - adminCommission;
 
     const collectedBy = (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') ? 'ADMIN' : 'BARBER';
 

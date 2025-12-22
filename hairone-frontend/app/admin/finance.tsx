@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, 
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { ChevronLeft, CheckCircle2, AlertCircle, Clock, Calendar, User, CreditCard, X } from 'lucide-react-native';
+import { ChevronLeft, CheckCircle2, AlertCircle, Clock, Calendar, User, CreditCard, X, Info } from 'lucide-react-native';
 import { FadeInView } from '../../components/AnimatedViews';
 import { format } from 'date-fns';
 
@@ -67,8 +67,13 @@ function PendingSettlementsList() {
 
     const renderItem = ({ item, index }: { item: any, index: number }) => {
         const net = item.totalPending;
-        const isOweToAdmin = net > 0; // Admin receives money
+        const isOweToAdmin = net < 0; // If Net is Negative, Shop owes Admin
         const amount = Math.abs(net);
+
+        // Note: Backend logic:
+        // net = adminOwesShop - shopOwesAdmin.
+        // If net > 0: Admin pays Shop.
+        // If net < 0: Shop pays Admin.
 
         if (amount === 0) return null;
 
@@ -133,6 +138,7 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [settling, setSettling] = useState(false);
+    const [activeTab, setActiveTab] = useState<'online' | 'offline'>('online');
 
     useEffect(() => {
         if (visible) fetchDetails();
@@ -176,7 +182,11 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
         );
     };
 
-    const isOweToAdmin = shop.totalPending > 0;
+    const isOweToAdmin = shop.totalPending < 0; // Net < 0 means Shop Pays Admin
+
+    const filteredBookings = bookings.filter((b: any) =>
+        activeTab === 'online' ? b.amountCollectedBy === 'ADMIN' : b.amountCollectedBy === 'BARBER'
+    );
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -198,35 +208,75 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
                     </View>
                 </View>
 
+                {/* Internal Tabs */}
+                <View style={styles.internalTabs}>
+                    <TouchableOpacity
+                        style={[styles.internalTab, activeTab === 'online' && {backgroundColor: colors.tint, borderColor: colors.tint}]}
+                        onPress={() => setActiveTab('online')}
+                    >
+                        <Text style={{color: activeTab === 'online' ? '#000' : colors.textMuted, fontWeight:'bold', fontSize: 12}}>Online (Admin Collected)</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.internalTab, activeTab === 'offline' && {backgroundColor: colors.tint, borderColor: colors.tint}]}
+                        onPress={() => setActiveTab('offline')}
+                    >
+                        <Text style={{color: activeTab === 'offline' ? '#000' : colors.textMuted, fontWeight:'bold', fontSize: 12}}>Cash (Shop Collected)</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {loading ? <ActivityIndicator color={colors.tint} style={{marginTop: 20}} /> : (
-                    <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 100}}>
-                        <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Booking Breakdown</Text>
-                        {bookings.map((b: any, i) => (
-                            <View key={i} style={[styles.rowCard, {borderColor: colors.border}]}>
+                    <FlatList
+                        data={filteredBookings}
+                        keyExtractor={(item: any) => item._id}
+                        contentContainerStyle={{paddingBottom: 100}}
+                        ListEmptyComponent={
+                            <View style={{alignItems:'center', marginTop: 40}}>
+                                <Info size={32} color={colors.textMuted}/>
+                                <Text style={{color: colors.textMuted, marginTop: 8}}>No bookings in this category.</Text>
+                            </View>
+                        }
+                        renderItem={({ item: b }) => (
+                            <View style={[styles.rowCard, {borderColor: colors.border}]}>
                                 <View style={{flexDirection:'row', justifyContent:'space-between'}}>
                                     <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(b.date), 'dd MMM')} • {b.startTime}</Text>
                                     <View style={{backgroundColor: b.amountCollectedBy === 'ADMIN' ? '#dbeafe' : '#fef9c3', paddingHorizontal: 6, borderRadius: 4}}>
                                         <Text style={{fontSize: 10, color: b.amountCollectedBy === 'ADMIN' ? '#1e40af' : '#854d0e', fontWeight:'bold'}}>
-                                            {b.amountCollectedBy === 'ADMIN' ? 'Paid Online' : 'Paid Cash'}
+                                            {b.amountCollectedBy === 'ADMIN' ? 'PAID ONLINE' : 'PAID CASH'}
                                         </Text>
                                     </View>
                                 </View>
                                 <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>
                                     {b.serviceNames.join(', ')} • {b.userId?.name || 'Guest'}
                                 </Text>
+
+                                <View style={{marginTop: 8, padding: 8, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8}}>
+                                    <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                                        <Text style={{color: colors.textMuted, fontSize: 11}}>Total Bill</Text>
+                                        <Text style={{color: colors.text, fontSize: 11}}>₹{b.finalPrice}</Text>
+                                    </View>
+                                    <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                                        <Text style={{color: colors.textMuted, fontSize: 11}}>Discount</Text>
+                                        <Text style={{color: colors.text, fontSize: 11}}>- ₹{b.discountAmount || 0}</Text>
+                                    </View>
+                                     <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                                        <Text style={{color: colors.textMuted, fontSize: 11}}>Commission</Text>
+                                        <Text style={{color: colors.text, fontSize: 11}}>- ₹{b.adminCommission || 0}</Text>
+                                    </View>
+                                </View>
+
                                 <View style={{marginTop: 8, flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
-                                    <Text style={{color: colors.text}}>Total: ₹{b.finalPrice}</Text>
+                                    <Text style={{color: colors.textMuted, fontSize: 12}}>Settlement Amount</Text>
                                     <View style={{alignItems:'flex-end'}}>
                                         {b.amountCollectedBy === 'ADMIN' ? (
-                                            <Text style={{color: '#10b981', fontSize: 12}}>Payout: ₹{b.barberNetRevenue}</Text>
+                                            <Text style={{color: '#10b981', fontSize: 12, fontWeight:'bold'}}>Admin Pays: ₹{Number(b.barberNetRevenue).toFixed(2)}</Text>
                                         ) : (
-                                            <Text style={{color: '#ef4444', fontSize: 12}}>Comm: ₹{b.adminNetRevenue}</Text>
+                                            <Text style={{color: '#ef4444', fontSize: 12, fontWeight:'bold'}}>Shop Pays: ₹{Number(b.adminNetRevenue).toFixed(2)}</Text>
                                         )}
                                     </View>
                                 </View>
                             </View>
-                        ))}
-                    </ScrollView>
+                        )}
+                    />
                 )}
 
                 <View style={[styles.footer, {backgroundColor: colors.background, borderTopColor: colors.border}]}>
@@ -390,6 +440,9 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#334155', marginBottom: 20 },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabText: { fontWeight: 'bold' },
+
+  internalTabs: { flexDirection: 'row', marginBottom: 16, gap: 8 },
+  internalTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#334155' },
 
   card: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   shopName: { fontWeight: 'bold', fontSize: 16 },

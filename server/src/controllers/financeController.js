@@ -190,7 +190,8 @@ exports.getShopFinanceSummary = async (req, res) => {
         // Wait, BarberNetRevenue is exactly that.
         const allCompleted = await Booking.find({ shopId, status: 'completed' });
 
-        const totalEarnings = allCompleted.reduce((sum, b) => sum + (b.barberNetRevenue || 0), 0);
+        // Fallback to totalPrice or 0 if barberNetRevenue is missing (legacy data)
+        const totalEarnings = allCompleted.reduce((sum, b) => sum + (Number(b.barberNetRevenue) || Number(b.totalPrice) || 0), 0);
 
         // 2. Pending Settlement (Same logic as Admin pending)
         const pendingBookings = allCompleted.filter(b => b.settlementStatus === 'PENDING');

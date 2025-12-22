@@ -140,6 +140,14 @@ export default function ShopFinanceScreen() {
             </View>
         )}
 
+        {/* Link to Detailed Settlements */}
+        <TouchableOpacity
+            style={[styles.linkBtn, {backgroundColor: colors.tint}]}
+            onPress={() => router.push('/salon/settlements')}
+        >
+            <Text style={{fontWeight:'bold', color: '#000'}}>View Detailed Settlement Breakdown</Text>
+        </TouchableOpacity>
+
         {/* RECENT SETTLEMENTS */}
         <Text style={[styles.sectionHeader, {color: colors.text, marginTop: 24}]}>Settlement History</Text>
         {settlements.length === 0 ? (
@@ -204,6 +212,10 @@ const styles = StyleSheet.create({
 
   alertBox: {
       padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 20
+  },
+
+  linkBtn: {
+      padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 24
   },
 
   historyCard: {
