@@ -158,7 +158,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+    <View style={[styles.container, { backgroundColor: isDark ? '#000000ff' : '#f8fafc' }]}>
 
       {/* Header */}
       <View style={styles.header}>
@@ -183,7 +183,7 @@ export default function HomeScreen() {
                style={[
                  styles.themeToggle,
                  {
-                    backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                    backgroundColor: isDark ? '#000000ff' : '#f1f5f9',
                     borderColor: isDark ? '#334155' : '#e2e8f0'
                  }
                ]}
@@ -232,7 +232,7 @@ export default function HomeScreen() {
           <>
             {/* Search Bar */}
             <View style={styles.searchSection}>
-              <View style={[styles.searchBox, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+              <View style={[styles.searchBox, { backgroundColor: isDark ? '#000000ff' : '#ffffff', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
                 <Search size={18} color={isDark ? '#94a3b8' : '#cbd5e1'} />
                 <TextInput
                   placeholder="Find a salon or service..."
@@ -252,7 +252,7 @@ export default function HomeScreen() {
 
             {/* Collapsible Filters */}
             {showFilters && (
-              <View style={[styles.filterContainer, { backgroundColor: isDark ? '#1e293b' : 'white', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+              <View style={[styles.filterContainer, { backgroundColor: isDark ? '#000000ff' : 'white', borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
 
                 {/* Gender Filter */}
                 <View style={styles.filterGroup}>
@@ -290,7 +290,7 @@ export default function HomeScreen() {
                   <View style={[
                     styles.sliderContainer,
                     {
-                        backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                        backgroundColor: isDark ? '#000000ff' : '#f8fafc',
                         borderColor: isDark ? '#334155' : '#e2e8f0'
                     }
                   ]}>
@@ -323,7 +323,7 @@ export default function HomeScreen() {
                       {
                         backgroundColor: activeCategory === cat.id
                            ? (isDark ? '#f59e0b' : '#0f172a')
-                           : (isDark ? '#1e293b' : '#ffffff'),
+                           : (isDark ? '#000000ff' : '#ffffff'),
                         borderColor: isDark ? '#334155' : '#e2e8f0'
                       }
                     ]}
@@ -355,7 +355,7 @@ export default function HomeScreen() {
               <View style={[
                 styles.sliderWrapperOuter,
                 {
-                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    backgroundColor: isDark ? '#000000ff' : '#ffffff',
                     borderColor: isDark ? '#334155' : '#e2e8f0'
                 }
               ]}>
