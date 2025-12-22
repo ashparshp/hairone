@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { BookingProvider } from '../context/BookingContext';
 import { ToastProvider } from '../context/ToastContext';
 import { ThemeProvider } from '../context/ThemeContext';
+import { LocationProvider } from '../context/LocationContext';
 import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
 import SplashScreen from '../components/SplashScreen';
@@ -42,9 +43,11 @@ export default function RootLayout() {
     <AuthProvider>
       <BookingProvider>
         <ThemeProvider>
-          <ToastProvider>
-            <AppContent />
-          </ToastProvider>
+          <LocationProvider>
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
+          </LocationProvider>
         </ThemeProvider>
       </BookingProvider>
     </AuthProvider>

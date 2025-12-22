@@ -14,12 +14,12 @@ import {
   Dimensions,
   Platform
 } from "react-native";
-import * as Location from 'expo-location';
 import Slider from '@react-native-community/slider';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
+import { useLocation } from "../../context/LocationContext";
 import { ShopCard } from "../../components/ShopCard";
 import { ShopCardSkeleton } from "../../components/ShopCardSkeleton";
 import { ScalePress } from "../../components/ScalePress";
@@ -53,12 +53,14 @@ export default function HomeScreen() {
   const [genderFilter, setGenderFilter] = useState('All');
   const [distanceFilter, setDistanceFilter] = useState(1); // Default 1km
 
-  // Location State
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [isLocating, setIsLocating] = useState(true);
-  const [hasAttemptedLocation, setHasAttemptedLocation] = useState(false); // To prevent fetching before location check
-  const [locationName, setLocationName] = useState("Locating...");
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  // Location Context
+  const {
+    location,
+    locationName,
+    isLocating,
+    hasAttemptedLocation,
+    refreshLocation
+  } = useLocation();
 
   // Animation for Theme Toggle
   const toggleX = useSharedValue(isDark ? 28 : 0);
@@ -73,43 +75,9 @@ export default function HomeScreen() {
     };
   });
 
-  // Location Logic
-  const refreshLocation = async () => {
-    setIsLocating(true);
-    setLocationName("Locating...");
-
-    try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationName("Permission Denied");
-        setIsLocating(false);
-        setHasAttemptedLocation(true);
-        return;
-      }
-      setPermissionGranted(true);
-
-      let loc = await Location.getCurrentPositionAsync({});
-      setLocation(loc);
-
-      let address = await Location.reverseGeocodeAsync(loc.coords);
-      if (address[0]) {
-            const city = address[0].city || address[0].region || "Unknown City";
-            const country = address[0].isoCountryCode || "";
-            setLocationName(`${city}, ${country}`);
-      } else {
-            setLocationName("Current Location");
-      }
-
-    } catch (e) {
-      setLocationName("Location Unavailable");
-    } finally {
-      setIsLocating(false);
-      setHasAttemptedLocation(true);
-    }
-  };
-
+  // Removed local location logic in favor of Context
   useEffect(() => {
-    refreshLocation();
+    refreshLocation(); // Utilizes context caching
   }, []);
 
   useFocusEffect(
@@ -185,7 +153,7 @@ export default function HomeScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    refreshLocation(); // Refresh location then fetch shops
+    refreshLocation(true); // Force refresh location then fetch shops
     // Note: refreshLocation triggers fetchShops via effect when state updates
   };
 
