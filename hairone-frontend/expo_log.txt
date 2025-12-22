@@ -1,0 +1,119 @@
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Starting project at /app/hairone-frontend
+React Compiler enabled
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  @react-native-community/datetimepicker@8.5.1 - expected version: 8.4.4
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% ( 77/179)
+λ node_modules/expo-router/node/render.js ▓▓░░░░░░░░░░░░░░ 13.0% ( 72/200)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 50.2% (180/254)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓░░░░░░░░░░░ 35.6% (281/471)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 50.2% (264/396)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (467/605)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 51.1% (349/488)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% ( 502/2534)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 59.0% (430/560)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% ( 927/2671)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 59.0% (430/560)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (2170/2671)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.3% ( 546/2601)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.6% (2584/2734)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.3% (1109/2726)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.6% (2680/2830)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 75.0% (2360/2726)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.6% (2680/2830)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.4% (2734/2859)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.0% (2874/2986)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.3% (3080/3122)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.1% (3143/3194)
+λ Bundled 39882ms node_modules/expo-router/node/render.js (3223 modules)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (3196/3196)
+Web Bundled 45147ms node_modules/expo-router/entry.js (3196 modules)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 31.4% (194/654)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 31.4% ( 676/2595)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 31.4% (1422/2685)
+λ Bundled 171ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 783ms node_modules/expo-router/entry.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓░░░░░░░░░░ 38.5% (1665/2685)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 87.5% (2595/2774)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.1% (3170/3185)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 21529ms node_modules/expo-router/entry.js (3196 modules)
+Web Bundled 7910ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 92ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 637ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 113ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 86ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 706ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 216ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 82ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 596ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 100ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 116ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 771ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 145ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 83ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 601ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 96ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 124ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 787ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 143ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 83ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 585ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 95ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 84ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 707ms node_modules/expo-router/entry.js (1 module)
+λ Bundled 94ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 613ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 90ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 695ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 89ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 601ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 120ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 863ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 79ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 584ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 97ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 89ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 601ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 94ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

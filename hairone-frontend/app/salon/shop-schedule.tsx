@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl, Modal, TextInput, Alert, KeyboardAvoidingView, ScrollView, Platform
+  View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl, Modal, TextInput, Alert, KeyboardAvoidingView, ScrollView, Platform, SectionList
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -8,8 +8,9 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import api from '../../services/api';
-import { ChevronLeft, User, Clock, Plus, X, Check, Search } from 'lucide-react-native';
+import { ChevronLeft, User, Clock, Plus, X, Check, Calendar as CalendarIcon, Filter } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function ShopScheduleScreen() {
   const router = useRouter();
@@ -22,6 +23,13 @@ export default function ShopScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Filter State
+  const [activeFilter, setActiveFilter] = useState('today'); // 'today', 'upcoming', 'history', 'custom'
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [blockDate, setBlockDate] = useState(() => formatLocalDate(new Date()));
@@ -32,25 +40,57 @@ export default function ShopScheduleScreen() {
   const [blockNotes, setBlockNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const today = formatLocalDate(new Date());
+  const todayStr = formatLocalDate(new Date());
+
+  // Helper to safely get shopId
+  // @ts-ignore
+  const getShopId = () => typeof user?.myShopId === 'object' ? user.myShopId._id : user?.myShopId;
 
   const fetchSchedule = async () => {
-    // @ts-ignore
-    if (!user?.myShopId) return;
+    const shopId = getShopId();
+    if (!shopId) return;
+
     try {
+      let url = `/bookings/shop/${shopId}`;
+      const params = new URLSearchParams();
+
+      if (activeFilter === 'today') {
+        params.append('date', todayStr);
+      } else if (activeFilter === 'upcoming') {
+        params.append('startDate', todayStr);
+        // Maybe reasonable future limit or backend handles pagination
+        // params.append('endDate', ...);
+      } else if (activeFilter === 'history') {
+        // Just an example, fetching past month. Or backend support reverse sort without range?
+        // Let's assume history means "Everything before today" or just rely on backend sort
+        // Since backend uses startDate/endDate, we might need a large range for "History"
+        // or we need a new filter type in backend.
+        // For now, let's map 'history' to 'past 30 days' for safety or just skip dates to get all?
+        // If we want "History" to be "All Past Bookings", we can set endDate = yesterday.
+        // Let's set a wide range for now.
+        const past = new Date();
+        past.setDate(past.getDate() - 30);
+        params.append('startDate', formatLocalDate(past));
+        params.append('endDate', formatLocalDate(new Date())); // Up to now
+      } else if (activeFilter === 'custom') {
+        params.append('startDate', formatLocalDate(startDate));
+        params.append('endDate', formatLocalDate(endDate));
+      }
+
       // @ts-ignore
-      const res = await api.get(`/bookings/shop/${user.myShopId}?date=${today}`);
+      const res = await api.get(`${url}?${params.toString()}`);
       setBookings(res.data);
 
       // Also fetch barbers for the dropdown
       // @ts-ignore
-      const shopRes = await api.get(`/shops/${user.myShopId}`);
+      const shopRes = await api.get(`/shops/${shopId}`);
       setBarbers(shopRes.data.barbers);
-      if (shopRes.data.barbers.length > 0) {
+      if (shopRes.data.barbers.length > 0 && !selectedBarberId) {
           setSelectedBarberId(shopRes.data.barbers[0]._id);
       }
     } catch (e) {
       console.log(e);
+      showToast("Failed to fetch schedule", "error");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -59,7 +99,7 @@ export default function ShopScheduleScreen() {
 
   useEffect(() => {
     fetchSchedule();
-  }, []);
+  }, [activeFilter, startDate, endDate]);
 
   const handleCreateBlock = async () => {
       if (!blockTime || !blockDuration) {
@@ -69,10 +109,10 @@ export default function ShopScheduleScreen() {
 
       setSubmitting(true);
       try {
+          const shopId = getShopId();
           // @ts-ignore
           await api.post('/bookings', {
-              // @ts-ignore
-              shopId: user.myShopId,
+              shopId: shopId,
               barberId: selectedBarberId,
               date: blockDate,
               startTime: blockTime,
@@ -106,12 +146,33 @@ export default function ShopScheduleScreen() {
       }
   };
 
+  const groupBookingsByDate = (bookings: any[]) => {
+      const grouped: any = {};
+      bookings.forEach(b => {
+          if (!grouped[b.date]) grouped[b.date] = [];
+          grouped[b.date].push(b);
+      });
+
+      // Sort keys (dates)
+      const keys = Object.keys(grouped).sort();
+
+      return keys.map(date => ({
+          title: date === todayStr ? 'Today' : date,
+          data: grouped[date]
+      }));
+  };
+
+  const renderSectionHeader = ({ section: { title } }: any) => (
+      <View style={[styles.sectionHeader, {backgroundColor: colors.background}]}>
+          <Text style={[styles.sectionHeaderText, {color: colors.text}]}>{title}</Text>
+      </View>
+  );
+
   const renderBooking = ({ item, index }: { item: any, index: number }) => (
     <FadeInView delay={index * 50}>
     <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}, item.type === 'blocked' && { borderColor: '#ef4444', opacity: 0.8 }]}>
        <View style={[styles.timeCol, {backgroundColor: theme === 'dark' ? '#1e293b' : '#e2e8f0', borderColor: colors.border}]}>
           <Text style={[styles.timeText, {color: colors.text}]}>{item.startTime}</Text>
-          <Text style={[styles.dateText, {color: colors.textMuted}]}>{item.date === today ? 'Today' : item.date}</Text>
           {item.type === 'blocked' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>BLOCKED</Text>}
           {item.type === 'walk-in' && <Text style={{color: colors.tint, fontSize:10, fontWeight:'bold', marginTop:4}}>WALK-IN</Text>}
           {item.status === 'checked-in' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>CHECKED-IN</Text>}
@@ -186,28 +247,92 @@ export default function ShopScheduleScreen() {
          <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card, borderColor: colors.border}]}>
             <ChevronLeft size={24} color={colors.text}/>
          </TouchableOpacity>
-         <Text style={[styles.title, {color: colors.text}]}>Today's Schedule</Text>
+         <Text style={[styles.title, {color: colors.text}]}>Shop Schedule</Text>
          <TouchableOpacity onPress={() => setShowModal(true)} style={[styles.addBtn, {backgroundColor: colors.tint}]}>
              <Plus size={20} color="#0f172a" />
              <Text style={styles.addBtnText}>Block / Walk-in</Text>
          </TouchableOpacity>
       </View>
 
+      {/* FILTER TABS */}
+      <View style={{paddingHorizontal: 20, marginBottom: 10}}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8}}>
+              {['today', 'upcoming', 'history', 'custom'].map(filter => (
+                  <TouchableOpacity
+                    key={filter}
+                    style={[
+                        styles.filterChip,
+                        { backgroundColor: activeFilter === filter ? colors.tint : (theme === 'dark' ? '#1e293b' : '#e2e8f0') }
+                    ]}
+                    onPress={() => setActiveFilter(filter)}
+                  >
+                      <Text style={{
+                          color: activeFilter === filter ? '#0f172a' : colors.textMuted,
+                          fontWeight: 'bold',
+                          textTransform: 'capitalize'
+                      }}>
+                          {filter}
+                      </Text>
+                  </TouchableOpacity>
+              ))}
+          </ScrollView>
+
+          {activeFilter === 'custom' && (
+              <View style={{flexDirection:'row', alignItems:'center', gap: 10, marginTop: 10}}>
+                  <TouchableOpacity onPress={() => setShowStartPicker(true)} style={[styles.dateInput, {borderColor: colors.border}]}>
+                      <CalendarIcon size={14} color={colors.textMuted} />
+                      <Text style={{color: colors.text}}>{formatLocalDate(startDate)}</Text>
+                  </TouchableOpacity>
+                  <Text style={{color: colors.textMuted}}>to</Text>
+                  <TouchableOpacity onPress={() => setShowEndPicker(true)} style={[styles.dateInput, {borderColor: colors.border}]}>
+                      <CalendarIcon size={14} color={colors.textMuted} />
+                      <Text style={{color: colors.text}}>{formatLocalDate(endDate)}</Text>
+                  </TouchableOpacity>
+              </View>
+          )}
+      </View>
+
+      {showStartPicker && (
+        <DateTimePicker
+            value={startDate}
+            mode="date"
+            display="default"
+            onChange={(event, selectedDate) => {
+                setShowStartPicker(Platform.OS === 'ios');
+                if (selectedDate) setStartDate(selectedDate);
+            }}
+        />
+      )}
+
+      {showEndPicker && (
+        <DateTimePicker
+            value={endDate}
+            mode="date"
+            display="default"
+            onChange={(event, selectedDate) => {
+                setShowEndPicker(Platform.OS === 'ios');
+                if (selectedDate) setEndDate(selectedDate);
+            }}
+        />
+      )}
+
       {loading ? (
         <ActivityIndicator style={{marginTop: 50}} color={colors.tint} />
       ) : (
-        <FlatList 
-          data={bookings}
-          renderItem={renderBooking}
+        <SectionList
+          sections={groupBookingsByDate(bookings)}
           keyExtractor={(item: any) => item._id}
-          contentContainerStyle={{padding: 20}}
+          renderItem={renderBooking}
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={{padding: 20, paddingBottom: 100}}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {setRefreshing(true); fetchSchedule();}} tintColor={colors.tint} />}
           ListEmptyComponent={
             <View style={{alignItems:'center', marginTop: 100}}>
                 <Clock size={48} color={colors.textMuted} />
-                <Text style={{color: colors.textMuted, marginTop: 16}}>No bookings for today yet.</Text>
+                <Text style={{color: colors.textMuted, marginTop: 16}}>No bookings found.</Text>
             </View>
           }
+          stickySectionHeadersEnabled={false}
         />
       )}
 
@@ -309,10 +434,15 @@ const styles = StyleSheet.create({
   addBtn: { flexDirection:'row', alignItems:'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, gap: 4 },
   addBtnText: { color: '#0f172a', fontWeight:'bold', fontSize: 12 },
 
+  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
+  dateInput: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, flex: 1 },
+
+  sectionHeader: { paddingVertical: 8, paddingHorizontal: 20, marginBottom: 8 },
+  sectionHeaderText: { fontWeight: 'bold', fontSize: 18 },
+
   card: { flexDirection: 'row', borderRadius: 12, marginBottom: 12, overflow: 'hidden', borderWidth: 1 },
   timeCol: { padding: 16, alignItems: 'center', justifyContent: 'center', width: 80, borderRightWidth: 1 },
   timeText: { fontWeight: 'bold', fontSize: 16 },
-  dateText: { fontSize: 10, marginTop: 4 },
   detailsCol: { flex: 1, padding: 12 },
   customerName: { fontWeight: 'bold', fontSize: 14 },
   barberRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 4 },
