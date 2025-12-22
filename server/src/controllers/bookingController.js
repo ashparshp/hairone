@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Barber = require('../models/Barber');
 const Shop = require('../models/Shop');
+const SystemConfig = require('../models/SystemConfig');
 const { addMinutes, parse, format, differenceInDays, subDays } = require('date-fns');
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, getBarberScheduleForDate } = require('../utils/scheduleUtils');
@@ -241,8 +242,47 @@ exports.createBooking = async (req, res) => {
         return res.status(400).json({ message: "User ID required for online bookings." });
     }
 
+    // --- FINANCIAL CALCULATIONS ---
+    const config = await SystemConfig.findOne({ key: 'global' });
+    const adminRate = config ? config.adminCommissionRate : 10;
+    const discountRate = config ? config.userDiscountRate : 0;
+
+    // Use totalPrice as originalPrice
+    const originalPrice = parseFloat(totalPrice);
+    const discountAmount = originalPrice * (discountRate / 100);
+    const finalPrice = originalPrice - discountAmount;
+
+    // Admin Commission (Gross)
+    const adminCommission = originalPrice * (adminRate / 100);
+
+    // Net Revenues
+    // Admin Net = Commission - (User Discount Subsidy)
+    const adminNetRevenue = adminCommission - discountAmount;
+
+    // Barber Net = Original - Commission
+    const barberNetRevenue = originalPrice - adminCommission;
+
+    const collectedBy = (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') ? 'ADMIN' : 'BARBER';
+
     const bookingData = {
-      userId, shopId, barberId: assignedBarberId, serviceNames, totalPrice, 
+      userId, shopId, barberId: assignedBarberId, serviceNames,
+      totalPrice: finalPrice, // Storing what user pays as main totalPrice for backward compat, or should we?
+      // Keeping totalPrice as 'originalPrice' might be better for stats compatibility,
+      // but user expects to see what they paid.
+      // Let's set 'totalPrice' to 'finalPrice' (User Price).
+      // And we have 'originalPrice' field separately.
+
+      originalPrice,
+      discountAmount,
+      finalPrice,
+
+      adminCommission,
+      adminNetRevenue,
+      barberNetRevenue,
+
+      amountCollectedBy: collectedBy,
+      settlementStatus: 'PENDING',
+
       totalDuration: durationInt, date, startTime, endTime, 
       paymentMethod: paymentMethod || 'cash', 
       status,

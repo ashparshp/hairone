@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks, Ban, MessageSquare } from 'lucide-react-native';
+import { Check, X, LogOut, ShieldAlert, BarChart, ShoppingBag, ListChecks, Ban, MessageSquare, Settings, DollarSign } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { FadeInView } from '../../components/AnimatedViews';
 
@@ -197,9 +197,14 @@ export default function AdminDashboard() {
              <Text style={[styles.title, {color: colors.text}]}>Admin Panel</Text>
              <Text style={[styles.subtitle, {color: colors.tint}]}>System Management</Text>
          </View>
-         <TouchableOpacity style={[styles.logoutBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={logout}>
-             <LogOut size={20} color={colors.text} />
-         </TouchableOpacity>
+         <View style={{flexDirection: 'row', gap: 10}}>
+             <TouchableOpacity style={[styles.logoutBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => router.push('/admin/settings' as any)}>
+                 <Settings size={20} color={colors.text} />
+             </TouchableOpacity>
+             <TouchableOpacity style={[styles.logoutBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={logout}>
+                 <LogOut size={20} color={colors.text} />
+             </TouchableOpacity>
+         </View>
       </View>
 
       {/* Tabs */}
@@ -221,6 +226,18 @@ export default function AdminDashboard() {
               <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'support' && styles.activeTabText]}>Support</Text>
           </TouchableOpacity>
       </View>
+
+      {/* Finance Link (Quick Access) */}
+      <TouchableOpacity
+        style={[styles.financeBanner, {backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)'}]}
+        onPress={() => router.push('/admin/finance' as any)}
+      >
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+             <DollarSign size={20} color="#10b981" />
+             <Text style={{color: colors.text, fontWeight: 'bold'}}>Manage Finance & Settlements</Text>
+          </View>
+          <Text style={{color: colors.tint, fontWeight: 'bold'}}>OPEN</Text>
+      </TouchableOpacity>
 
       <Text style={[styles.sectionHeader, {color: colors.textMuted}]}>
           {activeTab === 'approvals' && `Pending Applications (${applicants.length})`}
@@ -354,6 +371,8 @@ const styles = StyleSheet.create({
   approveText: { color: '#0f172a', fontWeight: 'bold' },
   rejectBtn: { flex: 1, backgroundColor: 'rgba(239, 68, 68, 0.1)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
   rejectText: { color: '#ef4444', fontWeight: 'bold' },
+
+  financeBanner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 20 },
 
   // Stats Grid
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
