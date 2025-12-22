@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import api from "../../services/api";
-import { ChevronLeft, Calendar, DollarSign, Clock, X, TrendingUp, AlertCircle } from "lucide-react-native";
+import { ChevronLeft, Calendar, DollarSign, Clock, X, TrendingUp, AlertCircle, ArrowDownLeft, ArrowUpRight } from "lucide-react-native";
 import { format } from "date-fns";
 import { FadeInView } from "../../components/AnimatedViews";
 
@@ -23,11 +23,14 @@ export default function ShopFinanceScreen() {
   const { colors, theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [pendingBookings, setPendingBookings] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'online' | 'offline'>('overview');
 
   useEffect(() => {
     fetchStats();
     fetchSettlements();
+    fetchPendingBookings();
   }, []);
 
   const fetchStats = async () => {
@@ -52,6 +55,17 @@ export default function ShopFinanceScreen() {
     }
   };
 
+  const fetchPendingBookings = async () => {
+      try {
+          // @ts-ignore
+          // Correct endpoint for shops to fetch their own pending bookings
+          const res = await api.get(`/shops/${user.myShopId}/finance/pending`);
+          setPendingBookings(res.data);
+      } catch(e) {
+          console.log("Pending error", e);
+      }
+  }
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
@@ -65,7 +79,7 @@ export default function ShopFinanceScreen() {
       <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start'}}>
           <View>
               <Text style={[styles.statTitle, { color: colors.textMuted }]}>{title}</Text>
-              <Text style={[styles.statAmount, { color: colors.text }]}>₹{amount?.toLocaleString()}</Text>
+              <Text style={[styles.statAmount, { color: colors.text }]}>₹{(amount || 0).toLocaleString()}</Text>
           </View>
           <View style={{padding: 8, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 8}}>
               {icon}
@@ -74,19 +88,8 @@ export default function ShopFinanceScreen() {
     </View>
   );
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <ChevronLeft size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Finance Dashboard</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-
-        {/* OVERVIEW SECTION */}
+  const renderOverview = () => (
+    <FadeInView>
         <Text style={[styles.sectionHeader, {color: colors.text}]}>Overview</Text>
         <View style={styles.grid}>
              {/* TOTAL EARNINGS */}
@@ -102,7 +105,7 @@ export default function ShopFinanceScreen() {
                 title="Pending Payout"
                 amount={data?.details?.pendingPayout || 0}
                 color="#10b981"
-                icon={<DollarSign size={20} color="#10b981"/>}
+                icon={<ArrowDownLeft size={20} color="#10b981"/>}
              />
 
              {/* PENDING DUES (Shop owes Admin) */}
@@ -110,12 +113,12 @@ export default function ShopFinanceScreen() {
                 title="Pending Dues"
                 amount={data?.details?.pendingDues || 0}
                 color="#ef4444"
-                icon={<AlertCircle size={20} color="#ef4444"/>}
+                icon={<ArrowUpRight size={20} color="#ef4444"/>}
              />
         </View>
 
         {/* NET BALANCE ALERT */}
-        {data?.currentBalance !== 0 && (
+        {data?.currentBalance !== 0 && !isNaN(data?.currentBalance) && (
             <View style={[styles.alertBox, {backgroundColor: colors.card, borderColor: data?.currentBalance > 0 ? '#10b981' : '#ef4444'}]}>
                 <View style={{flexDirection:'row', gap: 12, alignItems:'center'}}>
                     {data?.currentBalance > 0
@@ -128,13 +131,13 @@ export default function ShopFinanceScreen() {
                          </Text>
                          <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>
                              {data?.currentBalance > 0
-                                ? `Admin owes you ₹${data?.currentBalance.toFixed(2)}`
-                                : `You owe Admin ₹${Math.abs(data?.currentBalance).toFixed(2)}`
+                                ? `Admin owes you ₹${(data?.currentBalance || 0).toFixed(2)}`
+                                : `You owe Admin ₹${Math.abs(data?.currentBalance || 0).toFixed(2)}`
                              }
                          </Text>
                     </View>
                     <Text style={{color: data?.currentBalance > 0 ? '#10b981' : '#ef4444', fontWeight:'bold', fontSize: 20}}>
-                        ₹{Math.abs(data?.currentBalance).toFixed(2)}
+                        ₹{Math.abs(data?.currentBalance || 0).toFixed(2)}
                     </Text>
                 </View>
             </View>
@@ -160,7 +163,119 @@ export default function ShopFinanceScreen() {
                 </View>
             ))
         )}
+    </FadeInView>
+  );
 
+  const renderOnlineList = () => {
+      // Filter for ADMIN collected
+      const list = pendingBookings.filter((b: any) => b.amountCollectedBy === 'ADMIN');
+
+      return (
+          <FadeInView>
+              <View style={[styles.summaryBox, {backgroundColor: '#dbeafe', borderColor: '#3b82f6', borderWidth: 1}]}>
+                  <Text style={{color: '#1e40af', fontWeight:'bold'}}>Admin Collected (Online)</Text>
+                  <Text style={{fontSize: 12, color:'#1e40af', marginTop: 4}}>
+                      These payments were collected by the Admin. The Admin deducts commission ({data?.adminCommissionRate || 10}%) and owes you the rest.
+                  </Text>
+              </View>
+
+              {list.length === 0 ? (
+                  <View style={{alignItems:'center', marginTop: 40}}>
+                      <CheckCircle2 size={40} color={colors.textMuted}/>
+                      <Text style={{color: colors.textMuted, marginTop: 12}}>No pending online payouts.</Text>
+                  </View>
+              ) : (
+                  list.map((b: any, i) => (
+                      <View key={i} style={[styles.rowCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                          <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                              <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(b.date), 'dd MMM')} • {b.startTime}</Text>
+                              <Text style={{color: '#10b981', fontWeight:'bold'}}>+ ₹{b.barberNetRevenue}</Text>
+                          </View>
+                          <Text style={{color: colors.textMuted, fontSize: 12}}>{b.serviceNames.join(', ')}</Text>
+                          <View style={{marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border, flexDirection:'row', justifyContent:'space-between'}}>
+                              <Text style={{color: colors.textMuted, fontSize: 10}}>Total: ₹{b.originalPrice}</Text>
+                              <Text style={{color: colors.textMuted, fontSize: 10}}>Comm: ₹{b.adminCommission} - Disc: ₹{b.discountAmount}</Text>
+                          </View>
+                      </View>
+                  ))
+              )}
+          </FadeInView>
+      );
+  };
+
+  const renderOfflineList = () => {
+      // Filter for BARBER collected
+      const list = pendingBookings.filter((b: any) => b.amountCollectedBy === 'BARBER');
+
+      return (
+          <FadeInView>
+              <View style={[styles.summaryBox, {backgroundColor: '#fef9c3', borderColor: '#eab308', borderWidth: 1}]}>
+                  <Text style={{color: '#854d0e', fontWeight:'bold'}}>Shop Collected (Cash/Offline)</Text>
+                  <Text style={{fontSize: 12, color:'#854d0e', marginTop: 4}}>
+                      You collected these payments. You owe the Admin their commission ({data?.adminCommissionRate || 10}%) minus any user discount given.
+                  </Text>
+              </View>
+
+              {list.length === 0 ? (
+                  <View style={{alignItems:'center', marginTop: 40}}>
+                      <CheckCircle2 size={40} color={colors.textMuted}/>
+                      <Text style={{color: colors.textMuted, marginTop: 12}}>No pending dues.</Text>
+                  </View>
+              ) : (
+                  list.map((b: any, i) => (
+                      <View key={i} style={[styles.rowCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                          <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                              <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(b.date), 'dd MMM')} • {b.startTime}</Text>
+                              <Text style={{color: '#ef4444', fontWeight:'bold'}}>- ₹{b.adminNetRevenue}</Text>
+                          </View>
+                          <Text style={{color: colors.textMuted, fontSize: 12}}>{b.serviceNames.join(', ')}</Text>
+                          <View style={{marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border, flexDirection:'row', justifyContent:'space-between'}}>
+                              <Text style={{color: colors.textMuted, fontSize: 10}}>Total: ₹{b.originalPrice}</Text>
+                              <Text style={{color: colors.textMuted, fontSize: 10}}>Comm: ₹{b.adminCommission} - Disc: ₹{b.discountAmount}</Text>
+                          </View>
+                      </View>
+                  ))
+              )}
+          </FadeInView>
+      );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ChevronLeft size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>Finance Dashboard</Text>
+      </View>
+
+      {/* TABS */}
+      <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'overview' && {borderBottomColor: colors.tint}]}
+            onPress={() => setActiveTab('overview')}
+          >
+              <Text style={[styles.tabText, {color: activeTab === 'overview' ? colors.tint : colors.textMuted}]}>Overview</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'online' && {borderBottomColor: colors.tint}]}
+            onPress={() => setActiveTab('online')}
+          >
+              <Text style={[styles.tabText, {color: activeTab === 'online' ? colors.tint : colors.textMuted}]}>Online (Payouts)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'offline' && {borderBottomColor: colors.tint}]}
+            onPress={() => setActiveTab('offline')}
+          >
+              <Text style={[styles.tabText, {color: activeTab === 'offline' ? colors.tint : colors.textMuted}]}>Offline (Dues)</Text>
+          </TouchableOpacity>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+          {activeTab === 'overview' && renderOverview()}
+          {activeTab === 'online' && renderOnlineList()}
+          {activeTab === 'offline' && renderOfflineList()}
       </ScrollView>
     </View>
   );
@@ -184,6 +299,10 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   title: { fontSize: 20, fontWeight: "bold" },
   scrollContent: { padding: 20 },
+
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#333', paddingHorizontal: 20 },
+  tab: { marginRight: 20, paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabText: { fontWeight: 'bold', fontSize: 14 },
 
   sectionHeader: { fontSize: 18, fontWeight:'bold', marginBottom: 16 },
 
@@ -209,5 +328,8 @@ const styles = StyleSheet.create({
   historyCard: {
       padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 10,
       flexDirection: 'row', justifyContent:'space-between', alignItems:'center'
-  }
+  },
+
+  summaryBox: { padding: 12, borderRadius: 8, marginBottom: 16 },
+  rowCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 }
 });
