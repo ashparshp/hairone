@@ -1,6 +1,7 @@
 import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X } from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useBooking } from '../../context/BookingContext';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
@@ -11,10 +12,12 @@ export default function BookingsScreen() {
   const { colors, theme } = useTheme();
   const [activeTab, setActiveTab] = useState('upcoming'); 
   
-  // Refresh on mount
-  useEffect(() => {
-    if(fetchBookings) fetchBookings();
-  }, []);
+  // Refresh when focused
+  useFocusEffect(
+    useCallback(() => {
+        if(fetchBookings) fetchBookings();
+    }, [])
+  );
   
   // --- MODAL STATES ---
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
