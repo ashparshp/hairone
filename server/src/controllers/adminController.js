@@ -177,3 +177,104 @@ exports.getShopBookings = async (req, res) => {
         res.status(500).json({ message: "Failed to fetch bookings" });
     }
 };
+
+// ADMIN: Get/Update System Config
+const SystemConfig = require('../models/SystemConfig');
+
+exports.getSystemConfig = async (req, res) => {
+    try {
+        const config = await SystemConfig.findOne({ key: 'global' });
+        res.json(config);
+    } catch (e) {
+        res.status(500).json({ message: "Error fetching config" });
+    }
+};
+
+exports.updateSystemConfig = async (req, res) => {
+    try {
+        const { adminCommissionRate, userDiscountRate, isPaymentTestMode } = req.body;
+        const config = await SystemConfig.findOneAndUpdate(
+            { key: 'global' },
+            { adminCommissionRate, userDiscountRate, isPaymentTestMode },
+            { new: true, upsert: true }
+        );
+        res.json(config);
+    } catch (e) {
+        res.status(500).json({ message: "Error updating config" });
+    }
+};
+
+// ADMIN: Finance Stats (Settlements)
+exports.getFinanceStats = async (req, res) => {
+    try {
+        // We want a list of shops and their pending balance
+        // Positive = Shop owes Admin
+        // Negative = Admin owes Shop
+
+        const stats = await Booking.aggregate([
+            { $match: { status: 'completed', settlementStatus: 'PENDING' } },
+            {
+                $group: {
+                    _id: "$shopId",
+                    totalPending: {
+                         $sum: {
+                              $subtract: [
+                                  {
+                                      $cond: [
+                                          { $eq: ["$amountCollectedBy", "BARBER"] },
+                                          { $ifNull: ["$adminNetRevenue", 0] },
+                                          0
+                                      ]
+                                  },
+                                  {
+                                      $cond: [
+                                          { $eq: ["$amountCollectedBy", "ADMIN"] },
+                                          { $ifNull: ["$barberNetRevenue", 0] },
+                                          0
+                                      ]
+                                  }
+                              ]
+                         }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: "shops",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "shop"
+                }
+            },
+            { $unwind: "$shop" },
+            {
+                $project: {
+                    shopId: "$_id",
+                    shopName: "$shop.name",
+                    shopOwnerId: "$shop.ownerId",
+                    totalPending: 1
+                }
+            }
+        ]);
+
+        res.json(stats);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed to fetch finance stats" });
+    }
+};
+
+// ADMIN: Settle Shop Balance
+exports.settleShop = async (req, res) => {
+    const { shopId } = req.body; // or via params
+    try {
+        // Mark all 'completed' & 'PENDING' bookings for this shop as 'SETTLED'
+        await Booking.updateMany(
+            { shopId, status: 'completed', settlementStatus: 'PENDING' },
+            { settlementStatus: 'SETTLED' }
+        );
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ message: "Failed to settle" });
+    }
+};

@@ -16,7 +16,19 @@ const bookingSchema = new mongoose.Schema({
   type: { type: String, enum: ['online', 'walk-in', 'blocked'], default: 'online' },
   paymentMethod: { type: String, default: 'PAY_AT_VENUE' },
   bookingKey: String,
-  notes: String // For blocking reason or special requests
+  notes: String, // For blocking reason or special requests
+
+  // Financials
+  originalPrice: Number,      // Base Price (Sum of services)
+  discountAmount: Number,     // Discount given to user
+  finalPrice: Number,         // What user actually pays
+
+  adminCommission: Number,    // Gross commission (e.g. 10% of original)
+  adminNetRevenue: Number,    // Commission - Discount
+  barberNetRevenue: Number,   // Original - Commission
+
+  amountCollectedBy: { type: String, enum: ['BARBER', 'ADMIN'], default: 'BARBER' },
+  settlementStatus: { type: String, enum: ['PENDING', 'SETTLED', 'PARTIAL'], default: 'PENDING' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

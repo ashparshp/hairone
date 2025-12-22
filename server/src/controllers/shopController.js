@@ -588,19 +588,20 @@ exports.getShopRevenue = async (req, res) => {
       {
         $group: {
           _id: null,
+          // REVENUE (Use barberNetRevenue if available, else fallback to totalPrice for legacy)
           weekly: {
             $sum: {
-              $cond: [{ $gte: ["$date", startWeek] }, "$totalPrice", 0]
+              $cond: [{ $gte: ["$date", startWeek] }, { $ifNull: ["$barberNetRevenue", "$totalPrice"] }, 0]
             }
           },
           monthly: {
             $sum: {
-              $cond: [{ $gte: ["$date", startMonth] }, "$totalPrice", 0]
+              $cond: [{ $gte: ["$date", startMonth] }, { $ifNull: ["$barberNetRevenue", "$totalPrice"] }, 0]
             }
           },
           yearly: {
             $sum: {
-              $cond: [{ $gte: ["$date", startYear] }, "$totalPrice", 0]
+              $cond: [{ $gte: ["$date", startYear] }, { $ifNull: ["$barberNetRevenue", "$totalPrice"] }, 0]
             }
           },
           custom: {
@@ -612,22 +613,92 @@ exports.getShopRevenue = async (req, res) => {
                     { $lte: ["$date", customEnd] }
                   ]
                 },
-                "$totalPrice",
+                { $ifNull: ["$barberNetRevenue", "$totalPrice"] },
                 0
               ]
             }
+          },
+
+          // SETTLEMENTS
+          // Collected by BARBER (Cash) -> Barber owes Admin (Positive Value for Admin)
+          // But here we want: "collectedCash" -> Amount User Paid to Barber.
+          collectedCash: {
+             $sum: {
+                 $cond: [
+                     { $eq: ["$amountCollectedBy", "BARBER"] },
+                     "$finalPrice", // Or totalPrice (what user paid)
+                     0
+                 ]
+             }
+          },
+          // Collected by ADMIN (Online) -> Admin owes Barber.
+          collectedOnline: {
+              $sum: {
+                 $cond: [
+                     { $eq: ["$amountCollectedBy", "ADMIN"] },
+                     "$finalPrice",
+                     0
+                 ]
+             }
+          },
+          // Net Settlement Balance for Pending Bookings
+          // If settlementStatus is PENDING:
+          // We calculate "Owed To Admin".
+          // = (Admin Revenue for Cash Bookings) - (Barber Revenue for Online Bookings)
+          // Wait, simpler:
+          // Barber holds Cash. Admin wants Commission - Discount.
+          // Admin holds Online. Barber wants Original - Commission.
+
+          // Let's just sum "adminNetRevenue" for ALL pending bookings.
+          // If Admin holds money (Online), Admin has (Comm - Discount) + BarberShare.
+          // Admin keeps (Comm - Discount).
+          // Admin pays BarberShare.
+
+          // Let's calculating "pendingSettlement": Positive = Barber pays Admin. Negative = Admin pays Barber.
+
+          // Cash Booking: Barber has 100%. Admin Net = X. Barber owes X.
+          // Online Booking: Admin has 100%. Barber Net = Y. Admin owes Y (so Barber owes -Y).
+
+          pendingSettlement: {
+              $sum: {
+                  $cond: [
+                      { $eq: ["$settlementStatus", "PENDING"] },
+                      {
+                          $subtract: [
+                              // Debit: What Barber owes Admin (Admin Net Revenue from Cash Sales)
+                              {
+                                  $cond: [
+                                      { $eq: ["$amountCollectedBy", "BARBER"] },
+                                      { $ifNull: ["$adminNetRevenue", 0] }, // Fallback 0 for old data
+                                      0
+                                  ]
+                              },
+                              // Credit: What Admin owes Barber (Barber Net Revenue from Online Sales)
+                              {
+                                  $cond: [
+                                      { $eq: ["$amountCollectedBy", "ADMIN"] },
+                                      { $ifNull: ["$barberNetRevenue", 0] },
+                                      0
+                                  ]
+                              }
+                          ]
+                      },
+                      0
+                  ]
+              }
           }
         }
       }
     ]);
 
-    const result = stats[0] || { weekly: 0, monthly: 0, yearly: 0, custom: 0 };
+    const result = stats[0] || { weekly: 0, monthly: 0, yearly: 0, custom: 0, pendingSettlement: 0 };
 
     res.json({
       weekly: result.weekly,
       monthly: result.monthly,
       yearly: result.yearly,
       custom: result.custom,
+      pendingSettlement: result.pendingSettlement,
       customRange: { start: customStart, end: customEnd }
     });
 
