@@ -94,6 +94,14 @@ export default function RevenueStatsScreen() {
     </View>
   );
 
+  // Settlement Calculation
+  const pendingAmount = data?.pendingSettlement || 0;
+  const isYouOweAdmin = pendingAmount > 0; // Positive means "Collected Cash" > "Collected Online + Comm" (Barber owes Admin)
+  // Logic from backend:
+  // pending = (AdminNet from Cash) - (BarberNet from Online)
+  // If Positive: Barber has excess Cash (Admin's share). Barber pays Admin.
+  // If Negative: Admin has excess Online (Barber's share). Admin pays Barber.
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* HEADER */}
@@ -105,7 +113,29 @@ export default function RevenueStatsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
+
+        {/* SETTLEMENT CARD (NEW) */}
+        {pendingAmount !== 0 && (
+          <View style={[styles.settleCard, { backgroundColor: colors.card, borderColor: isYouOweAdmin ? '#ef4444' : '#10b981' }]}>
+              <View>
+                 <Text style={[styles.settleTitle, {color: colors.text}]}>
+                     {isYouOweAdmin ? "Payment Due to Admin" : "Payout from Admin"}
+                 </Text>
+                 <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 4}}>
+                     {isYouOweAdmin
+                       ? "You collected cash bookings. Please settle the commission."
+                       : "Admin collected online bookings. Payout will be processed."
+                     }
+                 </Text>
+              </View>
+              <Text style={[styles.settleAmount, {color: isYouOweAdmin ? '#ef4444' : '#10b981'}]}>
+                 ₹{Math.abs(pendingAmount).toFixed(2)}
+              </Text>
+          </View>
+        )}
+
         {/* SUMMARY CARDS */}
+        <Text style={[styles.sectionTitle, {color: colors.text, marginBottom: 16}]}>Net Earnings</Text>
         <View style={styles.grid}>
           <StatCard title="This Week" amount={data?.weekly || 0} color="#3b82f6" />
           <StatCard title="This Month" amount={data?.monthly || 0} color="#8b5cf6" />
@@ -219,6 +249,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4, textTransform: "uppercase" },
   cardAmount: { fontSize: 28, fontWeight: "bold" },
+
+  settleCard: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 30
+  },
+  settleTitle: { fontSize: 16, fontWeight: 'bold' },
+  settleAmount: { fontSize: 24, fontWeight: 'bold' },
 
   customSection: {
     padding: 20,
