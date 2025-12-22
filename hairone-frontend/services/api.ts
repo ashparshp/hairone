@@ -80,7 +80,7 @@ import * as SecureStore from "expo-secure-store";
 import { Alert } from "react-native";
 
 // 1. Safe access to the environment variable (fallback to empty string or throw error if missing)
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.39:8000/api";
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const api = axios.create({
   baseURL: API_URL,
