@@ -45,7 +45,6 @@ export default function HomeScreen() {
   const [rawShops, setRawShops] = useState([]); // Unfiltered API data
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  // Favorites now managed via AuthContext (user.favorites)
 
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -57,6 +56,7 @@ export default function HomeScreen() {
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isLocating, setIsLocating] = useState(true);
+  const [hasAttemptedLocation, setHasAttemptedLocation] = useState(false); // To prevent fetching before location check
   const [locationName, setLocationName] = useState("Locating...");
   const [permissionGranted, setPermissionGranted] = useState(false);
 
@@ -77,15 +77,17 @@ export default function HomeScreen() {
   const refreshLocation = async () => {
     setIsLocating(true);
     setLocationName("Locating...");
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      setLocationName("Permission Denied");
-      setIsLocating(false);
-      return;
-    }
-    setPermissionGranted(true);
 
     try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationName("Permission Denied");
+        setIsLocating(false);
+        setHasAttemptedLocation(true);
+        return;
+      }
+      setPermissionGranted(true);
+
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
 
@@ -102,6 +104,7 @@ export default function HomeScreen() {
       setLocationName("Location Unavailable");
     } finally {
       setIsLocating(false);
+      setHasAttemptedLocation(true);
     }
   };
 
@@ -112,7 +115,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [location, distanceFilter, genderFilter]) // Removed activeCategory from fetch dependency to handle it locally if possible, but backend doesn't support it anyway so filtering locally is better
+    }, [location, distanceFilter, genderFilter, hasAttemptedLocation])
   );
 
   // Live Filtering
@@ -140,14 +143,8 @@ export default function HomeScreen() {
   const toggleFavorite = async (shopId: string) => {
     if (!user) return; // or show toast
 
-    // Optimistic Update Logic for Context
-    // We can't easily set Context optimistically without a dedicated method,
-    // so we will rely on the API response to update it,
-    // OR we manually mutate and call login().
-
     try {
       const res = await api.post('/auth/favorites', { shopId });
-      // API returns the updated favorites array
       const updatedUser = { ...user, favorites: res.data };
       if (token) login(token, updatedUser);
     } catch (e) {
@@ -156,31 +153,28 @@ export default function HomeScreen() {
   };
 
   const fetchShops = async () => {
+    // Only fetch if we have finished the initial location attempt
+    if (!hasAttemptedLocation) return;
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
 
-      // Basic Filters
-      if (activeCategory !== 'all') params.append('category', activeCategory); // Backend might not support category search yet, using text search for now or type
+      if (activeCategory !== 'all') params.append('category', activeCategory);
 
-      // If Gender Filter is active (mapping UI 'Men' -> API 'male')
       if (genderFilter !== 'All') {
           const typeMap: any = { 'Men': 'male', 'Women': 'female', 'Unisex': 'unisex' };
           params.append('type', typeMap[genderFilter] || 'all');
       }
 
-      // Location & Distance
       if (location) {
           params.append('lat', location.coords.latitude.toString());
           params.append('lng', location.coords.longitude.toString());
           params.append('radius', distanceFilter.toString());
       }
 
-      // Note: 'minTime' logic from previous version omitted for clarity, can be re-added if needed.
-
       const res = await api.get(`/shops?${params.toString()}`);
       setRawShops(res.data);
-      // setShops will be handled by useEffect based on rawShops
     } catch (e) {
       console.log("Error fetching shops:", e);
     } finally {
@@ -191,7 +185,8 @@ export default function HomeScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchShops();
+    refreshLocation(); // Refresh location then fetch shops
+    // Note: refreshLocation triggers fetchShops via effect when state updates
   };
 
   return (
@@ -250,7 +245,7 @@ export default function HomeScreen() {
 
       {/* Main Scroll Content */}
       <FlatList
-        data={loading || isLocating ? [] : shops}
+        data={loading || !hasAttemptedLocation ? [] : shops} // Show empty (triggers skeletons) if loading or locating
         keyExtractor={(item: any) => item._id}
         renderItem={({ item, index }) => (
           <ShopCard
@@ -277,7 +272,6 @@ export default function HomeScreen() {
                   style={[styles.input, { color: isDark ? 'white' : '#0f172a' }]}
                   value={searchText}
                   onChangeText={setSearchText}
-                  // Removed onSubmitEditing as filtering is now live via useEffect
                 />
                 <ScalePress
                   onPress={() => setShowFilters(!showFilters)}
@@ -325,7 +319,13 @@ export default function HomeScreen() {
                         {distanceFilter === 10 ? 'All' : `< ${distanceFilter} km`}
                      </Text>
                   </View>
-                  <View style={[styles.sliderContainer, { borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+                  <View style={[
+                    styles.sliderContainer,
+                    {
+                        backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                        borderColor: isDark ? '#334155' : '#e2e8f0'
+                    }
+                  ]}>
                     <Slider
                       style={{width: '100%', height: 40}}
                       minimumValue={1}
@@ -375,7 +375,7 @@ export default function HomeScreen() {
           </>
         }
         ListEmptyComponent={
-          loading || isLocating ? (
+          loading || !hasAttemptedLocation ? (
             <View>
                {[1, 2, 3].map(i => <ShopCardSkeleton key={i} />)}
             </View>
@@ -384,14 +384,26 @@ export default function HomeScreen() {
               <AlertCircle size={48} color={isDark ? '#334155' : '#cbd5e1'} />
               <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>No salons found nearby.</Text>
 
-              <View style={{ width: '100%', paddingHorizontal: 40, marginTop: 20 }}>
+              <View style={[
+                styles.sliderWrapperOuter,
+                {
+                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    borderColor: isDark ? '#334155' : '#e2e8f0'
+                }
+              ]}>
                  <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
                      <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b', marginBottom: 0 }]}>Increase Range</Text>
                      <Text style={{color: '#f59e0b', fontWeight: 'bold', fontSize: 12}}>
                         {distanceFilter === 10 ? 'All' : `< ${distanceFilter} km`}
                      </Text>
                  </View>
-                 <View style={[styles.sliderContainer, { borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+                 <View style={[
+                    styles.sliderContainer,
+                    {
+                        backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                        borderColor: isDark ? '#334155' : '#e2e8f0'
+                    }
+                 ]}>
                     <Slider
                       style={{width: '100%', height: 40}}
                       minimumValue={1}
@@ -435,11 +447,6 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 12,
     fontWeight: 'bold',
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   headerRight: {
     flexDirection: 'row',
@@ -577,7 +584,8 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     marginTop: 40,
-    opacity: 0.7
+    opacity: 1,
+    width: '100%'
   },
   emptyText: {
     marginTop: 12,
@@ -589,6 +597,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 5,
+  },
+  sliderWrapperOuter: {
+     width: '100%',
+     paddingHorizontal: 20,
+     paddingVertical: 20,
+     marginTop: 20,
+     marginHorizontal: 24,
+     borderRadius: 16,
+     borderWidth: 1,
+     // Center wrapper in parent
+     alignSelf: 'center',
+     maxWidth: width - 48
   }
 
 });
