@@ -42,10 +42,18 @@ exports.getPendingSettlements = async (req, res) => {
                     shopId: sId,
                     shopName: b.shopId.name,
                     bookings: [],
+                    onlineBookings: [],
+                    offlineBookings: [],
                     totalPending: 0
                 };
             }
             shopMap[sId].bookings.push(b);
+
+            if (b.amountCollectedBy === 'ADMIN') {
+                shopMap[sId].onlineBookings.push(b);
+            } else {
+                shopMap[sId].offlineBookings.push(b);
+            }
         });
 
         // Calculate Net
@@ -55,6 +63,8 @@ exports.getPendingSettlements = async (req, res) => {
                 shopId: shop.shopId,
                 shopName: shop.shopName,
                 totalPending: net, // The Net Balance
+                onlineBookings: shop.onlineBookings, // Admin owes Shop
+                offlineBookings: shop.offlineBookings, // Shop owes Admin
                 details: {
                     adminOwesShop,
                     shopOwesAdmin,
@@ -196,6 +206,9 @@ exports.getShopFinanceSummary = async (req, res) => {
         const pendingBookings = allCompleted.filter(b => b.settlementStatus === 'PENDING');
         const { net, adminOwesShop, shopOwesAdmin } = calculateNet(pendingBookings);
 
+        const onlineBookings = pendingBookings.filter(b => b.amountCollectedBy === 'ADMIN');
+        const offlineBookings = pendingBookings.filter(b => b.amountCollectedBy === 'BARBER');
+
         // 3. Payouts (History)
         // Last 5 settlements?
         const history = await Settlement.find({ shopId }).sort({ createdAt: -1 }).limit(5);
@@ -203,6 +216,8 @@ exports.getShopFinanceSummary = async (req, res) => {
         res.json({
             totalEarnings,
             currentBalance: net, // Positive = Admin owes you. Negative = You owe Admin.
+            onlineBookings,
+            offlineBookings,
             details: {
                 pendingPayout: adminOwesShop,
                 pendingDues: shopOwesAdmin
