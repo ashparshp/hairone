@@ -63,20 +63,11 @@ export default function ShopScheduleScreen() {
         params.append('date', todayStr);
       } else if (activeFilter === 'upcoming') {
         params.append('startDate', todayStr);
-        // Maybe reasonable future limit or backend handles pagination
-        // params.append('endDate', ...);
       } else if (activeFilter === 'history') {
-        // Just an example, fetching past month. Or backend support reverse sort without range?
-        // Let's assume history means "Everything before today" or just rely on backend sort
-        // Since backend uses startDate/endDate, we might need a large range for "History"
-        // or we need a new filter type in backend.
-        // For now, let's map 'history' to 'past 30 days' for safety or just skip dates to get all?
-        // If we want "History" to be "All Past Bookings", we can set endDate = yesterday.
-        // Let's set a wide range for now.
         const past = new Date();
         past.setDate(past.getDate() - 30);
         params.append('startDate', formatLocalDate(past));
-        params.append('endDate', formatLocalDate(new Date())); // Up to now
+        params.append('endDate', formatLocalDate(new Date())); 
       } else if (activeFilter === 'custom') {
         params.append('startDate', formatLocalDate(startDate));
         params.append('endDate', formatLocalDate(endDate));
@@ -173,7 +164,6 @@ export default function ShopScheduleScreen() {
           grouped[b.date].push(b);
       });
 
-      // Sort keys (dates)
       const keys = Object.keys(grouped).sort();
 
       return keys.map(date => ({
@@ -215,7 +205,7 @@ export default function ShopScheduleScreen() {
 
           <Text style={[styles.services, {color: colors.textMuted}]}>{item.serviceNames.join(', ')}</Text>
 
-          {/* Pending Actions */}
+          {/* Actions based on status */}
           {item.status === 'pending' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
                   <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'upcoming')}>
@@ -229,7 +219,6 @@ export default function ShopScheduleScreen() {
               </View>
           )}
 
-          {/* Upcoming: Check In / No-Show */}
           {item.status === 'upcoming' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
                   <TouchableOpacity style={styles.approveBtn} onPress={() => promptCheckIn(item._id)}>
@@ -243,7 +232,6 @@ export default function ShopScheduleScreen() {
               </View>
           )}
 
-          {/* Checked-in: Complete */}
           {item.status === 'checked-in' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
                   <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'completed')}>
@@ -358,34 +346,39 @@ export default function ShopScheduleScreen() {
 
       {/* PIN Verification Modal */}
       <Modal visible={showPinModal} transparent animationType="fade">
-          <View style={styles.modalBg}>
-              <View style={[styles.modalCard, {backgroundColor: colors.card, maxWidth: 320}]}>
-                  <Text style={[styles.modalTitle, {color: colors.text}]}>Verify Booking</Text>
-                  <Text style={{color: colors.textMuted, marginBottom: 16}}>Ask the customer for their 4-digit PIN.</Text>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{flex: 1}}
+          >
+            <View style={styles.modalBg}>
+                <View style={[styles.modalCard, {backgroundColor: colors.card, maxWidth: 320}]}>
+                    <Text style={[styles.modalTitle, {color: colors.text}]}>Verify Booking</Text>
+                    <Text style={{color: colors.textMuted, marginBottom: 16}}>Ask the customer for their 4-digit PIN.</Text>
 
-                  <TextInput
-                    style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border, textAlign: 'center', fontSize: 24, letterSpacing: 8}]}
-                    value={enteredPin}
-                    onChangeText={setEnteredPin}
-                    placeholder="0000"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="number-pad"
-                    maxLength={4}
-                  />
+                    <TextInput
+                      style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border, textAlign: 'center', fontSize: 24, letterSpacing: 8}]}
+                      value={enteredPin}
+                      onChangeText={setEnteredPin}
+                      placeholder="0000"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                    />
 
-                  <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
-                      <TouchableOpacity style={[styles.modalBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setShowPinModal(false)}>
-                          <Text style={{color: colors.text}}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.modalBtn, {backgroundColor: colors.tint}]}
-                        onPress={() => checkInBookingId && handleStatusUpdate(checkInBookingId, 'checked-in', enteredPin)}
-                      >
-                          <Text style={{color:'#0f172a', fontWeight:'bold'}}>Verify</Text>
-                      </TouchableOpacity>
-                  </View>
-              </View>
-          </View>
+                    <View style={{flexDirection:'row', gap: 10, marginTop: 20}}>
+                        <TouchableOpacity style={[styles.modalBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setShowPinModal(false)}>
+                            <Text style={{color: colors.text}}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.modalBtn, {backgroundColor: colors.tint}]}
+                          onPress={() => checkInBookingId && handleStatusUpdate(checkInBookingId, 'checked-in', enteredPin)}
+                        >
+                            <Text style={{color:'#0f172a', fontWeight:'bold'}}>Verify</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+          </KeyboardAvoidingView>
       </Modal>
 
       {/* Block/Walk-in Modal */}
@@ -507,7 +500,13 @@ const styles = StyleSheet.create({
   rejectBtn: { flexDirection:'row', alignItems:'center', gap: 4, backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
 
   // Modal
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent:'center', padding: 20 },
+  modalBg: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.8)', 
+    justifyContent:'center', 
+    alignItems: 'center', // FIXED: Centers the modal horizontally
+    padding: 20 
+  },
   modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%', width: '100%' },
   modalTitle: { fontSize: 20, fontWeight:'bold', marginBottom: 20 },
   modalBtn: { flex: 1, padding: 16, borderRadius: 12, alignItems:'center' },
