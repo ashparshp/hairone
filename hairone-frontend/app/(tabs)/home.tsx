@@ -51,7 +51,7 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [genderFilter, setGenderFilter] = useState('All');
-  const [distanceFilter, setDistanceFilter] = useState(10); // Default 10km (max)
+  const [distanceFilter, setDistanceFilter] = useState(2); // Default 2km
 
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   filterContainer: {
     marginHorizontal: 24,
     marginBottom: 24,
-    padding: 20,
+    padding: 16,
     borderRadius: 24,
     borderWidth: 1,
     shadowColor: '#000',
@@ -522,14 +522,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   filterGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   filterLabel: {
     fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   chipRow: {
     flexDirection: 'row',
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
   },

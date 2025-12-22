@@ -105,7 +105,7 @@ export default function LoginScreen() {
           <View>
             <Text style={[styles.label, {color: colors.textMuted}]}>Enter OTP (Use 1234)</Text>
             <TextInput
-              style={[styles.input, {backgroundColor: colors.card, color: colors.text, borderColor: colors.border, letterSpacing: 8, textAlign: 'center' }]}
+              style={[styles.input, {backgroundColor: colors.card, color: colors.text, borderColor: colors.border, textAlign: 'center' }]}
               placeholder="XXXX"
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
