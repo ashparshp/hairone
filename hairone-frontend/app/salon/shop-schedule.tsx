@@ -507,8 +507,8 @@ const styles = StyleSheet.create({
   rejectBtn: { flexDirection:'row', alignItems:'center', gap: 4, backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
 
   // Modal
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent:'center', padding: 20 },
-  modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%', width: '100%' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: { padding: 20, borderRadius: 16, maxHeight: '80%', width: '100%', maxWidth: 500, alignSelf: 'center' },
   modalTitle: { fontSize: 20, fontWeight:'bold', marginBottom: 20 },
   modalBtn: { flex: 1, padding: 16, borderRadius: 12, alignItems:'center' },
   label: { fontSize: 12, marginBottom: 6, fontWeight: '600' },

@@ -67,7 +67,10 @@ function PendingSettlementsList() {
 
     const renderItem = ({ item, index }: { item: any, index: number }) => {
         const net = item.totalPending;
-        const isOweToAdmin = net > 0; // Admin receives money
+        // Logic: net = AdminOwesShop - ShopOwesAdmin.
+        // If net > 0: Admin owes Shop (Payout) -> Admin owes Barber
+        // If net < 0: Shop owes Admin (Collection) -> Barber owes Admin
+        const isOweToAdmin = net < 0;
         const amount = Math.abs(net);
 
         if (amount === 0) return null;
@@ -176,7 +179,8 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
         );
     };
 
-    const isOweToAdmin = shop.totalPending > 0;
+    // Correct Logic: net < 0 means Shop owes Admin
+    const isOweToAdmin = shop.totalPending < 0;
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
