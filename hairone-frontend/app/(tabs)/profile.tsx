@@ -170,8 +170,6 @@ export default function ProfileScreen() {
                <View style={[styles.statDivider, {backgroundColor: colors.border}]} />
              </>
           )}
-          <StatBox value={user?.role === 'user' ? '0' : 'N/A'} label="Bookings" />
-          <View style={[styles.statDivider, {backgroundColor: colors.border}]} />
           <StatBox value={user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : '-'} label="Gender" />
       </View>
 
@@ -317,6 +315,31 @@ export default function ProfileScreen() {
                       <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
                           <Mail size={20} color={colors.textMuted} style={{marginLeft: 12}} />
                           <TextInput style={[styles.modalInput, {color: colors.text}]} value={editEmail} onChangeText={setEditEmail} placeholder="john@example.com" placeholderTextColor={colors.textMuted} keyboardType="email-address" />
+                      </View>
+
+                      <Text style={[styles.label, {color: colors.textMuted}]}>Gender</Text>
+                      <View style={styles.genderRow}>
+                        {['male', 'female', 'other'].map((g) => (
+                          <TouchableOpacity
+                            key={g}
+                            style={[
+                              styles.genderChip,
+                              {
+                                backgroundColor: editGender === g ? colors.tint : 'transparent',
+                                borderColor: editGender === g ? colors.tint : colors.border
+                              }
+                            ]}
+                            onPress={() => setEditGender(g)}
+                          >
+                            <Text style={{
+                              color: editGender === g ? '#0f172a' : colors.text,
+                              fontWeight: 'bold',
+                              textTransform: 'capitalize'
+                            }}>
+                              {g}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
                       </View>
 
                       <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.tint}]} onPress={handleUpdateProfile} disabled={savingProfile}>
