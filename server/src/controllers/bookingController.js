@@ -338,15 +338,25 @@ exports.cancelBooking = async (req, res) => {
 exports.getShopBookings = async (req, res) => {
   try {
     const { shopId } = req.params;
-    const { date } = req.query;
+    const { date, startDate, endDate } = req.query;
 
     const query = { shopId, status: { $ne: 'cancelled' } };
-    if (date) query.date = date;
+
+    if (date) {
+        // Exact Date
+        query.date = date;
+    } else if (startDate && endDate) {
+        // Date Range (Inclusive)
+        // Since date is stored as "YYYY-MM-DD" string, string comparison works.
+        query.date = { $gte: startDate, $lte: endDate };
+    } else if (startDate) {
+        query.date = { $gte: startDate };
+    }
 
     const bookings = await Booking.find(query)
       .populate('userId', 'name phone')
       .populate('barberId', 'name')
-      .sort({ startTime: 1 });
+      .sort({ date: 1, startTime: 1 }); // Sort by Date then Time
 
     res.json(bookings);
   } catch (e) {
