@@ -6,77 +6,50 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Platform,
+  FlatList,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import api from "../../services/api";
-import { ChevronLeft, Calendar } from "lucide-react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { ChevronLeft, Calendar, DollarSign, Clock, X, TrendingUp, AlertCircle } from "lucide-react-native";
 import { format } from "date-fns";
+import { FadeInView } from "../../components/AnimatedViews";
 
-export default function RevenueStatsScreen() {
+export default function ShopFinanceScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors, theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
-
-  // Custom Range State
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [customRevenue, setCustomRevenue] = useState<number | null>(null);
-  const [loadingCustom, setLoadingCustom] = useState(false);
+  const [settlements, setSettlements] = useState([]);
 
   useEffect(() => {
     fetchStats();
+    fetchSettlements();
   }, []);
 
   const fetchStats = async () => {
     try {
       // @ts-ignore
-      const res = await api.get(`/shops/${user.myShopId}/revenue`);
+      const res = await api.get(`/shops/${user.myShopId}/finance/summary`);
       setData(res.data);
-      // Initialize pickers with returned range if available, else defaults
-      if (res.data.customRange) {
-        setStartDate(new Date(res.data.customRange.start));
-        setEndDate(new Date(res.data.customRange.end));
-      }
     } catch (e) {
-      console.log(e);
+      console.log("Stats error", e);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateCustom = async () => {
-    setLoadingCustom(true);
+  const fetchSettlements = async () => {
     try {
-      const startStr = format(startDate, "yyyy-MM-dd");
-      const endStr = format(endDate, "yyyy-MM-dd");
-      // @ts-ignore
-      const res = await api.get(`/shops/${user.myShopId}/revenue`, {
-        params: { startDate: startStr, endDate: endStr },
-      });
-      setCustomRevenue(res.data.custom);
+        // @ts-ignore
+        const res = await api.get(`/shops/${user.myShopId}/finance/settlements`);
+        setSettlements(res.data);
     } catch (e) {
-      console.log(e);
-    } finally {
-      setLoadingCustom(false);
+        console.log("Settlements error", e);
     }
-  };
-
-  const onStartChange = (event: any, selectedDate?: Date) => {
-    setShowStartPicker(Platform.OS === 'ios');
-    if (selectedDate) setStartDate(selectedDate);
-  };
-
-  const onEndChange = (event: any, selectedDate?: Date) => {
-    setShowEndPicker(Platform.OS === 'ios');
-    if (selectedDate) setEndDate(selectedDate);
   };
 
   if (loading) {
@@ -87,20 +60,19 @@ export default function RevenueStatsScreen() {
     );
   }
 
-  const StatCard = ({ title, amount, color }: { title: string; amount: number; color: string }) => (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: color, borderLeftWidth: 4 }]}>
-      <Text style={[styles.cardTitle, { color: colors.textMuted }]}>{title}</Text>
-      <Text style={[styles.cardAmount, { color: colors.text }]}>₹{amount?.toLocaleString()}</Text>
+  const StatCard = ({ title, amount, color, icon }: { title: string; amount: number; color: string, icon: any }) => (
+    <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: color, borderLeftWidth: 4 }]}>
+      <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start'}}>
+          <View>
+              <Text style={[styles.statTitle, { color: colors.textMuted }]}>{title}</Text>
+              <Text style={[styles.statAmount, { color: colors.text }]}>₹{amount?.toLocaleString()}</Text>
+          </View>
+          <View style={{padding: 8, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: 8}}>
+              {icon}
+          </View>
+      </View>
     </View>
   );
-
-  // Settlement Calculation
-  const pendingAmount = data?.pendingSettlement || 0;
-  const isYouOweAdmin = pendingAmount > 0; // Positive means "Collected Cash" > "Collected Online + Comm" (Barber owes Admin)
-  // Logic from backend:
-  // pending = (AdminNet from Cash) - (BarberNet from Online)
-  // If Positive: Barber has excess Cash (Admin's share). Barber pays Admin.
-  // If Negative: Admin has excess Online (Barber's share). Admin pays Barber.
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -109,117 +81,95 @@ export default function RevenueStatsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <ChevronLeft size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Revenue Stats</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Finance Dashboard</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
-        {/* SETTLEMENT CARD (NEW) */}
-        {pendingAmount !== 0 && (
-          <View style={[styles.settleCard, { backgroundColor: colors.card, borderColor: isYouOweAdmin ? '#ef4444' : '#10b981' }]}>
-              <View>
-                 <Text style={[styles.settleTitle, {color: colors.text}]}>
-                     {isYouOweAdmin ? "Payment Due to Admin" : "Payout from Admin"}
-                 </Text>
-                 <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 4}}>
-                     {isYouOweAdmin
-                       ? "You collected cash bookings. Please settle the commission."
-                       : "Admin collected online bookings. Payout will be processed."
-                     }
-                 </Text>
-              </View>
-              <Text style={[styles.settleAmount, {color: isYouOweAdmin ? '#ef4444' : '#10b981'}]}>
-                 ₹{Math.abs(pendingAmount).toFixed(2)}
-              </Text>
-          </View>
+        {/* OVERVIEW SECTION */}
+        <Text style={[styles.sectionHeader, {color: colors.text}]}>Overview</Text>
+        <View style={styles.grid}>
+             {/* TOTAL EARNINGS */}
+             <StatCard
+                title="Total Earnings"
+                amount={data?.totalEarnings || 0}
+                color="#3b82f6"
+                icon={<TrendingUp size={20} color="#3b82f6"/>}
+             />
+
+             {/* PENDING PAYOUT (Admin owes Shop) */}
+             <StatCard
+                title="Pending Payout"
+                amount={data?.details?.pendingPayout || 0}
+                color="#10b981"
+                icon={<DollarSign size={20} color="#10b981"/>}
+             />
+
+             {/* PENDING DUES (Shop owes Admin) */}
+             <StatCard
+                title="Pending Dues"
+                amount={data?.details?.pendingDues || 0}
+                color="#ef4444"
+                icon={<AlertCircle size={20} color="#ef4444"/>}
+             />
+        </View>
+
+        {/* NET BALANCE ALERT */}
+        {data?.currentBalance !== 0 && (
+            <View style={[styles.alertBox, {backgroundColor: colors.card, borderColor: data?.currentBalance > 0 ? '#10b981' : '#ef4444'}]}>
+                <View style={{flexDirection:'row', gap: 12, alignItems:'center'}}>
+                    {data?.currentBalance > 0
+                        ? <CheckCircle2 color="#10b981" size={24}/>
+                        : <AlertCircle color="#ef4444" size={24}/>
+                    }
+                    <View style={{flex: 1}}>
+                         <Text style={{color: colors.text, fontWeight:'bold', fontSize: 16}}>
+                             {data?.currentBalance > 0 ? "Payout Incoming" : "Payment Due"}
+                         </Text>
+                         <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>
+                             {data?.currentBalance > 0
+                                ? `Admin owes you ₹${data?.currentBalance.toFixed(2)}`
+                                : `You owe Admin ₹${Math.abs(data?.currentBalance).toFixed(2)}`
+                             }
+                         </Text>
+                    </View>
+                    <Text style={{color: data?.currentBalance > 0 ? '#10b981' : '#ef4444', fontWeight:'bold', fontSize: 20}}>
+                        ₹{Math.abs(data?.currentBalance).toFixed(2)}
+                    </Text>
+                </View>
+            </View>
         )}
 
-        {/* SUMMARY CARDS */}
-        <Text style={[styles.sectionTitle, {color: colors.text, marginBottom: 16}]}>Net Earnings</Text>
-        <View style={styles.grid}>
-          <StatCard title="This Week" amount={data?.weekly || 0} color="#3b82f6" />
-          <StatCard title="This Month" amount={data?.monthly || 0} color="#8b5cf6" />
-          <StatCard title="This Year" amount={data?.yearly || 0} color="#10b981" />
-        </View>
+        {/* RECENT SETTLEMENTS */}
+        <Text style={[styles.sectionHeader, {color: colors.text, marginTop: 24}]}>Settlement History</Text>
+        {settlements.length === 0 ? (
+             <View style={{alignItems:'center', marginTop: 40}}>
+                 <Clock size={40} color={colors.textMuted}/>
+                 <Text style={{color: colors.textMuted, marginTop: 12}}>No settlements yet.</Text>
+             </View>
+        ) : (
+            settlements.map((item: any, i: number) => (
+                <View key={i} style={[styles.historyCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                    <View>
+                        <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(item.createdAt), 'dd MMM yyyy')}</Text>
+                        <Text style={{color: colors.textMuted, fontSize: 12}}>{item.type === 'PAYOUT' ? 'Received from Admin' : 'Paid to Admin'}</Text>
+                    </View>
+                    <Text style={{color: item.type === 'PAYOUT' ? '#10b981' : '#ef4444', fontWeight:'bold', fontSize: 16}}>
+                        {item.type === 'PAYOUT' ? '+' : '-'} ₹{item.amount.toFixed(2)}
+                    </Text>
+                </View>
+            ))
+        )}
 
-        {/* CUSTOM RANGE SECTION */}
-        <View style={[styles.customSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Custom Range</Text>
-          <Text style={[styles.sectionSub, { color: colors.textMuted }]}>
-             Calculate revenue for a specific period. Range starts from shop creation date by default.
-          </Text>
-
-          <View style={styles.dateRow}>
-            {/* START DATE */}
-            <View style={styles.dateCol}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>From</Text>
-              <TouchableOpacity
-                style={[styles.dateInput, { borderColor: colors.border }]}
-                onPress={() => setShowStartPicker(true)}
-              >
-                <Calendar size={16} color={colors.textMuted} />
-                <Text style={{ color: colors.text }}>{format(startDate, "dd MMM yyyy")}</Text>
-              </TouchableOpacity>
-              {showStartPicker && (
-                <DateTimePicker
-                  value={startDate}
-                  mode="date"
-                  display="default"
-                  onChange={onStartChange}
-                  maximumDate={new Date()}
-                />
-              )}
-            </View>
-
-            {/* END DATE */}
-            <View style={styles.dateCol}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>To</Text>
-              <TouchableOpacity
-                style={[styles.dateInput, { borderColor: colors.border }]}
-                onPress={() => setShowEndPicker(true)}
-              >
-                <Calendar size={16} color={colors.textMuted} />
-                <Text style={{ color: colors.text }}>{format(endDate, "dd MMM yyyy")}</Text>
-              </TouchableOpacity>
-              {showEndPicker && (
-                <DateTimePicker
-                  value={endDate}
-                  mode="date"
-                  display="default"
-                  onChange={onEndChange}
-                  maximumDate={new Date()}
-                  minimumDate={startDate}
-                />
-              )}
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.calcBtn, { backgroundColor: colors.tint }]}
-            onPress={calculateCustom}
-            disabled={loadingCustom}
-          >
-            {loadingCustom ? (
-              <ActivityIndicator color="#0f172a" />
-            ) : (
-              <Text style={styles.calcBtnText}>Calculate Revenue</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* CUSTOM RESULT */}
-          {(customRevenue !== null || data?.custom !== undefined) && (
-            <View style={styles.resultBox}>
-               <Text style={[styles.resultLabel, { color: colors.textMuted }]}>Total Revenue</Text>
-               <Text style={[styles.resultAmount, { color: colors.tint }]}>
-                 ₹{(customRevenue !== null ? customRevenue : data?.custom || 0).toLocaleString()}
-               </Text>
-            </View>
-          )}
-        </View>
       </ScrollView>
     </View>
   );
 }
+
+// Icon helper
+const CheckCircle2 = ({ color, size }: { color: string, size: number }) => (
+    <Text style={{color, fontSize: size, fontWeight: 'bold'}}>✓</Text>
+);
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 60 },
@@ -235,9 +185,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "bold" },
   scrollContent: { padding: 20 },
 
-  grid: { gap: 16, marginBottom: 30 },
-  card: {
-    padding: 20,
+  sectionHeader: { fontSize: 18, fontWeight:'bold', marginBottom: 16 },
+
+  grid: { gap: 12, marginBottom: 20 },
+  statCard: {
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "transparent",
@@ -247,51 +199,15 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-  cardTitle: { fontSize: 14, fontWeight: "600", marginBottom: 4, textTransform: "uppercase" },
-  cardAmount: { fontSize: 28, fontWeight: "bold" },
+  statTitle: { fontSize: 12, fontWeight: "600", marginBottom: 4, textTransform: "uppercase" },
+  statAmount: { fontSize: 24, fontWeight: "bold" },
 
-  settleCard: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 30
-  },
-  settleTitle: { fontSize: 16, fontWeight: 'bold' },
-  settleAmount: { fontSize: 24, fontWeight: 'bold' },
-
-  customSection: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 4 },
-  sectionSub: { fontSize: 12, marginBottom: 20 },
-
-  dateRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  dateCol: { flex: 1 },
-  label: { fontSize: 12, marginBottom: 6, fontWeight: "600" },
-  dateInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
+  alertBox: {
+      padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 20
   },
 
-  calcBtn: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  calcBtnText: { fontWeight: "bold", color: "#0f172a", fontSize: 16 },
-
-  resultBox: {
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "rgba(245, 158, 11, 0.1)",
-    borderRadius: 12,
-  },
-  resultLabel: { fontSize: 14, marginBottom: 4 },
-  resultAmount: { fontSize: 32, fontWeight: "bold" },
+  historyCard: {
+      padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 10,
+      flexDirection: 'row', justifyContent:'space-between', alignItems:'center'
+  }
 });

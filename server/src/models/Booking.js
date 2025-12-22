@@ -28,7 +28,8 @@ const bookingSchema = new mongoose.Schema({
   barberNetRevenue: Number,   // Original - Commission
 
   amountCollectedBy: { type: String, enum: ['BARBER', 'ADMIN'], default: 'BARBER' },
-  settlementStatus: { type: String, enum: ['PENDING', 'SETTLED', 'PARTIAL'], default: 'PENDING' }
+  settlementStatus: { type: String, enum: ['PENDING', 'SETTLED', 'PARTIAL'], default: 'PENDING' },
+  settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);
