@@ -170,8 +170,6 @@ export default function ProfileScreen() {
                <View style={[styles.statDivider, {backgroundColor: colors.border}]} />
              </>
           )}
-          <StatBox value={user?.role === 'user' ? '0' : 'N/A'} label="Bookings" />
-          <View style={[styles.statDivider, {backgroundColor: colors.border}]} />
           <StatBox value={user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : '-'} label="Gender" />
       </View>
 
