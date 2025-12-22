@@ -21,6 +21,8 @@ const {
   getPublicConfig
 } = require('../controllers/shopController'); 
 
+const financeController = require('../controllers/financeController');
+
 // 1. DigitalOcean Spaces Configuration from ENV
 const s3 = new S3Client({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -57,5 +59,10 @@ router.delete('/:id/services/:serviceId', protect, deleteShopService);
 router.put('/:id/services/:serviceId', protect, updateShopService);
 router.put('/:id', protect, upload.single('image'), updateShop);
 router.get('/:id/revenue', protect, getShopRevenue);
+
+// NEW FINANCE ROUTES
+router.get('/:shopId/finance/summary', protect, financeController.getShopFinanceSummary);
+router.get('/:shopId/finance/settlements', protect, financeController.getShopSettlements);
+router.get('/:shopId/finance/pending', protect, financeController.getMyShopPendingDetails);
 
 module.exports = router;

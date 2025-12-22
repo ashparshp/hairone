@@ -86,6 +86,29 @@ exports.getShopPendingDetails = async (req, res) => {
     }
 };
 
+// --- NEW ENDPOINT FOR SHOP OWNERS ---
+exports.getMyShopPendingDetails = async (req, res) => {
+    try {
+        const { shopId } = req.params;
+
+        // Strict ownership check
+        if (req.user.myShopId?.toString() !== shopId) {
+             return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const bookings = await Booking.find({
+            shopId,
+            status: 'completed',
+            settlementStatus: 'PENDING'
+        }).sort({ date: 1, startTime: 1 });
+
+        res.json(bookings);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 exports.createSettlement = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();

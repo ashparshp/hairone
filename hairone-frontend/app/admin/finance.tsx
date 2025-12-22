@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, 
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { ChevronLeft, CheckCircle2, AlertCircle, Clock, Calendar, User, CreditCard, X } from 'lucide-react-native';
+import { ChevronLeft, CheckCircle2, AlertCircle, Clock, Calendar, User, CreditCard, X, DollarSign } from 'lucide-react-native';
 import { FadeInView } from '../../components/AnimatedViews';
 import { format } from 'date-fns';
 
@@ -67,8 +67,20 @@ function PendingSettlementsList() {
 
     const renderItem = ({ item, index }: { item: any, index: number }) => {
         const net = item.totalPending;
-        const isOweToAdmin = net > 0; // Admin receives money
+        const isOweToAdmin = net > 0; // Admin receives money? No.
+        // calculateNet: net = adminOwesShop (Online) - shopOwesAdmin (Offline)
+        // If net > 0: Admin owes Shop (Payout)
+        // If net < 0: Shop owes Admin (Collection)
+
+        // Wait, let's verify logic in FinanceController.js
+        // net = adminOwesShop - shopOwesAdmin;
+        // If adminOwesShop (90) > shopOwesAdmin (5) => Net = 85. (Positive).
+        // Result: Admin pays Shop.
+        // If adminOwesShop (0) < shopOwesAdmin (5) => Net = -5. (Negative).
+        // Result: Shop pays Admin.
+
         const amount = Math.abs(net);
+        const payout = net > 0;
 
         if (amount === 0) return null;
 
@@ -83,10 +95,10 @@ function PendingSettlementsList() {
                    <Text style={{color: colors.textMuted, fontSize: 12}}>ID: {item.shopId}</Text>
 
                    <View style={{marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                       {isOweToAdmin ? (
-                           <Text style={{color: '#ef4444', fontWeight: 'bold'}}>Barber owes Admin</Text>
+                       {payout ? (
+                           <Text style={{color: '#10b981', fontWeight: 'bold'}}>Payout Pending</Text>
                        ) : (
-                           <Text style={{color: '#10b981', fontWeight: 'bold'}}>Admin owes Barber</Text>
+                           <Text style={{color: '#ef4444', fontWeight: 'bold'}}>Collection Pending</Text>
                        )}
                        <Text style={[styles.amount, {color: colors.text}]}>₹{amount.toFixed(2)}</Text>
                    </View>
@@ -133,6 +145,7 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [settling, setSettling] = useState(false);
+    const [filter, setFilter] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
 
     useEffect(() => {
         if (visible) fetchDetails();
@@ -151,9 +164,25 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
     };
 
     const handleSettle = async () => {
+        // Filter booking IDs based on current view? Or settle all?
+        // Let's settle CURRENTLY FILTERED bookings only if filter is active, or ALL?
+        // User wants separate settlement.
+
+        let idsToSettle = bookings.map((b: any) => b._id);
+        if (filter === 'ONLINE') {
+            idsToSettle = bookings.filter((b: any) => b.amountCollectedBy === 'ADMIN').map((b: any) => b._id);
+        } else if (filter === 'OFFLINE') {
+            idsToSettle = bookings.filter((b: any) => b.amountCollectedBy === 'BARBER').map((b: any) => b._id);
+        }
+
+        if (idsToSettle.length === 0) {
+            Alert.alert("Info", "No bookings to settle in this category.");
+            return;
+        }
+
         Alert.alert(
             "Confirm Settlement",
-            `Mark all ${bookings.length} bookings as settled? This will create a permanent settlement record.`,
+            `Mark ${idsToSettle.length} bookings as settled? This will create a permanent settlement record.`,
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -162,7 +191,9 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
                     onPress: async () => {
                         setSettling(true);
                         try {
-                            await api.post('/admin/finance/settle', { shopId: shop.shopId });
+                            // We need to pass bookingIds to the backend if we want partial settlement
+                            // Current backend implementation of `createSettlement` supports `bookingIds` in body.
+                            await api.post('/admin/finance/settle', { shopId: shop.shopId, bookingIds: idsToSettle });
                             Alert.alert("Success", "Settlement created.");
                             onClose();
                         } catch (e) {
@@ -176,7 +207,30 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
         );
     };
 
-    const isOweToAdmin = shop.totalPending > 0;
+    const filteredBookings = bookings.filter((b: any) => {
+        if (filter === 'ONLINE') return b.amountCollectedBy === 'ADMIN';
+        if (filter === 'OFFLINE') return b.amountCollectedBy === 'BARBER';
+        return true;
+    });
+
+    // Calculate totals for current view
+    let currentTotal = 0;
+    // Calculate Net for current filter
+    // If ONLINE: Sum of barberNetRevenue (Positive)
+    // If OFFLINE: Sum of adminNetRevenue (Negative/Owe)
+    // If ALL: Net
+
+    // Actually, let's just sum the relevant "owe" part.
+    // Online -> Admin owes Shop -> barberNetRevenue
+    // Offline -> Shop owes Admin -> adminNetRevenue
+
+    let totalOnline = 0;
+    let totalOffline = 0;
+
+    bookings.forEach((b: any) => {
+        if (b.amountCollectedBy === 'ADMIN') totalOnline += b.barberNetRevenue;
+        if (b.amountCollectedBy === 'BARBER') totalOffline += b.adminNetRevenue;
+    });
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -188,20 +242,63 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
                     </TouchableOpacity>
                 </View>
 
-                <View style={[styles.summaryBox, {backgroundColor: colors.card, borderColor: isOweToAdmin ? '#ef4444' : '#10b981'}]}>
-                    <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>{shop.shopName}</Text>
-                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 8}}>
-                         <Text style={{color: colors.textMuted}}>Net Balance</Text>
-                         <Text style={{color: isOweToAdmin ? '#ef4444' : '#10b981', fontWeight: 'bold', fontSize: 18}}>
-                             {isOweToAdmin ? "Barber owes Admin" : "Admin owes Barber"} ₹{Math.abs(shop.totalPending).toFixed(2)}
-                         </Text>
-                    </View>
+                {/* FILTER TABS */}
+                <View style={{flexDirection: 'row', marginBottom: 16, backgroundColor: colors.card, padding: 4, borderRadius: 8}}>
+                    <TouchableOpacity
+                        style={[styles.filterTab, filter === 'ALL' && {backgroundColor: colors.tint}]}
+                        onPress={() => setFilter('ALL')}
+                    >
+                        <Text style={{color: filter === 'ALL' ? '#000' : colors.text, fontWeight:'bold'}}>All</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, filter === 'ONLINE' && {backgroundColor: colors.tint}]}
+                        onPress={() => setFilter('ONLINE')}
+                    >
+                        <Text style={{color: filter === 'ONLINE' ? '#000' : colors.text, fontWeight:'bold'}}>Online (Payout)</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.filterTab, filter === 'OFFLINE' && {backgroundColor: colors.tint}]}
+                        onPress={() => setFilter('OFFLINE')}
+                    >
+                        <Text style={{color: filter === 'OFFLINE' ? '#000' : colors.text, fontWeight:'bold'}}>Offline (Due)</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* SUMMARY FOR FILTER */}
+                <View style={[styles.summaryBox, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                    {filter === 'ALL' && (
+                        <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                             <View>
+                                 <Text style={{color: colors.textMuted}}>Total Pending Payout</Text>
+                                 <Text style={{color: '#10b981', fontWeight:'bold', fontSize: 16}}>₹{totalOnline.toFixed(2)}</Text>
+                             </View>
+                             <View style={{alignItems:'flex-end'}}>
+                                 <Text style={{color: colors.textMuted}}>Total Pending Dues</Text>
+                                 <Text style={{color: '#ef4444', fontWeight:'bold', fontSize: 16}}>₹{totalOffline.toFixed(2)}</Text>
+                             </View>
+                        </View>
+                    )}
+                    {filter === 'ONLINE' && (
+                        <View>
+                            <Text style={{color: colors.textMuted}}>Pending Payout (Admin owes Shop)</Text>
+                            <Text style={{color: '#10b981', fontWeight:'bold', fontSize: 20}}>₹{totalOnline.toFixed(2)}</Text>
+                        </View>
+                    )}
+                    {filter === 'OFFLINE' && (
+                        <View>
+                            <Text style={{color: colors.textMuted}}>Pending Dues (Shop owes Admin)</Text>
+                            <Text style={{color: '#ef4444', fontWeight:'bold', fontSize: 20}}>₹{totalOffline.toFixed(2)}</Text>
+                        </View>
+                    )}
                 </View>
 
                 {loading ? <ActivityIndicator color={colors.tint} style={{marginTop: 20}} /> : (
                     <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 100}}>
-                        <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Booking Breakdown</Text>
-                        {bookings.map((b: any, i) => (
+                        <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>
+                            {filteredBookings.length} Bookings
+                        </Text>
+
+                        {filteredBookings.map((b: any, i) => (
                             <View key={i} style={[styles.rowCard, {borderColor: colors.border}]}>
                                 <View style={{flexDirection:'row', justifyContent:'space-between'}}>
                                     <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(b.date), 'dd MMM')} • {b.startTime}</Text>
@@ -218,9 +315,15 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
                                     <Text style={{color: colors.text}}>Total: ₹{b.finalPrice}</Text>
                                     <View style={{alignItems:'flex-end'}}>
                                         {b.amountCollectedBy === 'ADMIN' ? (
-                                            <Text style={{color: '#10b981', fontSize: 12}}>Payout: ₹{b.barberNetRevenue}</Text>
+                                            <>
+                                                <Text style={{color: '#10b981', fontSize: 12, fontWeight:'bold'}}>Payout: ₹{b.barberNetRevenue}</Text>
+                                                <Text style={{color: colors.textMuted, fontSize: 10}}>Comm: {b.adminCommission} | Disc: {b.discountAmount}</Text>
+                                            </>
                                         ) : (
-                                            <Text style={{color: '#ef4444', fontSize: 12}}>Comm: ₹{b.adminNetRevenue}</Text>
+                                            <>
+                                                <Text style={{color: '#ef4444', fontSize: 12, fontWeight:'bold'}}>Comm Due: ₹{b.adminNetRevenue}</Text>
+                                                <Text style={{color: colors.textMuted, fontSize: 10}}>Comm: {b.adminCommission} | Disc: {b.discountAmount}</Text>
+                                            </>
                                         )}
                                     </View>
                                 </View>
@@ -235,7 +338,9 @@ function PendingDetailModal({ shop, visible, onClose }: { shop: any, visible: bo
                         onPress={handleSettle}
                         disabled={settling}
                     >
-                        {settling ? <ActivityIndicator color="black" /> : <Text style={styles.btnText}>Mark as Settled</Text>}
+                        {settling ? <ActivityIndicator color="black" /> : <Text style={styles.btnText}>
+                            {filter === 'ALL' ? 'Settle All' : `Settle ${filter === 'ONLINE' ? 'Payouts' : 'Dues'}`}
+                        </Text>}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -399,6 +504,8 @@ const styles = StyleSheet.create({
   modalContainer: { flex: 1, padding: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 20 },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
+
+  filterTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
 
   summaryBox: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 20 },
   sectionTitle: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 'bold', marginBottom: 12, marginTop: 12 },
