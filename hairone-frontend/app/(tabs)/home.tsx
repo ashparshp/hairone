@@ -168,7 +168,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.locationRow}
-            onPress={refreshLocation}
+            onPress={() => refreshLocation()}
           >
              <MapPin size={14} color="#f59e0b" fill="#f59e0b" />
              <Text style={[styles.locationText, { color: isDark ? '#94a3b8' : '#64748b' }]}>
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 9,
   },
   chip: {
     paddingHorizontal: 16,
