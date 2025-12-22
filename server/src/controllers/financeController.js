@@ -1,7 +1,33 @@
 const Booking = require('../models/Booking');
 const Settlement = require('../models/Settlement');
 const Shop = require('../models/Shop');
+const User = require('../models/User');
 const mongoose = require('mongoose');
+
+// Helper to check ownership
+const checkShopAccess = async (req, shopId) => {
+    if (req.user.role === 'admin') return true;
+
+    // 1. Try from token (fast path)
+    if (req.user.myShopId) {
+        const tokenShopId = (req.user.myShopId._id || req.user.myShopId).toString();
+        if (tokenShopId === shopId) return true;
+    }
+
+    // 2. Try from DB (slow path)
+    // Since myShopId is not in the JWT, we must fetch the user
+    try {
+        const user = await User.findById(req.user.id).select('myShopId');
+        if (user && user.myShopId) {
+            const dbShopId = (user.myShopId._id || user.myShopId).toString();
+            return dbShopId === shopId;
+        }
+    } catch (e) {
+        console.error("Auth check failed", e);
+    }
+
+    return false;
+};
 
 // Helper to calculate net
 const calculateNet = (bookings) => {
@@ -92,7 +118,8 @@ exports.getMyShopPendingDetails = async (req, res) => {
         const { shopId } = req.params;
 
         // Strict ownership check
-        if (req.user.myShopId?.toString() !== shopId) {
+        const isAuthorized = await checkShopAccess(req, shopId);
+        if (!isAuthorized) {
              return res.status(403).json({ message: 'Unauthorized' });
         }
 
@@ -203,7 +230,8 @@ exports.getShopFinanceSummary = async (req, res) => {
     try {
         const { shopId } = req.params;
         // Check ownership
-        if (req.user.role !== 'admin' && req.user.myShopId?.toString() !== shopId) {
+        const isAuthorized = await checkShopAccess(req, shopId);
+        if (!isAuthorized) {
              return res.status(403).json({ message: 'Unauthorized' });
         }
 
@@ -243,7 +271,8 @@ exports.getShopSettlements = async (req, res) => {
     try {
         const { shopId } = req.params;
          // Check ownership
-         if (req.user.role !== 'admin' && req.user.myShopId?.toString() !== shopId) {
+         const isAuthorized = await checkShopAccess(req, shopId);
+         if (!isAuthorized) {
             return res.status(403).json({ message: 'Unauthorized' });
        }
 

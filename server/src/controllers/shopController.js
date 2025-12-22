@@ -543,14 +543,23 @@ exports.getShopRevenue = async (req, res) => {
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
     // Check permission: Owner or Admin
-    if (req.user.role !== 'admin' && req.user.myShopId !== id) {
-       // Also check if myShopId is an object or string, safe comparison:
-       if (String(req.user.myShopId) !== String(id)) {
-          // Additional check: req.user.myShopId might be undefined if not owner role
-          // Let's assume protect middleware populates req.user correctly
-          // But strict check:
+    if (req.user.role !== 'admin') {
+      let authorized = false;
+      // 1. Try Token
+      if (req.user.myShopId && (req.user.myShopId._id || req.user.myShopId).toString() === id) {
+          authorized = true;
+      }
+      // 2. Try DB (if missing in token)
+      if (!authorized) {
+          const user = await User.findById(req.user.id).select('myShopId');
+          if (user && user.myShopId && (user.myShopId._id || user.myShopId).toString() === id) {
+              authorized = true;
+          }
+      }
+
+      if (!authorized) {
           return res.status(403).json({ message: "Not authorized to view this shop's revenue" });
-       }
+      }
     }
 
     // Use current time in server's timezone for "Weekly/Monthly/Yearly" buckets
