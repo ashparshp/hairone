@@ -24,6 +24,7 @@ export default function ShopDetailsScreen() {
   const [shop, setShop] = useState<any>(null);
   const [barbers, setBarbers] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState({ userDiscountRate: 0, isPaymentTestMode: false });
 
   // --- WIZARD STATE ---
   const [step, setStep] = useState(1); 
@@ -31,7 +32,7 @@ export default function ShopDetailsScreen() {
   const [selectedBarberId, setSelectedBarberId] = useState<string>('any'); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'online'>('cash');
   const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
 
   const [slots, setSlots] = useState<string[]>([]);
@@ -39,7 +40,15 @@ export default function ShopDetailsScreen() {
 
   useEffect(() => {
     fetchShopDetails();
+    fetchConfig();
   }, [id]);
+
+  const fetchConfig = async () => {
+     try {
+         const res = await api.get('/shops/config');
+         if(res.data) setConfig(res.data);
+     } catch(e) { console.log('Config fetch error', e); }
+  };
 
   useEffect(() => {
     if (step === 2) {
@@ -154,7 +163,7 @@ export default function ShopDetailsScreen() {
             totalDuration: calculateDuration(),
             date: dateStr,
             startTime: selectedTime,
-            paymentMethod: paymentMethod
+            paymentMethod: paymentMethod === 'online' ? 'ONLINE' : 'CASH'
         });
 
         showToast("Booking Confirmed!", "success");
@@ -236,11 +245,29 @@ export default function ShopDetailsScreen() {
                 return (
                     <TouchableOpacity key={index} style={[styles.serviceCard, {backgroundColor: colors.card, borderColor: colors.border}, isSelected && {borderColor: colors.tint, backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]} onPress={() => toggleService(service)}>
                         <View style={{flex: 1}}>
-                            <Text style={[styles.serviceName, {color: colors.text}, isSelected && {color: colors.tint}]}>{service.name}</Text>
+                            <View style={{flexDirection:'row', alignItems:'center', gap: 6}}>
+                                <Text style={[styles.serviceName, {color: colors.text}, isSelected && {color: colors.tint}]}>{service.name}</Text>
+                                {config.userDiscountRate > 0 && (
+                                    <View style={{backgroundColor: '#10b981', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4}}>
+                                        <Text style={{color: 'white', fontSize: 10, fontWeight: 'bold'}}>{config.userDiscountRate}% OFF</Text>
+                                    </View>
+                                )}
+                            </View>
                             <Text style={[styles.serviceDuration, {color: colors.textMuted}]}>{service.duration} mins • {isSelected ? 'Selected' : 'Tap to add'}</Text>
                         </View>
                         <View style={{alignItems:'flex-end'}}>
-                             <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>₹{service.price}</Text>
+                             {config.userDiscountRate > 0 ? (
+                                <View style={{alignItems: 'flex-end'}}>
+                                    <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>
+                                        ₹{Math.round(service.price * (1 - config.userDiscountRate / 100))}
+                                    </Text>
+                                    <Text style={{textDecorationLine: 'line-through', color: colors.textMuted, fontSize: 12}}>
+                                        ₹{service.price}
+                                    </Text>
+                                </View>
+                             ) : (
+                                <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>₹{service.price}</Text>
+                             )}
                              {isSelected && <Check size={16} color={colors.tint} style={{marginTop: 4}}/>}
                         </View>
                     </TouchableOpacity>
@@ -386,8 +413,20 @@ export default function ShopDetailsScreen() {
                 <View style={[styles.divider, {backgroundColor: colors.border}]} />
                 
                 <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
-                    <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>Total</Text>
-                    <Text style={{color: colors.tint, fontWeight: 'bold', fontSize: 18}}>₹{calculateTotal()}</Text>
+                    <Text style={{color: colors.textMuted}}>Subtotal</Text>
+                    <Text style={{color: colors.text}}>₹{calculateTotal()}</Text>
+                </View>
+                {config.userDiscountRate > 0 && (
+                    <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
+                        <Text style={{color: '#10b981'}}>Discount ({config.userDiscountRate}%)</Text>
+                        <Text style={{color: '#10b981'}}>- ₹{(calculateTotal() * (config.userDiscountRate / 100)).toFixed(2)}</Text>
+                    </View>
+                )}
+                <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
+                    <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>Total Payable</Text>
+                    <Text style={{color: colors.tint, fontWeight: 'bold', fontSize: 18}}>
+                        ₹{Math.round(calculateTotal() * (1 - config.userDiscountRate / 100))}
+                    </Text>
                 </View>
             </View>
 
@@ -402,13 +441,27 @@ export default function ShopDetailsScreen() {
                 {paymentMethod === 'cash' && <View style={[styles.checkCircle, {borderColor: colors.tint}]}><View style={[styles.checkInner, {backgroundColor: colors.tint}]}/></View>}
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border, opacity: 0.5}]} disabled={true}>
-                <CreditCard size={24} color={colors.text} />
-                <View style={{flex: 1, marginLeft: 12}}>
-                    <Text style={[styles.paymentTitle, {color: colors.text}]}>UPI / Online</Text>
-                    <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Coming Soon</Text>
-                </View>
-            </TouchableOpacity>
+            {config.isPaymentTestMode ? (
+                <TouchableOpacity
+                   style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border}, paymentMethod === 'online' && {borderColor: colors.tint, backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]}
+                   onPress={() => setPaymentMethod('online')}
+                >
+                    <CreditCard size={24} color={paymentMethod === 'online' ? colors.tint : colors.text} />
+                    <View style={{flex: 1, marginLeft: 12}}>
+                        <Text style={[styles.paymentTitle, {color: colors.text}, paymentMethod === 'online' && {color: colors.tint}]}>Pay Online (Test)</Text>
+                        <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Simulate Online Payment</Text>
+                    </View>
+                    {paymentMethod === 'online' && <View style={[styles.checkCircle, {borderColor: colors.tint}]}><View style={[styles.checkInner, {backgroundColor: colors.tint}]}/></View>}
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border, opacity: 0.5}]} disabled={true}>
+                    <CreditCard size={24} color={colors.text} />
+                    <View style={{flex: 1, marginLeft: 12}}>
+                        <Text style={[styles.paymentTitle, {color: colors.text}]}>UPI / Online</Text>
+                        <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Coming Soon</Text>
+                    </View>
+                </TouchableOpacity>
+            )}
 
          </ScrollView>
          </SlideInView>

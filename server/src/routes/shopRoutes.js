@@ -17,7 +17,8 @@ const {
   getUserFavorites,
   deleteShopService,
   updateShopService,
-  getShopRevenue
+  getShopRevenue,
+  getPublicConfig
 } = require('../controllers/shopController'); 
 
 // 1. DigitalOcean Spaces Configuration from ENV
@@ -43,6 +44,7 @@ const upload = multer({
     })
 });
 
+router.get('/config', getPublicConfig);
 router.get('/', getAllShops);
 router.get('/favorites', protect, getUserFavorites);
 router.get('/:id', getShopDetails);
