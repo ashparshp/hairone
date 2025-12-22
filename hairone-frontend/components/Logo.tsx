@@ -5,12 +5,13 @@ import { useTheme } from '../context/ThemeContext';
 interface LogoProps {
   width?: number;
   height?: number;
+  color?: string;
 }
 
-export default function Logo({ width = 256, height = 100 }: LogoProps) {
+export default function Logo({ width = 256, height = 100, color }: LogoProps) {
   const { colors, theme } = useTheme();
   // Use text color for logo elements: White in Dark Mode, Black in Light Mode
-  const fill = theme === 'dark' ? '#FFFFFF' : '#000000';
+  const fill = color || (theme === 'dark' ? '#FFFFFF' : '#000000');
 
   return (
     <Svg viewBox="0 0 512 200" width={width} height={height}>
