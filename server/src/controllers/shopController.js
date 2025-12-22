@@ -619,46 +619,8 @@ exports.getShopRevenue = async (req, res) => {
             }
           },
 
-          // SETTLEMENTS
-          // Collected by BARBER (Cash) -> Barber owes Admin (Positive Value for Admin)
-          // But here we want: "collectedCash" -> Amount User Paid to Barber.
-          collectedCash: {
-             $sum: {
-                 $cond: [
-                     { $eq: ["$amountCollectedBy", "BARBER"] },
-                     "$finalPrice", // Or totalPrice (what user paid)
-                     0
-                 ]
-             }
-          },
-          // Collected by ADMIN (Online) -> Admin owes Barber.
-          collectedOnline: {
-              $sum: {
-                 $cond: [
-                     { $eq: ["$amountCollectedBy", "ADMIN"] },
-                     "$finalPrice",
-                     0
-                 ]
-             }
-          },
           // Net Settlement Balance for Pending Bookings
-          // If settlementStatus is PENDING:
-          // We calculate "Owed To Admin".
-          // = (Admin Revenue for Cash Bookings) - (Barber Revenue for Online Bookings)
-          // Wait, simpler:
-          // Barber holds Cash. Admin wants Commission - Discount.
-          // Admin holds Online. Barber wants Original - Commission.
-
-          // Let's just sum "adminNetRevenue" for ALL pending bookings.
-          // If Admin holds money (Online), Admin has (Comm - Discount) + BarberShare.
-          // Admin keeps (Comm - Discount).
-          // Admin pays BarberShare.
-
-          // Let's calculating "pendingSettlement": Positive = Barber pays Admin. Negative = Admin pays Barber.
-
-          // Cash Booking: Barber has 100%. Admin Net = X. Barber owes X.
-          // Online Booking: Admin has 100%. Barber Net = Y. Admin owes Y (so Barber owes -Y).
-
+          // Only calculate for PENDING settlement status
           pendingSettlement: {
               $sum: {
                   $cond: [

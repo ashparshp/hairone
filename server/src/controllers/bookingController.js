@@ -369,18 +369,32 @@ exports.getShopBookings = async (req, res) => {
 exports.updateBookingStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, bookingKey } = req.body;
 
         const validStatuses = ['upcoming', 'cancelled', 'completed', 'no-show', 'checked-in'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ message: "Invalid status" });
         }
 
-        const booking = await Booking.findByIdAndUpdate(id, { status }, { new: true });
+        const booking = await Booking.findById(id);
         if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+        // PIN Verification for Check-In
+        if (status === 'checked-in') {
+             if (!bookingKey) {
+                 return res.status(400).json({ message: "Customer PIN required for check-in." });
+             }
+             if (bookingKey !== booking.bookingKey) {
+                 return res.status(403).json({ message: "Invalid PIN." });
+             }
+        }
+
+        booking.status = status;
+        await booking.save();
 
         res.json(booking);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ message: "Failed to update booking status" });
     }
 }
