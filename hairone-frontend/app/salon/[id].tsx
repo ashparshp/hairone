@@ -472,7 +472,11 @@ export default function ShopDetailsScreen() {
              <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
                 <View>
                     <Text style={[styles.footerSub, {color: colors.textMuted}]}>{selectedServices.length} services</Text>
-                    <Text style={[styles.footerPrice, {color: colors.text}]}>₹{calculateTotal()}</Text>
+                    <Text style={[styles.footerPrice, {color: colors.text}]}>
+                        ₹{config.userDiscountRate > 0
+                           ? Math.round(calculateTotal() * (1 - config.userDiscountRate / 100))
+                           : calculateTotal()}
+                    </Text>
                 </View>
 
                 {step < 3 ? (
