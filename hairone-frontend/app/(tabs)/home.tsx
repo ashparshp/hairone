@@ -56,6 +56,7 @@ export default function HomeScreen() {
 
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [isLocating, setIsLocating] = useState(true);
   const [locationName, setLocationName] = useState("Locating...");
   const [permissionGranted, setPermissionGranted] = useState(false);
 
@@ -74,10 +75,12 @@ export default function HomeScreen() {
 
   // Location Logic
   const refreshLocation = async () => {
+    setIsLocating(true);
     setLocationName("Locating...");
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       setLocationName("Permission Denied");
+      setIsLocating(false);
       return;
     }
     setPermissionGranted(true);
@@ -97,6 +100,8 @@ export default function HomeScreen() {
 
     } catch (e) {
       setLocationName("Location Unavailable");
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -245,7 +250,7 @@ export default function HomeScreen() {
 
       {/* Main Scroll Content */}
       <FlatList
-        data={shops}
+        data={loading || isLocating ? [] : shops}
         keyExtractor={(item: any) => item._id}
         renderItem={({ item, index }) => (
           <ShopCard
@@ -320,17 +325,19 @@ export default function HomeScreen() {
                         {distanceFilter === 10 ? 'All' : `< ${distanceFilter} km`}
                      </Text>
                   </View>
-                  <Slider
-                    style={{width: '100%', height: 40}}
-                    minimumValue={1}
-                    maximumValue={10}
-                    step={1}
-                    value={distanceFilter}
-                    onValueChange={setDistanceFilter}
-                    minimumTrackTintColor="#f59e0b"
-                    maximumTrackTintColor={isDark ? "#334155" : "#e2e8f0"}
-                    thumbTintColor="#f59e0b"
-                  />
+                  <View style={[styles.sliderContainer, { borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+                    <Slider
+                      style={{width: '100%', height: 40}}
+                      minimumValue={1}
+                      maximumValue={10}
+                      step={1}
+                      value={distanceFilter}
+                      onValueChange={setDistanceFilter}
+                      minimumTrackTintColor="#f59e0b"
+                      maximumTrackTintColor={isDark ? "#334155" : "#e2e8f0"}
+                      thumbTintColor="#f59e0b"
+                    />
+                  </View>
                 </View>
 
               </View>
@@ -368,7 +375,7 @@ export default function HomeScreen() {
           </>
         }
         ListEmptyComponent={
-          loading ? (
+          loading || isLocating ? (
             <View>
                {[1, 2, 3].map(i => <ShopCardSkeleton key={i} />)}
             </View>
@@ -376,6 +383,28 @@ export default function HomeScreen() {
             <View style={styles.emptyState}>
               <AlertCircle size={48} color={isDark ? '#334155' : '#cbd5e1'} />
               <Text style={[styles.emptyText, { color: isDark ? '#94a3b8' : '#64748b' }]}>No salons found nearby.</Text>
+
+              <View style={{ width: '100%', paddingHorizontal: 40, marginTop: 20 }}>
+                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10}}>
+                     <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b', marginBottom: 0 }]}>Increase Range</Text>
+                     <Text style={{color: '#f59e0b', fontWeight: 'bold', fontSize: 12}}>
+                        {distanceFilter === 10 ? 'All' : `< ${distanceFilter} km`}
+                     </Text>
+                 </View>
+                 <View style={[styles.sliderContainer, { borderColor: isDark ? '#334155' : '#e2e8f0' }]}>
+                    <Slider
+                      style={{width: '100%', height: 40}}
+                      minimumValue={1}
+                      maximumValue={10}
+                      step={1}
+                      value={distanceFilter}
+                      onValueChange={setDistanceFilter}
+                      minimumTrackTintColor="#f59e0b"
+                      maximumTrackTintColor={isDark ? "#334155" : "#e2e8f0"}
+                      thumbTintColor="#f59e0b"
+                    />
+                 </View>
+              </View>
             </View>
           )
         }
@@ -554,6 +583,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     fontWeight: '500',
+  },
+  sliderContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   }
 
 });
