@@ -707,3 +707,20 @@ exports.getShopRevenue = async (req, res) => {
     res.status(500).json({ message: "Failed to calculate revenue" });
   }
 };
+// Add to exports at the bottom
+exports.getPublicConfig = async (req, res) => {
+    try {
+        const SystemConfig = require('../models/SystemConfig');
+        const config = await SystemConfig.findOne({ key: 'global' });
+        if (config) {
+            res.json({
+                userDiscountRate: config.userDiscountRate,
+                isPaymentTestMode: config.isPaymentTestMode
+            });
+        } else {
+            res.json({ userDiscountRate: 0, isPaymentTestMode: false });
+        }
+    } catch (e) {
+        res.status(500).json({ message: "Config fetch failed" });
+    }
+};

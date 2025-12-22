@@ -51,7 +51,7 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [genderFilter, setGenderFilter] = useState('All');
-  const [distanceFilter, setDistanceFilter] = useState(2); // Default 2km
+  const [distanceFilter, setDistanceFilter] = useState(1); // Default 1km
 
   // Location State
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
