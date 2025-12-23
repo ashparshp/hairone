@@ -134,10 +134,13 @@ exports.createBooking = async (req, res) => {
         return res.status(400).json({ message: "Cannot book for a past date." });
       }
       if (date === istDate) {
-        if (bookingStartMinutes < istMinutes) {
+        // Relax validation slightly to account for time taken to fill the form (Grace Period)
+        const GRACE_PERIOD = 2;
+
+        if (bookingStartMinutes < istMinutes - GRACE_PERIOD) {
           return res.status(400).json({ message: "Cannot book for a past time." });
         }
-        if (bookingStartMinutes < istMinutes + minNotice) {
+        if (bookingStartMinutes < istMinutes + minNotice - GRACE_PERIOD) {
           return res.status(400).json({ message: `Must book at least ${minNotice} minutes in advance.` });
         }
       }

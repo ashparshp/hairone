@@ -37,6 +37,38 @@ export default function ShopDetailsScreen() {
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isSlotValid = (time: string) => {
+    if (!shop) return true;
+
+    const today = new Date();
+    const isToday = selectedDate.getDate() === today.getDate() &&
+                    selectedDate.getMonth() === today.getMonth() &&
+                    selectedDate.getFullYear() === today.getFullYear();
+
+    if (!isToday) return true;
+
+    const [hours, minutes] = time.split(':').map(Number);
+    const slotDate = new Date(selectedDate);
+    slotDate.setHours(hours, minutes, 0, 0);
+
+    const minNotice = shop.minBookingNotice || 0;
+    const cutoff = new Date(currentTime.getTime() + minNotice * 60000);
+
+    return slotDate > cutoff;
+  };
+
+  useEffect(() => {
+    if (selectedTime && !isSlotValid(selectedTime)) {
+        setSelectedTime(null);
+    }
+  }, [currentTime, selectedTime]);
 
   useEffect(() => {
     fetchShopDetails();
@@ -364,7 +396,7 @@ export default function ShopDetailsScreen() {
                         <ActivityIndicator color={colors.tint} />
                     ) : (
                         <View style={styles.slotsGrid}>
-                            {slots.map((time, i) => (
+                            {slots.filter(isSlotValid).map((time, i) => (
                                 <TouchableOpacity 
                                 key={i} 
                                 style={[styles.slotChip, {backgroundColor: colors.card, borderColor: colors.border}, selectedTime === time && {backgroundColor: colors.tint, borderColor: colors.tint}]}
