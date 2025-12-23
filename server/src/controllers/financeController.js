@@ -33,7 +33,7 @@ exports.getPendingSettlements = async (req, res) => {
         // Find all completed bookings that are not settled
         const bookings = await Booking.find({
             status: 'completed',
-            settlementStatus: 'PENDING'
+            $or: [{ settlementStatus: 'PENDING' }, { settlementStatus: { $exists: false } }]
         }).populate('shopId', 'name address');
 
         // Group by shop
@@ -80,7 +80,7 @@ exports.getShopPendingDetails = async (req, res) => {
         const bookings = await Booking.find({
             shopId,
             status: 'completed',
-            settlementStatus: 'PENDING'
+            $or: [{ settlementStatus: 'PENDING' }, { settlementStatus: { $exists: false } }]
         }).sort({ date: 1, startTime: 1 });
 
         res.json(bookings);
@@ -103,7 +103,7 @@ exports.getMyShopPendingDetails = async (req, res) => {
         const bookings = await Booking.find({
             shopId,
             status: 'completed',
-            settlementStatus: 'PENDING'
+            $or: [{ settlementStatus: 'PENDING' }, { settlementStatus: { $exists: false } }]
         }).sort({ date: 1, startTime: 1 });
 
         res.json(bookings);
@@ -122,7 +122,7 @@ exports.createSettlement = async (req, res) => {
         const query = {
             shopId,
             status: 'completed',
-            settlementStatus: 'PENDING'
+            $or: [{ settlementStatus: 'PENDING' }, { settlementStatus: { $exists: false } }]
         };
 
         if (bookingIds && bookingIds.length > 0) {
@@ -220,7 +220,7 @@ exports.getShopFinanceSummary = async (req, res) => {
         const totalEarnings = roundMoney(allCompleted.reduce((sum, b) => sum + (b.barberNetRevenue || 0), 0));
 
         // 2. Pending Settlement (Same logic as Admin pending)
-        const pendingBookings = allCompleted.filter(b => b.settlementStatus === 'PENDING');
+        const pendingBookings = allCompleted.filter(b => b.settlementStatus === 'PENDING' || !b.settlementStatus);
         const { net, adminOwesShop, shopOwesAdmin } = calculateNet(pendingBookings);
 
         // 3. Payouts (History)
