@@ -16,6 +16,7 @@ const bookingSchema = new mongoose.Schema({
   type: { type: String, enum: ['online', 'walk-in', 'blocked'], default: 'online' },
   paymentMethod: { type: String, default: 'PAY_AT_VENUE' },
   bookingKey: String,
+  isRated: { type: Boolean, default: false },
   notes: String, // For blocking reason or special requests
 
   // Financials
