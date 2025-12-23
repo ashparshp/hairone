@@ -22,8 +22,13 @@ export default function TabLayout() {
   }
 
   // 2. If NO USER (Logout) -> Prevent Tabs from rendering to avoid crash
+  // Return a View instead of null to keep the Router happy while redirecting
   if (!user) {
-    return null;
+    return (
+      <View style={{flex:1, backgroundColor: colors.background, justifyContent:'center', alignItems:'center'}}>
+        <ActivityIndicator color={colors.tint} size="large" />
+      </View>
+    );
   }
 
   return (
