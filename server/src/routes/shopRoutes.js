@@ -21,7 +21,9 @@ const {
   getPublicConfig,
   addShopCombo,
   deleteShopCombo,
-  updateShopCombo
+  updateShopCombo,
+  addGalleryImages,
+  removeGalleryImage
 } = require('../controllers/shopController'); 
 
 const financeController = require('../controllers/financeController');
@@ -64,6 +66,11 @@ router.post('/:id/combos', protect, addShopCombo);
 router.delete('/:id/combos/:comboId', protect, deleteShopCombo);
 router.put('/:id/combos/:comboId', protect, updateShopCombo);
 router.put('/:id', protect, upload.single('image'), updateShop);
+
+// Gallery Routes
+router.post('/:id/gallery', protect, upload.array('gallery', 10), addGalleryImages);
+router.delete('/:id/gallery', protect, removeGalleryImage);
+
 router.get('/:id/revenue', protect, getShopRevenue);
 
 // NEW FINANCE ROUTES

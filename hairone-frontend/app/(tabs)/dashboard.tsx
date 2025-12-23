@@ -13,7 +13,8 @@ import {
   Scissors,
   TrendingUp,
   ShieldAlert,
-  RotateCcw
+  RotateCcw,
+  Image as ImageIcon
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -289,6 +290,13 @@ export default function DashboardScreen() {
             sub="View earnings & reports"
             color="#10b981"
             onPress={() => router.push("/salon/revenue-stats" as any)}
+          />
+          <ActionCard
+            icon={ImageIcon}
+            title="Gallery"
+            sub="Manage portfolio photos"
+            color="#a855f7"
+            onPress={() => router.push("/salon/manage-gallery" as any)}
           />
         </View>
 

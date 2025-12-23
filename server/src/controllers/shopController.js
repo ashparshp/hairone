@@ -581,6 +581,50 @@ exports.updateShopCombo = async (req, res) => {
   }
 };
 
+// --- 10.4 Add Gallery Images ---
+exports.addGalleryImages = async (req, res) => {
+  const { id } = req.params;
+  // Security: Check Ownership
+  if (req.user.role !== 'admin' && String(req.user.myShopId) !== String(id)) {
+      return res.status(403).json({ message: "Not authorized" });
+  }
+
+  try {
+    const images = req.files.map(f => f.location);
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $push: { gallery: { $each: images } } },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to upload images" });
+  }
+};
+
+// --- 10.5 Remove Gallery Image ---
+exports.removeGalleryImage = async (req, res) => {
+  const { id } = req.params;
+  // Security: Check Ownership
+  if (req.user.role !== 'admin' && String(req.user.myShopId) !== String(id)) {
+      return res.status(403).json({ message: "Not authorized" });
+  }
+
+  const { imageUrl } = req.body;
+  try {
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $pull: { gallery: imageUrl } },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to delete image" });
+  }
+};
+
 // --- 11. Get User Favorites ---
 exports.getUserFavorites = async (req, res) => {
   try {

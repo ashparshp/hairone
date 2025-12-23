@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Linking } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -8,8 +8,11 @@ import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; // Import Theme
 import { SlideInView } from '../../components/AnimatedViews'; // Import Animation
 import api from '../../services/api';
-import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin, Layers } from 'lucide-react-native';
+import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin, Layers, Image as ImageIcon, X } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
+
+const { width } = Dimensions.get('window');
+const IMG_SIZE = (width - 60) / 3;
 
 export default function ShopDetailsScreen() {
   const { id } = useLocalSearchParams();
@@ -36,7 +39,8 @@ export default function ShopDetailsScreen() {
   const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
 
   // TABS
-  const [activeTab, setActiveTab] = useState<'services' | 'combos'>('services');
+  const [activeTab, setActiveTab] = useState<'services' | 'combos' | 'gallery'>('services');
+  const [viewImage, setViewImage] = useState<string | null>(null);
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -311,6 +315,12 @@ export default function ShopDetailsScreen() {
                 >
                     <Text style={[styles.tabText, activeTab === 'combos' ? {color: '#000'} : {color: colors.text}]}>Combos</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'gallery' && { backgroundColor: colors.tint }]}
+                    onPress={() => setActiveTab('gallery')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'gallery' ? {color: '#000'} : {color: colors.text}]}>Portfolio</Text>
+                </TouchableOpacity>
             </View>
 
             <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 140}}>
@@ -419,6 +429,27 @@ export default function ShopDetailsScreen() {
                         );
                     })}
                     {(!shop?.combos || shop.combos.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No combos available.</Text>}
+                    </>
+                )}
+
+                {/* GALLERY GRID */}
+                {activeTab === 'gallery' && (
+                    <>
+                    <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Gallery</Text>
+                    {shop?.gallery && shop.gallery.length > 0 ? (
+                        <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>
+                            {shop.gallery.map((img: string, idx: number) => (
+                                <TouchableOpacity key={idx} onPress={() => setViewImage(img)}>
+                                    <Image source={{uri: img}} style={{width: IMG_SIZE, height: IMG_SIZE, borderRadius: 12, backgroundColor: colors.card}} />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={{alignItems:'center', padding: 40, opacity: 0.5}}>
+                            <ImageIcon size={48} color={colors.textMuted} />
+                            <Text style={{color: colors.textMuted, marginTop: 12}}>No images yet.</Text>
+                        </View>
+                    )}
                     </>
                 )}
 
@@ -653,6 +684,19 @@ export default function ShopDetailsScreen() {
              </View>
           </View>
       )}
+
+      {/* IMAGE VIEWER MODAL */}
+      <Modal visible={!!viewImage} transparent animationType="fade">
+          <View style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center'}}>
+              <TouchableOpacity style={{position:'absolute', top: 50, right: 20, zIndex: 10, padding: 10}} onPress={() => setViewImage(null)}>
+                  <X color="white" size={32} />
+              </TouchableOpacity>
+              {viewImage && (
+                  <Image source={{uri: viewImage}} style={{width: '100%', height: '80%', resizeMode: 'contain'}} />
+              )}
+          </View>
+      </Modal>
+
     </View>
   );
 }
