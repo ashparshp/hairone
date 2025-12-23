@@ -20,6 +20,16 @@ export interface Service {
   duration: number;
 }
 
+export interface Combo {
+  _id: string;
+  name: string;
+  price: number;
+  originalPrice: number;
+  duration: number;
+  items: string[]; // Service IDs
+  isAvailable?: boolean;
+}
+
 export interface Shop {
   _id: string;
   name: string;
@@ -27,6 +37,7 @@ export interface Shop {
   image?: string;
   rating: number;
   services: Service[];
+  combos?: Combo[];
 }
 
 export interface Barber {
