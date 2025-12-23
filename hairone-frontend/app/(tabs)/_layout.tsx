@@ -21,6 +21,11 @@ export default function TabLayout() {
     return <Redirect href="/admin/dashboard" />;
   }
 
+  // 2. If NO USER (Logout) -> Prevent Tabs from rendering to avoid crash
+  if (!user) {
+    return null;
+  }
+
   return (
     <Tabs
       tabBar={props => <CustomTabBar {...props} user={user} />}
