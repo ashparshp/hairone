@@ -494,14 +494,23 @@ exports.deleteShopService = async (req, res) => {
 // --- 10. Update Service (Toggle Availability) ---
 exports.updateShopService = async (req, res) => {
   const { id, serviceId } = req.params;
-  const { isAvailable } = req.body;
+  const { name, price, duration, isAvailable } = req.body;
 
   try {
+    // Construct updates object dynamically
+    const updateQuery = {};
+    if (name) updateQuery["services.$.name"] = name;
+    if (price !== undefined) updateQuery["services.$.price"] = parseInt(price);
+    if (duration !== undefined) updateQuery["services.$.duration"] = parseInt(duration);
+    if (isAvailable !== undefined) updateQuery["services.$.isAvailable"] = isAvailable;
+
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "services._id": serviceId },
-      { $set: { "services.$.isAvailable": isAvailable } },
+      { $set: updateQuery },
       { new: true }
     );
+
+    if (!shop) return res.status(404).json({ message: "Shop or Service not found" });
     res.json(shop);
   } catch (e) {
     console.error(e);

@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; 
 import { SlideInView } from '../../components/AnimatedViews'; 
 import api, { getShopReviews } from '../../services/api';
-import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare } from 'lucide-react-native';
+import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
@@ -302,39 +302,72 @@ export default function ShopDetailsScreen() {
 
             <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 140}}>
 
-                {/* SERVICES LIST */}
+                {/* SERVICES LIST (RESTRUCTURED UI) */}
                 {activeTab === 'services' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Services</Text>
                     {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === service._id);
+                        
+                        // Colors
+                        const cardBg = isDark ? '#000000' : '#ffffff';
+                        const borderColor = isSelected ? '#10b981' : (isDark ? '#27272a' : '#e5e7eb');
+                        const priceColor = isDark ? '#facc15' : '#0f172a'; // Yellow/Gold in dark mode
+
                         return (
-                            <TouchableOpacity key={index} style={[styles.serviceCard, {backgroundColor: colors.card, borderColor: colors.border}, isSelected && {borderColor: colors.tint, backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]} onPress={() => toggleService(service)}>
-                                <View style={{flex: 1}}>
-                                    <View style={{flexDirection:'row', alignItems:'center', gap: 6}}>
-                                        <Text style={[styles.serviceName, {color: colors.text}, isSelected && {color: colors.tint}]}>{service.name}</Text>
+                            <TouchableOpacity 
+                                key={index} 
+                                activeOpacity={0.9}
+                                style={[styles.serviceCardNew, { backgroundColor: cardBg, borderColor: borderColor, borderWidth: isSelected ? 2 : 1 }]} 
+                                onPress={() => toggleService(service)}
+                            >
+                                {/* TOP ROW: Service Name & Price */}
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12}}>
+                                    <View style={{flex: 1, paddingRight: 10}}>
+                                        <Text style={[styles.serviceNameNew, {color: colors.text}]}>{service.name}</Text>
+                                    </View>
+                                    <View style={{alignItems: 'flex-end'}}>
+                                        <Text style={[styles.servicePriceNew, {color: priceColor}]}>
+                                            ₹{(service.price * (1 - config.userDiscountRate / 100)).toFixed(2)}
+                                        </Text>
                                         {config.userDiscountRate > 0 && (
-                                            <View style={{backgroundColor: '#10b981', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4}}>
-                                                <Text style={{color: 'white', fontSize: 10, fontWeight: 'bold'}}>{config.userDiscountRate}% OFF</Text>
+                                            <Text style={{textDecorationLine: 'line-through', color: colors.textMuted, fontSize: 11}}>
+                                                ₹{service.price}
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+
+                                {/* BOTTOM ROW: Duration & Add Button */}
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    {/* Left: Duration & Discount Tag */}
+                                    <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
+                                            <Clock size={14} color={colors.textMuted} />
+                                            <Text style={{color: colors.textMuted, fontSize: 12, fontWeight: '500'}}>{service.duration} mins</Text>
+                                        </View>
+                                        
+                                        {config.userDiscountRate > 0 && (
+                                            <View style={styles.tagDiscountSmall}>
+                                                <Text style={{color: '#fff', fontSize: 9, fontWeight: 'bold'}}>{config.userDiscountRate}% OFF</Text>
                                             </View>
                                         )}
                                     </View>
-                                    <Text style={[styles.serviceDuration, {color: colors.textMuted}]}>{service.duration} mins • {isSelected ? 'Selected' : 'Tap to add'}</Text>
-                                </View>
-                                <View style={{alignItems:'flex-end'}}>
-                                    {config.userDiscountRate > 0 ? (
-                                        <View style={{alignItems: 'flex-end'}}>
-                                            <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>
-                                                ₹{(service.price * (1 - config.userDiscountRate / 100)).toFixed(2)}
-                                            </Text>
-                                            <Text style={{textDecorationLine: 'line-through', color: colors.textMuted, fontSize: 12}}>
-                                                ₹{service.price}
-                                            </Text>
-                                        </View>
-                                    ) : (
-                                        <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>₹{service.price}</Text>
-                                    )}
-                                    {isSelected && <Check size={16} color={colors.tint} style={{marginTop: 4}}/>}
+
+                                    {/* Right: Add Button */}
+                                    <View style={[styles.addBtn, { backgroundColor: isSelected ? '#10b981' : (isDark ? '#27272a' : '#f1f5f9') }]}>
+                                        {isSelected ? (
+                                            <View style={{flexDirection:'row', alignItems:'center', gap: 4}}>
+                                                <Check size={14} color="#fff" strokeWidth={3}/>
+                                                <Text style={{color: '#fff', fontSize: 11, fontWeight: 'bold'}}>ADDED</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={{flexDirection:'row', alignItems:'center', gap: 4}}>
+                                                <Plus size={14} color={isDark ? '#fff' : '#0f172a'} />
+                                                <Text style={{color: isDark ? '#fff' : '#0f172a', fontSize: 11, fontWeight: 'bold'}}>ADD</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                 </View>
                             </TouchableOpacity>
                         );
@@ -354,7 +387,7 @@ export default function ShopDetailsScreen() {
                         const finalPrice = combo.price * (1 - config.userDiscountRate / 100);
                         const savings = combo.originalPrice - combo.price;
                         
-                        // Colors for the new card design
+                        // Colors
                         const cardBg = isDark ? '#000000' : '#ffffff';
                         const innerBg = isDark ? '#18181b' : '#f8fafc';
                         const priceColor = isDark ? '#facc15' : '#0f172a';
@@ -372,14 +405,7 @@ export default function ShopDetailsScreen() {
                                 <View style={styles.comboHeader}>
                                     <View style={{ flex: 1, paddingRight: 10 }}>
                                         <Text style={[styles.comboTitle, { color: colors.text }]}>{combo.name}</Text>
-                                        
-                                        {/* Meta Row */}
                                         <View style={styles.comboMetaRow}>
-                                            {savings > 0 && (
-                                                <View style={styles.tagSavings}>
-                                                    <Text style={styles.tagText}>Save ₹{savings.toFixed(2)}</Text>
-                                                </View>
-                                            )}
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                                 <Clock size={12} color={colors.textMuted} />
                                                 <Text style={{ fontSize: 12, fontWeight: '500', color: colors.textMuted }}>{combo.duration} mins</Text>
@@ -411,7 +437,14 @@ export default function ShopDetailsScreen() {
 
                                 {/* Inner Breakdown Card */}
                                 <View style={[styles.comboBreakdownCard, { backgroundColor: innerBg, borderColor: isDark ? '#27272a' : '#e2e8f0' }]}>
-                                    <Text style={[styles.comboBreakdownTitle, { color: isDark ? '#e4e4e7' : '#334155' }]}>Package Breakdown</Text>
+                                    <View style={styles.comboBreakdownHeader}>
+                                        <Text style={[styles.comboBreakdownTitle, {color: isDark ? '#e4e4e7' : '#334155', marginBottom: 0}]}>Package Breakdown</Text>
+                                        {savings > 0 && (
+                                            <View style={styles.tagSavings}>
+                                                <Text style={styles.tagText}>Save ₹{savings.toFixed(2)}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     
                                     {/* Items List */}
                                     <View style={{ marginBottom: 16 }}>
@@ -804,11 +837,42 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: 'bold' },
 
   sectionTitle: { marginBottom: 16, marginTop: 24, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1, fontWeight: 'bold' },
-  serviceCard: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1 },
-  serviceName: { fontWeight: 'bold', fontSize: 16 },
-  serviceDuration: { fontSize: 12, marginTop: 4 },
-  servicePrice: { fontWeight: 'bold', fontSize: 16 },
   
+  // --- NEW SERVICE CARD STYLES ---
+  serviceCardNew: {
+    padding: 16, 
+    borderRadius: 16, 
+    marginBottom: 12, 
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  serviceNameNew: {
+    fontWeight: 'bold', 
+    fontSize: 16,
+  },
+  servicePriceNew: {
+    fontWeight: 'bold', 
+    fontSize: 16,
+  },
+  tagDiscountSmall: {
+    backgroundColor: '#10b981', 
+    paddingHorizontal: 4, 
+    paddingVertical: 2, 
+    borderRadius: 4,
+  },
+  addBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   // --- NEW COMBO CARD STYLES ---
   comboContainer: {
     borderRadius: 24,
@@ -843,7 +907,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
     backgroundColor: '#e11d48',
-    marginRight: 8,
+    // marginLeft removed for space-between layout
   },
   tagText: {
     color: 'white',
@@ -866,10 +930,15 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
   },
+  comboBreakdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between', // <--- Pushes tag to the right
+    marginBottom: 16,
+  },
   comboBreakdownTitle: {
     fontSize: 13,
     fontWeight: 'bold',
-    marginBottom: 16,
   },
   comboItemRow: {
     flexDirection: 'row',
