@@ -2,7 +2,7 @@ const Booking = require('../models/Booking');
 const Barber = require('../models/Barber');
 const Shop = require('../models/Shop');
 const SystemConfig = require('../models/SystemConfig');
-const { addMinutes, parse, format, differenceInDays, subDays } = require('date-fns');
+const { addMinutes, parse, format, differenceInDays, subDays, startOfMonth, endOfMonth } = require('date-fns');
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, getBarberScheduleForDate } = require('../utils/scheduleUtils');
 
@@ -186,8 +186,30 @@ exports.createBooking = async (req, res) => {
         return res.status(400).json({ message: "User ID required for online bookings." });
     }
 
-    // --- FINANCIAL CALCULATIONS ---
     const config = await SystemConfig.findOne({ key: 'global' });
+
+    // Check Max Cash Bookings Limit
+    if (userId && (paymentMethod === 'cash' || paymentMethod === 'CASH')) {
+         const maxCash = (config && config.maxCashBookingsPerMonth) ? config.maxCashBookingsPerMonth : 5;
+
+         // Use the booking date, not the current server date
+         const bookingDateObj = new Date(date);
+         const monthStart = format(startOfMonth(bookingDateObj), 'yyyy-MM-dd');
+         const monthEnd = format(endOfMonth(bookingDateObj), 'yyyy-MM-dd');
+
+         const cashCount = await Booking.countDocuments({
+             userId,
+             status: { $ne: 'cancelled' },
+             $or: [{ paymentMethod: 'cash' }, { paymentMethod: 'CASH' }],
+             date: { $gte: monthStart, $lte: monthEnd }
+         });
+
+         if (cashCount >= maxCash) {
+             return res.status(400).json({ message: `You have reached the limit of ${maxCash} cash bookings per month. Please pay online.` });
+         }
+    }
+
+    // --- FINANCIAL CALCULATIONS ---
     const adminRate = (config && typeof config.adminCommissionRate === 'number') ? config.adminCommissionRate : 10;
     const discountRate = (config && typeof config.userDiscountRate === 'number') ? config.userDiscountRate : 0;
 

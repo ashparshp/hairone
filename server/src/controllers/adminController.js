@@ -192,10 +192,10 @@ exports.getSystemConfig = async (req, res) => {
 
 exports.updateSystemConfig = async (req, res) => {
     try {
-        const { adminCommissionRate, userDiscountRate, isPaymentTestMode } = req.body;
+        const { adminCommissionRate, userDiscountRate, isPaymentTestMode, maxCashBookingsPerMonth } = req.body;
         const config = await SystemConfig.findOneAndUpdate(
             { key: 'global' },
-            { adminCommissionRate, userDiscountRate, isPaymentTestMode },
+            { adminCommissionRate, userDiscountRate, isPaymentTestMode, maxCashBookingsPerMonth },
             { new: true, upsert: true }
         );
         res.json(config);

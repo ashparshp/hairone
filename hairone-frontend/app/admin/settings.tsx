@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { ChevronLeft, Save, Settings, DollarSign, Percent } from 'lucide-react-native';
+import { ChevronLeft, Save, Settings, DollarSign, Percent, AlertCircle } from 'lucide-react-native';
 
 export default function AdminSettings() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export default function AdminSettings() {
 
   const [adminCommission, setAdminCommission] = useState('');
   const [userDiscount, setUserDiscount] = useState('');
+  const [maxCashBookings, setMaxCashBookings] = useState('');
   const [testMode, setTestMode] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function AdminSettings() {
       if (res.data) {
           setAdminCommission(String(res.data.adminCommissionRate));
           setUserDiscount(String(res.data.userDiscountRate));
+          setMaxCashBookings(String(res.data.maxCashBookingsPerMonth || 5));
           setTestMode(res.data.isPaymentTestMode);
       }
     } catch (e) {
@@ -42,6 +44,7 @@ export default function AdminSettings() {
       await api.put('/admin/config', {
           adminCommissionRate: parseFloat(adminCommission),
           userDiscountRate: parseFloat(userDiscount),
+          maxCashBookingsPerMonth: parseInt(maxCashBookings),
           isPaymentTestMode: testMode
       });
       Alert.alert("Success", "Settings updated successfully");
@@ -106,6 +109,29 @@ export default function AdminSettings() {
                     />
                 </View>
                 <Text style={styles.hint}>Subsidy given to user (Paid by Admin from Commission).</Text>
+             </View>
+          </View>
+
+          <View style={[styles.section, {backgroundColor: colors.card, borderColor: colors.border}]}>
+             <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10}}>
+                <AlertCircle size={20} color={colors.tint} />
+                <Text style={[styles.sectionTitle, {color: colors.text}]}>Limits & Restrictions</Text>
+             </View>
+
+             <View style={styles.inputGroup}>
+                <Text style={[styles.label, {color: colors.textMuted}]}>Max Cash Bookings / Month</Text>
+                <View style={[styles.inputWrapper, {borderColor: colors.border, backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc'}]}>
+                    <Text style={{fontSize: 16, fontWeight: 'bold', color: colors.textMuted}}>#</Text>
+                    <TextInput
+                        style={[styles.input, {color: colors.text}]}
+                        value={maxCashBookings}
+                        onChangeText={setMaxCashBookings}
+                        keyboardType="numeric"
+                        placeholder="5"
+                        placeholderTextColor={colors.textMuted}
+                    />
+                </View>
+                <Text style={styles.hint}>Limit per user for cash payments to reduce no-shows.</Text>
              </View>
           </View>
 
