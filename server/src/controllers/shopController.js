@@ -390,9 +390,7 @@ exports.getShopSlots = async (req, res) => {
 
     let effectiveMinTime = -1;
     if (date === istDate) {
-      // Add a safety buffer to ensure the user has time to book
-      const SAFETY_BUFFER = 5;
-      effectiveMinTime = istMinutes + (shop.minBookingNotice || 0) + SAFETY_BUFFER;
+      effectiveMinTime = istMinutes + (shop.minBookingNotice || 0);
       current = Math.max(current, effectiveMinTime);
     }
 
