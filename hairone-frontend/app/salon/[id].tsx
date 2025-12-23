@@ -647,90 +647,142 @@ export default function ShopDetailsScreen() {
       {step === 3 && (
          <SlideInView key="step3" from="right" style={{flex: 1}}>
          <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20}}>
-            <View style={[styles.summaryCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                <Text style={[styles.summaryTitle, {color: colors.text}]}>Booking Summary</Text>
+            
+            <View style={[styles.summaryCard, {backgroundColor: colors.card, borderColor: colors.border, padding: 0, overflow: 'hidden'}]}>
+                <View style={{padding: 20, backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc', borderBottomWidth: 1, borderBottomColor: colors.border}}>
+                    <Text style={[styles.summaryTitle, {color: colors.text, fontSize: 20, marginBottom: 4}]}>Booking Summary</Text>
+                    <Text style={{color: colors.textMuted, fontSize: 13}}>Please review your appointment details</Text>
+                </View>
                 
-                <View style={styles.summaryRow}>
-                    <Calendar size={18} color={colors.textMuted} />
-                    <Text style={[styles.summaryText, {color: colors.text}]}>{selectedDate.toDateString()}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                    <Clock size={18} color={colors.textMuted} />
-                    <Text style={[styles.summaryText, {color: colors.text}]}>{selectedTime}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                    <User size={18} color={colors.textMuted} />
-                    <Text style={[styles.summaryText, {color: colors.text}]}>{selectedBarberId === 'any' ? 'Random Professional' : barbers.find((b:any) => b._id === selectedBarberId)?.name}</Text>
-                </View>
-
-                <View style={[styles.divider, {backgroundColor: colors.border}]} />
-                
-                {selectedServices.map((s, i) => (
-                    <View key={i} style={{marginBottom: 8}}>
-                        <View style={{flexDirection:'row', justifyContent:'space-between'}}>
-                            <Text style={{color: colors.text, fontWeight: '500'}}>{s.name} {s.type === 'combo' && '(Combo)'}</Text>
-                            <Text style={{color: colors.text}}>₹{s.price}</Text>
+                <View style={{padding: 20}}>
+                    {/* Appointment Info */}
+                    <View style={{flexDirection: 'row', gap: 12, marginBottom: 20}}>
+                        <View style={{flex: 1, padding: 12, borderRadius: 12, backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', alignItems: 'center'}}>
+                            <Calendar size={20} color={colors.tint} style={{marginBottom: 8}} />
+                            <Text style={{color: colors.textMuted, fontSize: 11, textTransform: 'uppercase', fontWeight: 'bold'}}>Date</Text>
+                            <Text style={{color: colors.text, fontWeight: 'bold', marginTop: 2}}>{selectedDate.toLocaleDateString('en-US', {day: 'numeric', month: 'short'})}</Text>
                         </View>
-                        {s.type === 'combo' && (
-                            <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 2, marginLeft: 8}}>
-                                Includes: {getServiceNamesFromIds(s.items)}
+                        <View style={{flex: 1, padding: 12, borderRadius: 12, backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', alignItems: 'center'}}>
+                            <Clock size={20} color={colors.tint} style={{marginBottom: 8}} />
+                            <Text style={{color: colors.textMuted, fontSize: 11, textTransform: 'uppercase', fontWeight: 'bold'}}>Time</Text>
+                            <Text style={{color: colors.text, fontWeight: 'bold', marginTop: 2}}>{selectedTime}</Text>
+                        </View>
+                        <View style={{flex: 1, padding: 12, borderRadius: 12, backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', alignItems: 'center'}}>
+                            <User size={20} color={colors.tint} style={{marginBottom: 8}} />
+                            <Text style={{color: colors.textMuted, fontSize: 11, textTransform: 'uppercase', fontWeight: 'bold'}}>Pro</Text>
+                            <Text style={{color: colors.text, fontWeight: 'bold', marginTop: 2, textAlign: 'center', fontSize: 12}} numberOfLines={1}>
+                                {selectedBarberId === 'any' ? 'Any' : barbers.find((b:any) => b._id === selectedBarberId)?.name?.split(' ')[0]}
                             </Text>
-                        )}
+                        </View>
                     </View>
-                ))}
 
-                <View style={[styles.divider, {backgroundColor: colors.border}]} />
-                
-                <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
-                    <Text style={{color: colors.textMuted}}>Subtotal</Text>
-                    <Text style={{color: colors.text}}>₹{calculateTotal().toFixed(2)}</Text>
-                </View>
-                {config.userDiscountRate > 0 && (
-                    <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
-                        <Text style={{color: '#10b981'}}>Discount ({config.userDiscountRate}%)</Text>
-                        <Text style={{color: '#10b981'}}>- ₹{(calculateTotal() * (config.userDiscountRate / 100)).toFixed(2)}</Text>
+                    {/* Dashed Divider */}
+                    <View style={{height: 1, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 1, marginBottom: 20}} />
+
+                    {/* Services List */}
+                    <Text style={{color: colors.textMuted, fontSize: 12, fontWeight: 'bold', marginBottom: 12, textTransform: 'uppercase'}}>Services Selected</Text>
+                    {selectedServices.map((s, i) => (
+                        <View key={i} style={{marginBottom: 12}}>
+                            <View style={{flexDirection:'row', justifyContent:'space-between', alignItems: 'flex-start'}}>
+                                <View style={{flex: 1, paddingRight: 8}}>
+                                    <Text style={{color: colors.text, fontWeight: '600', fontSize: 15}}>{s.name}</Text>
+                                    {s.type === 'combo' && (
+                                        <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>
+                                            Package: {getServiceNamesFromIds(s.items)}
+                                        </Text>
+                                    )}
+                                    <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>{s.duration} mins</Text>
+                                </View>
+                                <Text style={{color: colors.text, fontWeight: '600', fontSize: 15}}>₹{s.price}</Text>
+                            </View>
+                        </View>
+                    ))}
+
+                    {/* Dashed Divider */}
+                    <View style={{height: 1, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: 1, marginVertical: 16}} />
+                    
+                    {/* Price Breakdown */}
+                    <View style={{gap: 8}}>
+                        <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                            <Text style={{color: colors.textMuted}}>Item Total</Text>
+                            <Text style={{color: colors.text}}>₹{calculateTotal().toFixed(2)}</Text>
+                        </View>
+                        {config.userDiscountRate > 0 && (
+                            <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                                <Text style={{color: '#10b981'}}>Member Discount ({config.userDiscountRate}%)</Text>
+                                <Text style={{color: '#10b981'}}>- ₹{(calculateTotal() * (config.userDiscountRate / 100)).toFixed(2)}</Text>
+                            </View>
+                        )}
+                        <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border}}>
+                            <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>To Pay</Text>
+                            <Text style={{color: colors.tint, fontWeight: 'bold', fontSize: 22}}>
+                                ₹{(calculateTotal() * (1 - config.userDiscountRate / 100)).toFixed(2)}
+                            </Text>
+                        </View>
                     </View>
-                )}
-                <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
-                    <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>Total Payable</Text>
-                    <Text style={{color: colors.tint, fontWeight: 'bold', fontSize: 18}}>
-                        ₹{(calculateTotal() * (1 - config.userDiscountRate / 100)).toFixed(2)}
-                    </Text>
                 </View>
             </View>
 
-            <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Payment Method</Text>
+            {/* Payment Methods */}
+            <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 24}]}>Payment Method</Text>
 
-            <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border}, paymentMethod === 'cash' && {borderColor: colors.tint, backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]} onPress={() => setPaymentMethod('cash')}>
-                <Banknote size={24} color={paymentMethod === 'cash' ? colors.tint : colors.text} />
-                <View style={{flex: 1, marginLeft: 12}}>
-                    <Text style={[styles.paymentTitle, {color: colors.text}, paymentMethod === 'cash' && {color: colors.tint}]}>Cash on Delivery</Text>
-                    <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Pay at the salon</Text>
-                </View>
-                {paymentMethod === 'cash' && <View style={[styles.checkCircle, {borderColor: colors.tint}]}><View style={[styles.checkInner, {backgroundColor: colors.tint}]}/></View>}
-            </TouchableOpacity>
-
-            {config.isPaymentTestMode ? (
-                <TouchableOpacity
-                   style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border}, paymentMethod === 'online' && {borderColor: colors.tint, backgroundColor: theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.1)'}]}
-                   onPress={() => setPaymentMethod('online')}
+            <View style={{gap: 12}}>
+                <TouchableOpacity 
+                    style={[
+                        styles.paymentCard, 
+                        { backgroundColor: colors.card, borderColor: colors.border, padding: 16, borderRadius: 12, borderWidth: 1 }, 
+                        paymentMethod === 'cash' && { borderColor: colors.tint, backgroundColor: theme === 'dark' ? '#1e293b' : '#fff7ed' }
+                    ]} 
+                    onPress={() => setPaymentMethod('cash')}
                 >
-                    <CreditCard size={24} color={paymentMethod === 'online' ? colors.tint : colors.text} />
-                    <View style={{flex: 1, marginLeft: 12}}>
-                        <Text style={[styles.paymentTitle, {color: colors.text}, paymentMethod === 'online' && {color: colors.tint}]}>Pay Online (Test)</Text>
-                        <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Simulate Online Payment</Text>
+                    <View style={{width: 40, height: 40, borderRadius: 20, backgroundColor: paymentMethod === 'cash' ? colors.tint : (theme === 'dark' ? '#334155' : '#f1f5f9'), alignItems: 'center', justifyContent: 'center'}}>
+                        <Banknote size={20} color={paymentMethod === 'cash' ? '#000' : colors.textMuted} />
                     </View>
-                    {paymentMethod === 'online' && <View style={[styles.checkCircle, {borderColor: colors.tint}]}><View style={[styles.checkInner, {backgroundColor: colors.tint}]}/></View>}
-                </TouchableOpacity>
-            ) : (
-                <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border, opacity: 0.5}]} disabled={true}>
-                    <CreditCard size={24} color={colors.text} />
                     <View style={{flex: 1, marginLeft: 12}}>
-                        <Text style={[styles.paymentTitle, {color: colors.text}]}>UPI / Online</Text>
-                        <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Coming Soon</Text>
+                        <Text style={[styles.paymentTitle, {color: colors.text, fontSize: 16}, paymentMethod === 'cash' && {color: colors.tint}]}>Cash at Salon</Text>
+                        <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Pay after service</Text>
                     </View>
+                    {paymentMethod === 'cash' && (
+                        <View style={{backgroundColor: colors.tint, borderRadius: 12, padding: 4}}>
+                            <Check size={14} color="black" strokeWidth={3} />
+                        </View>
+                    )}
                 </TouchableOpacity>
-            )}
+
+                {config.isPaymentTestMode ? (
+                    <TouchableOpacity
+                    style={[
+                        styles.paymentCard, 
+                        { backgroundColor: colors.card, borderColor: colors.border, padding: 16, borderRadius: 12, borderWidth: 1 }, 
+                        paymentMethod === 'online' && { borderColor: colors.tint, backgroundColor: theme === 'dark' ? '#1e293b' : '#fff7ed' }
+                    ]}
+                    onPress={() => setPaymentMethod('online')}
+                    >
+                        <View style={{width: 40, height: 40, borderRadius: 20, backgroundColor: paymentMethod === 'online' ? colors.tint : (theme === 'dark' ? '#334155' : '#f1f5f9'), alignItems: 'center', justifyContent: 'center'}}>
+                            <CreditCard size={20} color={paymentMethod === 'online' ? '#000' : colors.textMuted} />
+                        </View>
+                        <View style={{flex: 1, marginLeft: 12}}>
+                            <Text style={[styles.paymentTitle, {color: colors.text, fontSize: 16}, paymentMethod === 'online' && {color: colors.tint}]}>Pay Online</Text>
+                            <Text style={[styles.paymentSub, {color: colors.textMuted}]}>UPI, Cards, Netbanking (Test)</Text>
+                        </View>
+                         {paymentMethod === 'online' && (
+                            <View style={{backgroundColor: colors.tint, borderRadius: 12, padding: 4}}>
+                                <Check size={14} color="black" strokeWidth={3} />
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity style={[styles.paymentCard, {backgroundColor: colors.card, borderColor: colors.border, padding: 16, borderRadius: 12, borderWidth: 1, opacity: 0.6}]} disabled={true}>
+                        <View style={{width: 40, height: 40, borderRadius: 20, backgroundColor: theme === 'dark' ? '#334155' : '#f1f5f9', alignItems: 'center', justifyContent: 'center'}}>
+                            <CreditCard size={20} color={colors.textMuted} />
+                        </View>
+                        <View style={{flex: 1, marginLeft: 12}}>
+                            <Text style={[styles.paymentTitle, {color: colors.textMuted}]}>Pay Online</Text>
+                            <Text style={[styles.paymentSub, {color: colors.textMuted}]}>Currently Unavailable</Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
+            </View>
 
          </ScrollView>
          </SlideInView>
