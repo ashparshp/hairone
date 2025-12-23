@@ -192,7 +192,6 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         styles.tab, 
                         activeTab === 'upcoming' && { 
                             backgroundColor: colors.tint,
-                            // Add slight shadow for better separation
                             shadowColor: "#000",
                             shadowOffset: { width: 0, height: 1 },
                             shadowOpacity: 0.2,
@@ -205,8 +204,8 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     <Text style={[
                         styles.tabText, 
                         {color: colors.textMuted}, 
-                        // Force dark text on active tint for readability
-                        activeTab === 'upcoming' && {color: '#020617', fontWeight: 'bold'}
+                        // Explicitly set to black for active state (works well on tint color)
+                        activeTab === 'upcoming' && {color: '#000', fontWeight: 'bold'}
                     ]}>Upcoming</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -226,7 +225,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     <Text style={[
                         styles.tabText, 
                         {color: colors.textMuted}, 
-                        activeTab === 'history' && {color: '#020617', fontWeight: 'bold'}
+                        activeTab === 'history' && {color: '#000', fontWeight: 'bold'}
                     ]}>History</Text>
                 </TouchableOpacity>
             </View>
