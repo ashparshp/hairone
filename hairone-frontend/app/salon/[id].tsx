@@ -195,6 +195,11 @@ export default function ShopDetailsScreen() {
       return ids.map(id => shop.services.find((s:any) => s._id === id)?.name).filter(Boolean).join(', ');
   };
 
+  const getServiceObjectsFromIds = (ids: string[]) => {
+      if (!shop?.services || !ids) return [];
+      return ids.map(id => shop.services.find((s:any) => s._id === id)).filter(Boolean);
+  };
+
   const handleBook = async () => {
     if (!selectedTime) return showToast("Please select a time slot", "error");
     if (selectedServices.length === 0) return showToast("Please select at least one service", "error");
@@ -387,9 +392,42 @@ export default function ShopDetailsScreen() {
                                     </View>
 
                                     <Text style={[styles.serviceDuration, {color: colors.textMuted}]}>{combo.duration} mins • {combo.items?.length || 0} items</Text>
-                                    <Text style={{fontSize: 10, color: colors.textMuted, marginTop: 4, fontStyle:'italic'}}>
-                                        Includes: {getServiceNamesFromIds(combo.items)}
-                                    </Text>
+                                    {!isSelected && (
+                                        <Text style={{fontSize: 10, color: colors.textMuted, marginTop: 4, fontStyle:'italic'}}>
+                                            Includes: {getServiceNamesFromIds(combo.items)}
+                                        </Text>
+                                    )}
+
+                                    {isSelected && (
+                                        <View style={{marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border}}>
+                                            <Text style={{color: colors.text, fontWeight: 'bold', marginBottom: 8}}>Breakdown:</Text>
+                                            {getServiceObjectsFromIds(combo.items).map((s: any, i: number) => (
+                                                <View key={i} style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
+                                                    <Text style={{color: colors.textMuted, fontSize: 12}}>+ {s.name}</Text>
+                                                    <Text style={{color: colors.textMuted, fontSize: 12}}>₹{s.price}</Text>
+                                                </View>
+                                            ))}
+                                            <View style={{height: 1, backgroundColor: colors.border, marginVertical: 4}} />
+                                            <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                                                <Text style={{color: colors.textMuted, fontSize: 12}}>Total Value</Text>
+                                                <Text style={{color: colors.textMuted, fontSize: 12, textDecorationLine: 'line-through'}}>₹{combo.originalPrice}</Text>
+                                            </View>
+                                            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 4}}>
+                                                <Text style={{color: colors.text, fontWeight:'bold'}}>Combo Price</Text>
+                                                <Text style={{color: colors.text, fontWeight:'bold'}}>₹{combo.price}</Text>
+                                            </View>
+                                            {config.userDiscountRate > 0 && (
+                                                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 2}}>
+                                                    <Text style={{color: '#10b981', fontSize: 12}}>Extra {config.userDiscountRate}% Off</Text>
+                                                    <Text style={{color: '#10b981', fontSize: 12}}>-₹{(combo.price * config.userDiscountRate / 100).toFixed(2)}</Text>
+                                                </View>
+                                            )}
+                                            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, paddingTop: 4, borderTopWidth: 1, borderTopColor: colors.border, borderStyle: 'dashed'}}>
+                                                <Text style={{color: colors.tint, fontWeight:'bold'}}>Final Price</Text>
+                                                <Text style={{color: colors.tint, fontWeight:'bold'}}>₹{(combo.price * (1 - config.userDiscountRate / 100)).toFixed(2)}</Text>
+                                            </View>
+                                        </View>
+                                    )}
                                 </View>
                                 <View style={{alignItems:'flex-end'}}>
                                     {/* Display Logic: Original Service Sum > Combo Price > Global Discount */}

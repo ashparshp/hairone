@@ -6,6 +6,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import SplashScreen from '../components/SplashScreen';
 
 function AppContent() {
@@ -13,6 +14,11 @@ function AppContent() {
   const [isSplashVisible, setIsSplashVisible] = useState(true);
 
   useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage.getItem('TEST_MODE')) {
+        setIsSplashVisible(false);
+        return;
+    }
+
     if (!isLoading) {
       // Keep splash visible for at least a moment or until loading finishes
       const timer = setTimeout(() => {
