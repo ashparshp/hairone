@@ -249,9 +249,14 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     </View>
 
                     <View style={[styles.servicesContainer, {backgroundColor: theme === 'dark' ? '#020617' : '#f8fafc', borderColor: colors.border}]}>
-                        {booking.serviceNames && booking.serviceNames.map((s: any, idx: number) => (
-                            <Text key={idx} style={[styles.serviceText, {color: colors.textMuted}]}>• {s}</Text>
-                        ))}
+                        {booking.serviceNames && booking.serviceNames.map((s: string, idx: number) => {
+                            const isCombo = s.includes('(') && s.includes(')');
+                            return (
+                                <Text key={idx} style={[styles.serviceText, {color: isCombo ? colors.text : colors.textMuted, fontWeight: isCombo ? '500' : 'normal'}]}>
+                                    • {s}
+                                </Text>
+                            );
+                        })}
                     </View>
 
                     <View style={styles.cardFooter}>
