@@ -18,7 +18,10 @@ const {
   deleteShopService,
   updateShopService,
   getShopRevenue,
-  getPublicConfig
+  getPublicConfig,
+  addShopCombo,
+  deleteShopCombo,
+  updateShopCombo
 } = require('../controllers/shopController'); 
 
 const financeController = require('../controllers/financeController');
@@ -57,6 +60,9 @@ router.post('/slots', getShopSlots);
 router.post('/:id/services', protect, addShopService);
 router.delete('/:id/services/:serviceId', protect, deleteShopService);
 router.put('/:id/services/:serviceId', protect, updateShopService);
+router.post('/:id/combos', protect, addShopCombo);
+router.delete('/:id/combos/:comboId', protect, deleteShopCombo);
+router.put('/:id/combos/:comboId', protect, updateShopCombo);
 router.put('/:id', protect, upload.single('image'), updateShop);
 router.get('/:id/revenue', protect, getShopRevenue);
 

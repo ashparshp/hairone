@@ -14,6 +14,14 @@ const shopSchema = new mongoose.Schema({
     duration: Number, // minutes
     isAvailable: { type: Boolean, default: true }
   }],
+  combos: [{
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
+    originalPrice: { type: Number, required: true },
+    duration: { type: Number, required: true },
+    items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Shop.services' }], // Store Service IDs
+    isAvailable: { type: Boolean, default: true }
+  }],
   // Scheduling Settings
   bufferTime: { type: Number, default: 0 }, // Minutes between bookings
   minBookingNotice: { type: Number, default: 60 }, // Minutes before booking

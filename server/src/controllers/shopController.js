@@ -522,6 +522,78 @@ exports.updateShopService = async (req, res) => {
   }
 };
 
+// --- 10.1 Add Combo ---
+exports.addShopCombo = async (req, res) => {
+  const { id } = req.params;
+  const { name, price, originalPrice, duration, items } = req.body;
+
+  try {
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      {
+        $push: {
+          combos: {
+            name,
+            price: parseInt(price),
+            originalPrice: parseInt(originalPrice),
+            duration: parseInt(duration),
+            items: items || [], // array of service IDs
+            isAvailable: true
+          }
+        }
+      },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to add combo" });
+  }
+};
+
+// --- 10.2 Delete Combo ---
+exports.deleteShopCombo = async (req, res) => {
+  const { id, comboId } = req.params;
+  try {
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $pull: { combos: { _id: comboId } } },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to delete combo" });
+  }
+};
+
+// --- 10.3 Update Combo ---
+exports.updateShopCombo = async (req, res) => {
+  const { id, comboId } = req.params;
+  const { name, price, originalPrice, duration, items, isAvailable } = req.body;
+
+  try {
+    // Construct updates object dynamically
+    const updateQuery = {};
+    if (name) updateQuery["combos.$.name"] = name;
+    if (price !== undefined) updateQuery["combos.$.price"] = parseInt(price);
+    if (originalPrice !== undefined) updateQuery["combos.$.originalPrice"] = parseInt(originalPrice);
+    if (duration !== undefined) updateQuery["combos.$.duration"] = parseInt(duration);
+    if (items) updateQuery["combos.$.items"] = items;
+    if (isAvailable !== undefined) updateQuery["combos.$.isAvailable"] = isAvailable;
+
+    const shop = await Shop.findOneAndUpdate(
+      { _id: id, "combos._id": comboId },
+      { $set: updateQuery },
+      { new: true }
+    );
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to update combo" });
+  }
+};
+
 // --- 11. Get User Favorites ---
 exports.getUserFavorites = async (req, res) => {
   try {
