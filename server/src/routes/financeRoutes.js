@@ -56,6 +56,31 @@ router.get('/settlements', protect, async (req, res) => {
     }
 });
 
+// --- 2.5 Get Settlement Details (Populated) ---
+router.get('/settlements/:id', protect, async (req, res) => {
+    try {
+        const settlement = await Settlement.findById(req.params.id)
+            .populate('shopId', 'name address')
+            .populate({
+                path: 'bookings',
+                select: 'date startTime serviceNames finalPrice adminNetRevenue barberNetRevenue type amountCollectedBy'
+            });
+
+        if (!settlement) return res.status(404).json({ message: "Settlement not found" });
+
+        // Access Check
+        if (req.user.role !== 'admin') {
+             if (settlement.shopId._id.toString() !== req.user.myShopId?.toString()) {
+                 return res.status(403).json({ message: "Unauthorized" });
+             }
+        }
+
+        res.json(settlement);
+    } catch (e) {
+        res.status(500).json({ message: "Failed to fetch settlement details" });
+    }
+});
+
 // --- 3. Pay Settlement (Shop -> Admin) ---
 // Generates a mock payment link
 router.post('/settlements/:id/pay', protect, async (req, res) => {

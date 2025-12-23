@@ -31,7 +31,10 @@ const runSettlementJob = async (manualAdminId = null) => {
       {
         $match: {
           status: 'completed',
-          settlementStatus: 'PENDING',
+          $or: [
+              { settlementStatus: 'PENDING' },
+              { settlementStatus: { $exists: false } }
+          ],
           date: { $lt: cutoffDateStr }
         }
       },

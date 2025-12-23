@@ -256,6 +256,23 @@ function SettlementHistoryList() {
 function HistoryDetailModalFixed({ settlement, visible, onClose }: { settlement: any, visible: boolean, onClose: () => void }) {
     const { colors } = useTheme();
     const [processing, setProcessing] = useState(false);
+    const [details, setDetails] = useState<any>(null); // For fetching full booking list
+    const [loadingDetails, setLoadingDetails] = useState(true);
+
+    useEffect(() => {
+        if (visible) fetchDetails();
+    }, [visible]);
+
+    const fetchDetails = async () => {
+        try {
+            const res = await api.get(`/finance/settlements/${settlement._id}`);
+            setDetails(res.data);
+        } catch (e) {
+            console.log("Failed to fetch details", e);
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
 
     const handleMarkComplete = async () => {
         setProcessing(true);
@@ -283,7 +300,7 @@ function HistoryDetailModalFixed({ settlement, visible, onClose }: { settlement:
                     </TouchableOpacity>
                 </View>
 
-                <View style={{flex: 1}}>
+                <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 100}}>
                     <View style={{alignItems:'center', marginVertical: 20}}>
                          <View style={{width: 60, height: 60, borderRadius: 30, backgroundColor: isPayout ? '#d1fae5' : '#fee2e2', alignItems:'center', justifyContent:'center', marginBottom: 12}}>
                              {isPayout ? <DollarSign color="#10b981" size={28} /> : <CreditCard color="#ef4444" size={28} />}
@@ -294,12 +311,38 @@ function HistoryDetailModalFixed({ settlement, visible, onClose }: { settlement:
                          <Text style={{color: colors.text, marginTop: 8, fontWeight:'bold', fontSize: 16, textTransform: 'uppercase'}}>{settlement.status.replace('_', ' ')}</Text>
                     </View>
 
-                    <View style={{padding: 20, backgroundColor: colors.card, borderRadius: 12}}>
+                    <View style={{padding: 20, backgroundColor: colors.card, borderRadius: 12, marginBottom: 20}}>
                         <Text style={{color: colors.text, marginBottom: 8}}>Settlement ID: {settlement._id}</Text>
                         <Text style={{color: colors.text, marginBottom: 8}}>Shop: {settlement.shopId?.name}</Text>
                         <Text style={{color: colors.textMuted}}>Notes: {settlement.notes || 'Auto-generated'}</Text>
                     </View>
-                </View>
+
+                    <Text style={[styles.sectionTitle, {color: colors.textMuted, marginLeft: 20}]}>Included Bookings</Text>
+
+                    {loadingDetails ? (
+                        <ActivityIndicator color={colors.tint} style={{marginTop: 20}} />
+                    ) : details?.bookings ? (
+                        details.bookings.map((b: any, i: number) => (
+                             <View key={i} style={[styles.rowCard, {borderColor: colors.border, marginHorizontal: 20}]}>
+                                <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                                    <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(b.date), 'dd MMM')} • {b.startTime}</Text>
+                                    <Text style={{color: colors.text}}>₹{b.finalPrice}</Text>
+                                </View>
+                                <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>{b.serviceNames?.join(', ')}</Text>
+                                <View style={{marginTop: 4, flexDirection:'row', justifyContent:'space-between'}}>
+                                    <Text style={{fontSize: 10, color: b.amountCollectedBy === 'ADMIN' ? '#10b981' : '#f59e0b', fontWeight:'bold'}}>
+                                        {b.amountCollectedBy === 'ADMIN' ? 'Paid Online' : 'Paid Cash'}
+                                    </Text>
+                                    <Text style={{fontSize: 10, color: colors.textMuted}}>
+                                        Net: ₹{b.amountCollectedBy === 'ADMIN' ? b.barberNetRevenue : b.adminNetRevenue}
+                                    </Text>
+                                </View>
+                             </View>
+                        ))
+                    ) : (
+                        <Text style={{color: colors.textMuted, textAlign:'center', marginTop: 20}}>No details available.</Text>
+                    )}
+                </ScrollView>
 
                 {isPending && isPayout && (
                     <View style={[styles.footer, {backgroundColor: colors.background, borderTopColor: colors.border}]}>

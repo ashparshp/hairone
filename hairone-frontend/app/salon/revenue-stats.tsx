@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, ScrollView, Alert, Linking, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { ChevronLeft, Info, Wallet, TrendingUp, TrendingDown, Clock, X } from 'lucide-react-native';
 import { format } from 'date-fns';
@@ -9,6 +10,7 @@ import { format } from 'date-fns';
 export default function ShopRevenueStats() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'settlements'>('overview');
 
@@ -43,43 +45,23 @@ export default function ShopRevenueStats() {
 
 function RevenueOverview() {
     const { colors } = useTheme();
+    const { user } = useAuth();
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchStats();
-    }, []);
+        if (user?.myShopId) fetchStats();
+    }, [user]);
 
     const fetchStats = async () => {
         try {
-            // Using existing endpoint if available or create one.
-            // Assuming getShopFinanceSummary logic exists or similar.
-            // I'll use the existing /shops/:id/revenue endpoint if it exists or similar.
-            // But wait, the previous code was likely using something.
-            // I'll check if I can reuse `getShopRevenue` logic.
-            // Let's assume `/api/shops/revenue/summary` exists or I need to use what was there.
-            // Previous file content implies usage of `financeController`.
-            // Let's try `/api/shops/me/revenue` or similar.
-            // Actually, `shopRoutes.js` usually has `/shops/:id/revenue`.
-            // I need the shop ID.
-            // I'll fetch `/api/shops/my-shop` first or rely on user context?
-            // The `api.ts` interceptor sends token.
-            // The backend endpoint `router.get('/:shopId/revenue', ...)` requires ID.
-            // I'll assume the user has a shop.
-            // Let's try to get profile first? Or just use a known endpoint.
-            // Wait, `financeRoutes` has `/finance/settlements` which filters by user role.
-            // For revenue summary, I might need to implement or assume existing.
-            // I'll implement a simple fetch from `/api/finance/summary`?
-            // Existing `financeController` has `getShopFinanceSummary` mapped to `GET /:shopId/finance/summary` in `shopRoutes.js`.
-            // I need the shop ID.
+            const shopId = typeof user?.myShopId === 'object' ? user.myShopId._id : user?.myShopId;
+            if (!shopId) return;
 
-            // HACK: I will just show a "Coming Soon" or simple placeholders if I can't easily get the ID without AuthContext here.
-            // But wait, I can get the shop ID from the profile call if needed.
-            // Actually, let's just focus on the SETTLEMENTS tab which is what the user wants.
-            // I will leave "Overview" as a placeholder for now to be safe, or just try to fetch `/api/finance/settlements` and aggregate locally?
-
-            // Let's just focus on settlements.
-
+            // Fetch summary using existing shop routes if available
+            // Fallback to basic pending stats from finance
+            const res = await api.get(`/shops/${shopId}/finance/summary`);
+            setStats(res.data);
         } catch (e) {
             console.log(e);
         } finally {
@@ -87,11 +69,26 @@ function RevenueOverview() {
         }
     };
 
+    if (loading) return <ActivityIndicator color={colors.tint} style={{marginTop: 50}} />;
+
     return (
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-            <Text style={{color: colors.textMuted}}>Overview requires Shop ID context.</Text>
-            <Text style={{color: colors.textMuted}}>Please check Settlements tab.</Text>
-        </View>
+        <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20}}>
+            <View style={{backgroundColor: colors.card, padding: 20, borderRadius: 12, marginBottom: 12}}>
+                 <Text style={{color: colors.textMuted}}>Total Earnings</Text>
+                 <Text style={{color: colors.text, fontSize: 32, fontWeight: 'bold'}}>₹{(stats?.totalRevenue || 0).toFixed(2)}</Text>
+            </View>
+
+            <View style={{flexDirection: 'row', gap: 12}}>
+                 <View style={{flex: 1, backgroundColor: colors.card, padding: 16, borderRadius: 12}}>
+                     <Text style={{color: colors.textMuted, fontSize: 12}}>Pending Payouts</Text>
+                     <Text style={{color: '#10b981', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.pendingPayout || 0).toFixed(2)}</Text>
+                 </View>
+                 <View style={{flex: 1, backgroundColor: colors.card, padding: 16, borderRadius: 12}}>
+                     <Text style={{color: colors.textMuted, fontSize: 12}}>Pending Dues</Text>
+                     <Text style={{color: '#ef4444', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.pendingCollection || 0).toFixed(2)}</Text>
+                 </View>
+            </View>
+        </ScrollView>
     );
 }
 
@@ -191,16 +188,32 @@ function SettlementsList() {
 function SettlementDetailModal({ settlement, visible, onClose }: { settlement: any, visible: boolean, onClose: () => void }) {
     const { colors } = useTheme();
     const [processing, setProcessing] = useState(false);
+    const [details, setDetails] = useState<any>(null);
+    const [loadingDetails, setLoadingDetails] = useState(true);
 
     const isCollection = settlement.type === 'COLLECTION';
     const isPending = settlement.status.includes('PENDING');
+
+    useEffect(() => {
+        if (visible) fetchDetails();
+    }, [visible]);
+
+    const fetchDetails = async () => {
+        try {
+            const res = await api.get(`/finance/settlements/${settlement._id}`);
+            setDetails(res.data);
+        } catch (e) {
+            console.log("Failed to fetch details", e);
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
 
     const handlePay = async () => {
         setProcessing(true);
         try {
             const res = await api.post(`/finance/settlements/${settlement._id}/pay`);
             if (res.data.link) {
-                // Open Mock Link
                 Linking.openURL(res.data.link);
                 Alert.alert("Payment Initiated", "Please complete the payment in the browser window.");
             } else {
@@ -223,31 +236,48 @@ function SettlementDetailModal({ settlement, visible, onClose }: { settlement: a
                     </TouchableOpacity>
                 </View>
 
-                <View style={{flex: 1, alignItems: 'center', padding: 20}}>
-                     <Text style={{color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1}}>{settlement.type}</Text>
-                     <Text style={{color: colors.text, fontSize: 40, fontWeight: 'bold', marginVertical: 10}}>₹{settlement.amount.toFixed(2)}</Text>
+                <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 40}}>
+                    <View style={{alignItems: 'center', paddingVertical: 20}}>
+                         <Text style={{color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1}}>{settlement.type}</Text>
+                         <Text style={{color: colors.text, fontSize: 40, fontWeight: 'bold', marginVertical: 10}}>₹{settlement.amount.toFixed(2)}</Text>
 
-                     <View style={{backgroundColor: colors.card, padding: 16, borderRadius: 12, width: '100%', marginTop: 20}}>
-                         <Text style={{color: colors.textMuted, marginBottom: 4}}>Status</Text>
-                         <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16, marginBottom: 16}}>{settlement.status.replace('_', ' ')}</Text>
+                         <View style={{backgroundColor: colors.card, padding: 16, borderRadius: 12, width: '100%', marginTop: 20}}>
+                             <Text style={{color: colors.textMuted, marginBottom: 4}}>Status</Text>
+                             <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16, marginBottom: 16}}>{settlement.status.replace('_', ' ')}</Text>
 
-                         <Text style={{color: colors.textMuted, marginBottom: 4}}>Date</Text>
-                         <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16, marginBottom: 16}}>{format(new Date(settlement.createdAt), 'dd MMM yyyy, hh:mm a')}</Text>
+                             <Text style={{color: colors.textMuted, marginBottom: 4}}>Date</Text>
+                             <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>{format(new Date(settlement.createdAt), 'dd MMM yyyy, hh:mm a')}</Text>
+                         </View>
 
-                         <Text style={{color: colors.textMuted, marginBottom: 4}}>Booking Count</Text>
-                         <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>{settlement.bookings.length} Bookings</Text>
-                     </View>
+                         {isCollection && isPending && (
+                             <TouchableOpacity
+                                style={{marginTop: 20, backgroundColor: '#ef4444', paddingVertical: 16, width: '100%', borderRadius: 12, alignItems: 'center'}}
+                                onPress={handlePay}
+                                disabled={processing}
+                             >
+                                 {processing ? <ActivityIndicator color="white" /> : <Text style={{color: 'white', fontWeight: 'bold', fontSize: 18}}>Pay Now</Text>}
+                             </TouchableOpacity>
+                         )}
+                    </View>
 
-                     {isCollection && isPending && (
-                         <TouchableOpacity
-                            style={{marginTop: 40, backgroundColor: '#ef4444', paddingVertical: 16, width: '100%', borderRadius: 12, alignItems: 'center'}}
-                            onPress={handlePay}
-                            disabled={processing}
-                         >
-                             {processing ? <ActivityIndicator color="white" /> : <Text style={{color: 'white', fontWeight: 'bold', fontSize: 18}}>Pay Now</Text>}
-                         </TouchableOpacity>
-                     )}
-                </View>
+                    <Text style={{color: colors.textMuted, fontWeight:'bold', marginBottom: 12, marginTop: 10}}>INCLUDED BOOKINGS</Text>
+
+                    {loadingDetails ? (
+                        <ActivityIndicator color={colors.tint} />
+                    ) : details?.bookings ? (
+                        details.bookings.map((b: any, i: number) => (
+                             <View key={i} style={{padding: 12, borderBottomWidth: 1, borderColor: colors.border}}>
+                                <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                                    <Text style={{color: colors.text, fontWeight:'bold'}}>{format(new Date(b.date), 'dd MMM')} • {b.startTime}</Text>
+                                    <Text style={{color: colors.text}}>₹{b.finalPrice}</Text>
+                                </View>
+                                <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>{b.serviceNames?.join(', ')}</Text>
+                             </View>
+                        ))
+                    ) : (
+                        <Text style={{color: colors.textMuted, textAlign:'center'}}>No booking details found.</Text>
+                    )}
+                </ScrollView>
             </View>
          </Modal>
     );
