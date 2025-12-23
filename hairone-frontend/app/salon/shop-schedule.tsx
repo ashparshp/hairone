@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl, Modal, TextInput, Alert, KeyboardAvoidingView, ScrollView, Platform, SectionList
+  View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, RefreshControl, Modal, TextInput, Alert, KeyboardAvoidingView, ScrollView, Platform, SectionList, Linking
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -8,7 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import api from '../../services/api';
-import { ChevronLeft, User, Clock, Plus, X, Check, Calendar as CalendarIcon, Filter } from 'lucide-react-native';
+import { ChevronLeft, User, Clock, Plus, X, Check, Calendar as CalendarIcon, Filter, Phone } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -44,6 +44,7 @@ export default function ShopScheduleScreen() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [checkInBookingId, setCheckInBookingId] = useState<string | null>(null);
   const [enteredPin, setEnteredPin] = useState('');
+  const [pinError, setPinError] = useState('');
 
   const todayStr = formatLocalDate(new Date());
 
@@ -145,15 +146,21 @@ export default function ShopScheduleScreen() {
               setShowPinModal(false);
               setEnteredPin('');
               setCheckInBookingId(null);
+              setPinError('');
           }
       } catch (e: any) {
-          showToast(e.response?.data?.message || "Failed to update status", "error");
+          if (e.response?.status === 403 && pin) {
+              setPinError("Incorrect PIN");
+          } else {
+              showToast(e.response?.data?.message || "Failed to update status", "error");
+          }
       }
   };
 
   const promptCheckIn = (bookingId: string) => {
       setCheckInBookingId(bookingId);
       setEnteredPin('');
+      setPinError('');
       setShowPinModal(true);
   };
 
@@ -191,10 +198,19 @@ export default function ShopScheduleScreen() {
        </View>
 
        <View style={styles.detailsCol}>
-          <View style={{flexDirection:'row', justifyContent:'space-between'}}>
-             <Text style={[styles.customerName, {color: colors.text}]}>
-                 {item.userId?.phone ? `User: ${item.userId.phone}` : (item.notes || (item.type === 'blocked' ? 'Blocked' : 'Walk-in'))}
-             </Text>
+          <View style={{flexDirection:'row', justifyContent:'space-between', alignItems: 'flex-start'}}>
+             <View>
+                 <Text style={[styles.customerName, {color: colors.text}]}>
+                     {item.userId?.name || (item.type === 'blocked' ? 'Blocked Slot' : 'Guest Customer')}
+                 </Text>
+                 {item.userId?.phone && (
+                     <TouchableOpacity onPress={() => Linking.openURL(`tel:${item.userId.phone}`)} style={{flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4}}>
+                         <Phone size={12} color={colors.tint} />
+                         <Text style={{color: colors.tint, fontSize: 12, textDecorationLine: 'underline'}}>{item.userId.phone}</Text>
+                     </TouchableOpacity>
+                 )}
+                 {item.notes && <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 2, fontStyle:'italic'}}>"{item.notes}"</Text>}
+             </View>
              {item.totalPrice > 0 && <View style={styles.priceTag}><Text style={styles.priceText}>₹{item.totalPrice}</Text></View>}
           </View>
           
@@ -203,7 +219,11 @@ export default function ShopScheduleScreen() {
              <Text style={[styles.barberName, {color: colors.tint}]}>Assigned to: {item.barberId?.name}</Text>
           </View>
 
-          <Text style={[styles.services, {color: colors.textMuted}]}>{item.serviceNames.join(', ')}</Text>
+          <View style={{marginTop: 6}}>
+             {item.serviceNames.map((svc: string, idx: number) => (
+                 <Text key={idx} style={[styles.services, {color: colors.text}]}>• {svc}</Text>
+             ))}
+          </View>
 
           {/* Actions based on status */}
           {item.status === 'pending' && (
@@ -353,12 +373,16 @@ export default function ShopScheduleScreen() {
             <View style={styles.modalBg}>
                 <View style={[styles.modalCard, {backgroundColor: colors.card, maxWidth: 320}]}>
                     <Text style={[styles.modalTitle, {color: colors.text}]}>Verify Booking</Text>
-                    <Text style={{color: colors.textMuted, marginBottom: 16}}>Ask the customer for their 4-digit PIN.</Text>
+                    {pinError ? (
+                        <Text style={{color: '#ef4444', marginBottom: 16, fontWeight: 'bold'}}>{pinError}</Text>
+                    ) : (
+                        <Text style={{color: colors.textMuted, marginBottom: 16}}>Ask the customer for their 4-digit PIN.</Text>
+                    )}
 
                     <TextInput
-                      style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border, textAlign: 'center', fontSize: 24, letterSpacing: 8}]}
+                      style={[styles.input, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: pinError ? '#ef4444' : colors.border, textAlign: 'center', fontSize: 24, letterSpacing: 8}]}
                       value={enteredPin}
-                      onChangeText={setEnteredPin}
+                      onChangeText={(t) => { setEnteredPin(t); setPinError(''); }}
                       placeholder="0000"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="number-pad"
