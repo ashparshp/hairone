@@ -3,6 +3,10 @@ const Settlement = require('../models/Settlement');
 const Shop = require('../models/Shop');
 const mongoose = require('mongoose');
 
+const roundMoney = (amount) => {
+    return Math.round((amount + Number.EPSILON) * 100) / 100;
+};
+
 // Helper to calculate net
 const calculateNet = (bookings) => {
     let adminOwesShop = 0; // From Online bookings (Barber Net Revenue)
@@ -16,11 +20,11 @@ const calculateNet = (bookings) => {
         }
     });
 
-    const net = adminOwesShop - shopOwesAdmin;
+    const net = roundMoney(adminOwesShop - shopOwesAdmin);
     return {
         net, // Positive = Admin Pays Shop. Negative = Shop Pays Admin.
-        adminOwesShop,
-        shopOwesAdmin
+        adminOwesShop: roundMoney(adminOwesShop),
+        shopOwesAdmin: roundMoney(shopOwesAdmin)
     };
 };
 
@@ -213,7 +217,7 @@ exports.getShopFinanceSummary = async (req, res) => {
         // Wait, BarberNetRevenue is exactly that.
         const allCompleted = await Booking.find({ shopId, status: 'completed' });
 
-        const totalEarnings = allCompleted.reduce((sum, b) => sum + (b.barberNetRevenue || 0), 0);
+        const totalEarnings = roundMoney(allCompleted.reduce((sum, b) => sum + (b.barberNetRevenue || 0), 0));
 
         // 2. Pending Settlement (Same logic as Admin pending)
         const pendingBookings = allCompleted.filter(b => b.settlementStatus === 'PENDING');

@@ -161,7 +161,7 @@ export default function PaymentScreen() {
              <View style={{height: 1, backgroundColor: colors.border, marginVertical: 8}} />
              <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
                 <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>Total Payable</Text>
-                <Text style={{color: colors.tint, fontSize: 20, fontWeight: 'bold'}}>₹{finalPrice.toFixed(0)}</Text>
+                <Text style={{color: colors.tint, fontSize: 20, fontWeight: 'bold'}}>₹{finalPrice.toFixed(2)}</Text>
              </View>
          </View>
 

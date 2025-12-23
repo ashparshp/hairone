@@ -259,7 +259,7 @@ export default function ShopDetailsScreen() {
                              {config.userDiscountRate > 0 ? (
                                 <View style={{alignItems: 'flex-end'}}>
                                     <Text style={[styles.servicePrice, {color: colors.text}, isSelected && {color: colors.tint}]}>
-                                        ₹{Math.round(service.price * (1 - config.userDiscountRate / 100))}
+                                        ₹{(service.price * (1 - config.userDiscountRate / 100)).toFixed(2)}
                                     </Text>
                                     <Text style={{textDecorationLine: 'line-through', color: colors.textMuted, fontSize: 12}}>
                                         ₹{service.price}
@@ -414,7 +414,7 @@ export default function ShopDetailsScreen() {
                 
                 <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
                     <Text style={{color: colors.textMuted}}>Subtotal</Text>
-                    <Text style={{color: colors.text}}>₹{calculateTotal()}</Text>
+                    <Text style={{color: colors.text}}>₹{calculateTotal().toFixed(2)}</Text>
                 </View>
                 {config.userDiscountRate > 0 && (
                     <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
@@ -425,7 +425,7 @@ export default function ShopDetailsScreen() {
                 <View style={{flexDirection:'row', justifyContent:'space-between', marginTop: 8}}>
                     <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>Total Payable</Text>
                     <Text style={{color: colors.tint, fontWeight: 'bold', fontSize: 18}}>
-                        ₹{Math.round(calculateTotal() * (1 - config.userDiscountRate / 100))}
+                        ₹{(calculateTotal() * (1 - config.userDiscountRate / 100)).toFixed(2)}
                     </Text>
                 </View>
             </View>
@@ -474,8 +474,8 @@ export default function ShopDetailsScreen() {
                     <Text style={[styles.footerSub, {color: colors.textMuted}]}>{selectedServices.length} services</Text>
                     <Text style={[styles.footerPrice, {color: colors.text}]}>
                         ₹{config.userDiscountRate > 0
-                           ? Math.round(calculateTotal() * (1 - config.userDiscountRate / 100))
-                           : calculateTotal()}
+                           ? (calculateTotal() * (1 - config.userDiscountRate / 100)).toFixed(2)
+                           : calculateTotal().toFixed(2)}
                     </Text>
                 </View>
 
