@@ -754,4 +754,5 @@ const styles = StyleSheet.create({
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
   toggleText: { fontWeight: 'bold', fontSize: 14 },
   earliestCard: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
+  reviewCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
 });
