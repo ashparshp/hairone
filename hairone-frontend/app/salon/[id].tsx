@@ -147,17 +147,6 @@ export default function ShopDetailsScreen() {
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
 
-  /**
-   * Calculates the Original Base Price for commission purposes.
-   * If a Combo is selected, it uses `originalPrice` from the combo.
-   * If regular Service, it uses `price`.
-   */
-  const calculateCommissionBase = () => selectedServices.reduce((sum, s) => {
-      // Check if item is a Combo (has originalPrice field)
-      const val = s.originalPrice ? parseFloat(s.originalPrice) : parseFloat(s.price);
-      return sum + (isNaN(val) ? 0 : val);
-  }, 0);
-
   const fetchSlots = async () => {
     setLoadingSlots(true);
     setSelectedTime(null); 
@@ -224,7 +213,6 @@ export default function ShopDetailsScreen() {
             barberId: selectedBarberId, 
             serviceNames: serviceNames,
             totalPrice: calculateTotal(),
-            commissionBasePrice: calculateCommissionBase(), // New Field
             totalDuration: calculateDuration(),
             date: dateStr,
             startTime: selectedTime,

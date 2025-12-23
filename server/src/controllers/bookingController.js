@@ -218,34 +218,21 @@ exports.createBooking = async (req, res) => {
     const adminRate = (config && typeof config.adminCommissionRate === 'number') ? config.adminCommissionRate : 10;
     const discountRate = (config && typeof config.userDiscountRate === 'number') ? config.userDiscountRate : 0;
 
-    // Base Price logic:
-    // parsedPrice (req.body.totalPrice) is what the user *sees* before Global Discount.
-    // commissionBasePrice (req.body.commissionBasePrice) is the original sum of services (if combo used).
-    // If commissionBasePrice is provided, Admin Commission is calculated on THAT, not the discounted combo price.
     const originalPrice = parsedPrice;
-    const commissionBase = (req.body.commissionBasePrice && !isNaN(parseFloat(req.body.commissionBasePrice)))
-                           ? parseFloat(req.body.commissionBasePrice)
-                           : originalPrice;
 
-    // Calculate Global Discount (Applied on the price the user sees)
+    // Calculate Discount
     const discountAmount = roundMoney(originalPrice * (discountRate / 100));
     const finalPrice = roundMoney(originalPrice - discountAmount);
 
-    // Admin Commission (Gross) calculated on commissionBase (Original Sum of Services)
-    const adminCommission = roundMoney(commissionBase * (adminRate / 100));
+    // Admin Commission (Gross)
+    const adminCommission = roundMoney(originalPrice * (adminRate / 100));
 
     // Net Revenues
-    // Admin Net = Commission - Global Discount (Admin absorbs Global discount)
+    // Admin Net = Commission - Discount (Admin absorbs discount)
     const adminNetRevenue = roundMoney(adminCommission - discountAmount);
 
-    // Barber Net = Final Price (User Paid) - Admin Net Revenue
-    // OR: Barber Net = (Original Combo Price - Global Discount) - (Commission - Global Discount)
-    //                = Original Combo Price - Commission
-    // Wait, let's verify logic:
-    // Admin Keeps: adminCommission - globalDiscount.
-    // User Pays: finalPrice.
-    // Barber Keeps: finalPrice - AdminKeeps.
-    const barberNetRevenue = roundMoney(finalPrice - adminNetRevenue);
+    // Barber Net = Original - Commission (Barber gets remaining from Original)
+    const barberNetRevenue = roundMoney(originalPrice - adminCommission);
 
     const collectedBy = (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') ? 'ADMIN' : 'BARBER';
 
