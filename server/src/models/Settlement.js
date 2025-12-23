@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const settlementSchema = new mongoose.Schema({
   shopId: { type: mongoose.Schema.Types.ObjectId, ref: 'Shop', required: true },
-  adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // The admin who processed it
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // The admin who processed/triggered it
 
   type: {
     type: String,
@@ -16,8 +16,8 @@ const settlementSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ['COMPLETED', 'PENDING', 'FAILED'],
-    default: 'COMPLETED'
+    enum: ['GENERATED', 'PENDING_PAYOUT', 'PENDING_COLLECTION', 'COMPLETED', 'FAILED'],
+    default: 'GENERATED'
   },
 
   bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Booking' }],
@@ -26,6 +26,10 @@ const settlementSchema = new mongoose.Schema({
     start: Date,
     end: Date
   },
+
+  generatedAt: { type: Date, default: Date.now },
+  paymentLink: String, // For Collections
+  transactionId: String, // For manual record keeping
 
   notes: String
 }, { timestamps: true });

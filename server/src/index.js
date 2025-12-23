@@ -3,6 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const initConfig = require("./config/init");
+const { initializeCron } = require("./jobs/settlementJob");
 
 // Load environment variables
 dotenv.config();
@@ -10,6 +11,7 @@ dotenv.config();
 // Connect to MongoDB
 connectDB().then(() => {
   initConfig();
+  initializeCron(); // Start the scheduler
 });
 
 const app = express();
@@ -34,6 +36,7 @@ app.use("/api/bookings", require("./routes/bookingRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/support", require("./routes/supportRoutes"));
 app.use("/api/reviews", require("./routes/reviewRoutes"));
+app.use("/api/finance", require("./routes/financeRoutes"));
 
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;
