@@ -8,6 +8,7 @@ const shopSchema = new mongoose.Schema({
   image: String,
   type: { type: String, enum: ['male', 'female', 'unisex'], default: 'unisex' },
   rating: { type: Number, default: 0 },
+  reviewCount: { type: Number, default: 0 },
   services: [{
     name: String,
     price: Number,

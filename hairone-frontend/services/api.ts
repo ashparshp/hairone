@@ -125,4 +125,15 @@ api.interceptors.response.use(
   }
 );
 
+// Review API
+export const createReview = async (data: { bookingId: string; rating: number; comment?: string }) => {
+  const response = await api.post('/reviews', data);
+  return response.data;
+};
+
+export const getShopReviews = async (shopId: string, page = 1) => {
+  const response = await api.get(`/reviews/shop/${shopId}?page=${page}`);
+  return response.data;
+};
+
 export default api;

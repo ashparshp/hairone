@@ -7,8 +7,8 @@ import { useBooking } from '../../context/BookingContext';
 import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; // Import Theme
 import { SlideInView } from '../../components/AnimatedViews'; // Import Animation
-import api from '../../services/api';
-import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin, Layers } from 'lucide-react-native';
+import api, { getShopReviews } from '../../services/api';
+import { ChevronLeft, Star, Clock, Check, Calendar, User, Info, Banknote, CreditCard, Heart, MapPin, Layers, MessageSquare } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
@@ -23,6 +23,7 @@ export default function ShopDetailsScreen() {
 
   const [shop, setShop] = useState<any>(null);
   const [barbers, setBarbers] = useState<any[]>([]); 
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState({ userDiscountRate: 0, isPaymentTestMode: false });
 
@@ -36,7 +37,7 @@ export default function ShopDetailsScreen() {
   const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
 
   // TABS
-  const [activeTab, setActiveTab] = useState<'services' | 'combos'>('services');
+  const [activeTab, setActiveTab] = useState<'services' | 'combos' | 'reviews'>('services');
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -104,6 +105,13 @@ export default function ShopDetailsScreen() {
       const res = await api.get(`/shops/${id}`);
       setShop(res.data.shop);
       setBarbers(res.data.barbers);
+
+      // Fetch reviews
+      try {
+        const reviewsRes = await getShopReviews(id as string);
+        setReviews(reviewsRes.reviews);
+      } catch (err) { console.log('Reviews fetch error', err); }
+
     } catch (e) {
       console.log(e);
       showToast("Could not load shop details.", "error");
@@ -274,7 +282,7 @@ export default function ShopDetailsScreen() {
 
                 <View style={[styles.ratingBadge, {backgroundColor: colors.tint}]}>
                     <Star size={14} color="black" fill="black"/>
-                    <Text style={{fontWeight:'bold', fontSize:12, color:'black'}}> {shop?.rating} (120+ reviews)</Text>
+                    <Text style={{fontWeight:'bold', fontSize:12, color:'black'}}> {shop?.rating || 0} ({shop?.reviewCount || 0} reviews)</Text>
                 </View>
              </View>
         </View>
@@ -310,6 +318,12 @@ export default function ShopDetailsScreen() {
                     onPress={() => setActiveTab('combos')}
                 >
                     <Text style={[styles.tabText, activeTab === 'combos' ? {color: '#000'} : {color: colors.text}]}>Combos</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'reviews' && { backgroundColor: colors.tint }]}
+                    onPress={() => setActiveTab('reviews')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'reviews' ? {color: '#000'} : {color: colors.text}]}>Reviews</Text>
                 </TouchableOpacity>
             </View>
 
@@ -419,6 +433,36 @@ export default function ShopDetailsScreen() {
                         );
                     })}
                     {(!shop?.combos || shop.combos.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No combos available.</Text>}
+                    </>
+                )}
+
+                {/* REVIEWS LIST */}
+                {activeTab === 'reviews' && (
+                    <>
+                    <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Customer Reviews</Text>
+                    {reviews.map((rev, index) => (
+                        <View key={index} style={[styles.reviewCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                            <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
+                                <Image source={{uri: rev.userId?.avatar || `https://ui-avatars.com/api/?name=${rev.userId?.name || 'User'}`}} style={{width: 32, height: 32, borderRadius: 16, marginRight: 8}} />
+                                <View>
+                                    <Text style={{color: colors.text, fontWeight: 'bold'}}>{rev.userId?.name || 'User'}</Text>
+                                    <View style={{flexDirection: 'row'}}>
+                                        {[1,2,3,4,5].map(s => (
+                                            <Star key={s} size={10} color={s <= rev.rating ? colors.tint : colors.textMuted} fill={s <= rev.rating ? colors.tint : 'transparent'} />
+                                        ))}
+                                    </View>
+                                </View>
+                                <Text style={{marginLeft: 'auto', color: colors.textMuted, fontSize: 10}}>{new Date(rev.createdAt).toLocaleDateString()}</Text>
+                            </View>
+                            {rev.comment && <Text style={{color: colors.text, fontSize: 13}}>{rev.comment}</Text>}
+                        </View>
+                    ))}
+                    {reviews.length === 0 && (
+                        <View style={{alignItems: 'center', padding: 20}}>
+                            <MessageSquare size={48} color={colors.textMuted} />
+                            <Text style={{color: colors.textMuted, marginTop: 10}}>No reviews yet.</Text>
+                        </View>
+                    )}
                     </>
                 )}
 
@@ -710,4 +754,5 @@ const styles = StyleSheet.create({
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
   toggleText: { fontWeight: 'bold', fontSize: 14 },
   earliestCard: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
+  reviewCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
 });

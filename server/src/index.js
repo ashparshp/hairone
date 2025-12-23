@@ -33,6 +33,7 @@ app.use("/api/shops", require("./routes/shopRoutes"));
 app.use("/api/bookings", require("./routes/bookingRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/support", require("./routes/supportRoutes"));
+app.use("/api/reviews", require("./routes/reviewRoutes"));
 
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;

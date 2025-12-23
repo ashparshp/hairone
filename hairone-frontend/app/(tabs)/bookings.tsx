@@ -1,11 +1,12 @@
 import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
-import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useBooking } from '../../context/BookingContext';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import { formatLocalDate } from '../../utils/date';
+import { createReview } from '../../services/api';
 
 export default function BookingsScreen() {
   const { myBookings, cancelBooking, fetchBookings } = useBooking();
@@ -26,6 +27,8 @@ export default function BookingsScreen() {
   
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [rating, setRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
   
   const [cancelData, setCancelData] = useState({ title: '', message: '', refundAmount: 0, isLate: false });
 
@@ -39,7 +42,27 @@ export default function BookingsScreen() {
   const openReview = (booking: any) => {
     setSelectedBooking(booking);
     setRating(0);
+    setReviewComment('');
     setReviewModalVisible(true);
+  };
+
+  const submitReview = async () => {
+    if (rating === 0) return alert('Please select a rating');
+    setSubmittingReview(true);
+    try {
+        await createReview({
+            bookingId: selectedBooking._id || selectedBooking.id,
+            rating,
+            comment: reviewComment
+        });
+        setReviewModalVisible(false);
+        if(fetchBookings) fetchBookings(); // Refresh to hide Rate button
+        alert('Thanks for your feedback!');
+    } catch (error: any) {
+        alert(error.response?.data?.error || 'Failed to submit review');
+    } finally {
+        setSubmittingReview(false);
+    }
   };
 
   const openTicket = (booking: any) => {
@@ -284,9 +307,12 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                             <RefreshCw size={14} color={colors.text} style={{marginRight: 4}}/>
                                             <Text style={{color: colors.text, fontSize: 12, fontWeight: 'bold'}}>Rebook</Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity style={[styles.primaryBtnSmall, {backgroundColor: colors.tint}]} onPress={() => openReview(booking)}>
-                                            <Text style={styles.primaryBtnText}>Rate</Text>
-                                        </TouchableOpacity>
+                                        {/* Show Rate button only if not rated */}
+                                        {!booking.isRated && (
+                                            <TouchableOpacity style={[styles.primaryBtnSmall, {backgroundColor: colors.tint}]} onPress={() => openReview(booking)}>
+                                                <Text style={styles.primaryBtnText}>Rate</Text>
+                                            </TouchableOpacity>
+                                        )}
                                      </>
                                  )}
                                </>
@@ -369,8 +395,19 @@ const handleMap = (lat: number, lng: number, label: string) => {
                    </TouchableOpacity>
                 ))}
              </View>
-             <TouchableOpacity style={[styles.submitBtn, {backgroundColor: colors.tint}]} onPress={() => setReviewModalVisible(false)}>
-                <Text style={{color: '#020617', fontWeight: 'bold'}}>Submit Review</Text>
+
+             <TextInput
+                style={[styles.input, {backgroundColor: theme === 'dark' ? '#1e293b' : '#f1f5f9', color: colors.text, borderColor: colors.border}]}
+                placeholder="Share your experience (optional)..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                numberOfLines={3}
+                value={reviewComment}
+                onChangeText={setReviewComment}
+             />
+
+             <TouchableOpacity style={[styles.submitBtn, {backgroundColor: colors.tint, opacity: submittingReview ? 0.7 : 1}]} onPress={submitReview} disabled={submittingReview}>
+                {submittingReview ? <ActivityIndicator color="#020617" /> : <Text style={{color: '#020617', fontWeight: 'bold'}}>Submit Review</Text>}
              </TouchableOpacity>
           </View>
        </View>
@@ -414,4 +451,5 @@ const styles = StyleSheet.create({
   refundBox: { width: '100%', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 24, borderWidth: 1 },
   alertBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   alertBtnDestructive: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+  input: { width: '100%', padding: 12, borderRadius: 8, marginBottom: 20, textAlignVertical: 'top', borderWidth: 1 },
 });
