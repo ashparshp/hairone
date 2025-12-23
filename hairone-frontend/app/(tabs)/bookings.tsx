@@ -1,4 +1,4 @@
-import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X } from 'lucide-react-native';
+import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X, CheckCircle } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -105,7 +105,7 @@ export default function BookingsScreen() {
 
   // --- CANCELLATION LOGIC ---
   const initiateCancel = (booking: any) => {
-    const bookingDateTime = parseBookingDateTime(booking.date, booking.startTime || booking.time); // Handle both key names
+    const bookingDateTime = parseBookingDateTime(booking.date, booking.startTime || booking.time); 
     const now = new Date();
     const diffMs = bookingDateTime.getTime() - now.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
@@ -122,7 +122,7 @@ export default function BookingsScreen() {
     if (diffHours >= 2) {
         setCancelData({
             title: "Full Refund",
-            message: "You are cancelling more than 2 hours in advance.",
+            message: "You are cancelling in advance. No cancellation fee applies.",
             refundAmount: booking.totalPrice || booking.price,
             isLate: false
         });
@@ -145,8 +145,6 @@ export default function BookingsScreen() {
           setCancelModalVisible(false);
       }
   };
-
-// hairone-frontend/app/(tabs)/bookings.tsx
 
 // Dynamic Call Function
 const handleCall = (phoneNumber: string) => {
@@ -204,7 +202,6 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     <Text style={[
                         styles.tabText, 
                         {color: colors.textMuted}, 
-                        // Explicitly set to black for active state (works well on tint color)
                         activeTab === 'upcoming' && {color: '#000', fontWeight: 'bold'}
                     ]}>Upcoming</Text>
                 </TouchableOpacity>
@@ -231,7 +228,8 @@ const handleMap = (lat: number, lng: number, label: string) => {
             </View>
         </View>
 
-        <ScrollView contentContainerStyle={{padding: 20}}>
+        {/* Added paddingBottom: 120 to allow scrolling past bottom nav */}
+        <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 120}}>
             {displayList.length === 0 && (
                <View style={styles.emptyState}>
                    <Calendar size={48} color={colors.textMuted} />
@@ -239,19 +237,32 @@ const handleMap = (lat: number, lng: number, label: string) => {
                </View>
             )}
 
-            {displayList.map((booking: any, index: number) => (
+            {displayList.map((booking: any, index: number) => {
+                
+                // --- STATUS BADGE LOGIC ---
+                let badgeBg = theme === 'dark' ? '#1e293b' : '#f1f5f9';
+                let badgeText = colors.textMuted;
+
+                if (booking.status === 'upcoming' || booking.status === 'pending') {
+                    badgeBg = theme === 'dark' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.2)';
+                    badgeText = colors.tint;
+                } else if (booking.status === 'cancelled') {
+                    // Brighter red for visibility in dark mode
+                    badgeBg = theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)';
+                    badgeText = theme === 'dark' ? '#f87171' : '#ef4444'; 
+                }
+
+                return (
                 <FadeInView key={booking._id || booking.id} delay={index * 100}>
                 <View style={[styles.bookingCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
                     {/* Header Row */}
                     <View style={styles.topRow}>
                         <Text style={[styles.cardTitle, {color: colors.text}]} numberOfLines={1}>{booking.barberId?.name || 'Barber'}</Text>
                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                            {/* Inside displayList.map loop... */}
                             {(booking.status === 'upcoming' || booking.status === 'pending') && (
                                 <>
                                     <TouchableOpacity 
                                         style={[styles.miniIconBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}
-                                        // Pass the populated owner phone number
                                         onPress={() => handleCall(booking.shopId?.ownerId?.phone)}
                                     >
                                         <Phone size={14} color={colors.text} />
@@ -259,7 +270,6 @@ const handleMap = (lat: number, lng: number, label: string) => {
 
                                     <TouchableOpacity 
                                         style={[styles.miniIconBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}
-                                        // Pass the coordinates and shop name
                                         onPress={() => handleMap(
                                             booking.shopId?.coordinates?.lat, 
                                             booking.shopId?.coordinates?.lng, 
@@ -270,12 +280,13 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                     </TouchableOpacity>
                                 </>
                             )}
-                            <View style={[styles.statusBadge, 
-                                { backgroundColor: (booking.status === 'upcoming' || booking.status === 'pending') ? (theme === 'dark' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.2)') : (booking.status === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : theme === 'dark' ? '#1e293b' : '#f1f5f9') }
-                            ]}>
+                            
+                            <View style={[styles.statusBadge, { backgroundColor: badgeBg }]}>
                                 <Text style={{
-                                    color: (booking.status === 'upcoming' || booking.status === 'pending') ? colors.tint : (booking.status === 'cancelled' ? '#ef4444' : colors.textMuted),
-                                    fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase'
+                                    color: badgeText,
+                                    fontSize: 10, 
+                                    fontWeight: 'bold', 
+                                    textTransform: 'uppercase'
                                 }}>
                                     {booking.status}
                                 </Text>
@@ -321,8 +332,9 @@ const handleMap = (lat: number, lng: number, label: string) => {
                             {(booking.status === 'upcoming' || booking.status === 'pending') ? (
                                <>
                                  <TouchableOpacity style={styles.cancelBtnSmall} onPress={() => initiateCancel(booking)}>
-                                    <Text style={{color: '#f87171', fontSize: 12, fontWeight: 'bold'}}>Cancel</Text>
+                                    <Text style={{color: '#ffffff', fontSize: 12, fontWeight: 'bold'}}>Cancel</Text>
                                  </TouchableOpacity>
+                                 
                                  <TouchableOpacity style={[styles.primaryBtnSmall, {backgroundColor: colors.tint}]} onPress={() => openTicket(booking)}>
                                     <QrCode size={14} color="#020617" style={{marginRight: 4}}/>
                                     <Text style={styles.primaryBtnText}>Ticket</Text>
@@ -336,7 +348,6 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                             <RefreshCw size={14} color={colors.text} style={{marginRight: 4}}/>
                                             <Text style={{color: colors.text, fontSize: 12, fontWeight: 'bold'}}>Rebook</Text>
                                         </TouchableOpacity>
-                                        {/* Show Rate button only if not rated */}
                                         {!booking.isRated && (
                                             <TouchableOpacity style={[styles.primaryBtnSmall, {backgroundColor: colors.tint}]} onPress={() => openReview(booking)}>
                                                 <Text style={styles.primaryBtnText}>Rate</Text>
@@ -350,7 +361,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     </View>
                 </View>
                 </FadeInView>
-            ))}
+            )})}
         </ScrollView>
     </View>
 
@@ -381,8 +392,15 @@ const handleMap = (lat: number, lng: number, label: string) => {
     <Modal visible={cancelModalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
             <View style={[styles.alertContent, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                <View style={[styles.alertIconBox, { backgroundColor: cancelData.isLate ? 'rgba(239, 68, 68, 0.1)' : (theme === 'dark' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.2)') }]}>
-                    <AlertTriangle size={32} color={cancelData.isLate ? '#ef4444' : colors.tint} />
+                <View style={[
+                    styles.alertIconBox, 
+                    { backgroundColor: cancelData.isLate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)' }
+                ]}>
+                    {cancelData.isLate ? (
+                        <AlertTriangle size={32} color="#ef4444" />
+                    ) : (
+                        <CheckCircle size={32} color="#10b981" />
+                    )}
                 </View>
                 
                 <Text style={[styles.heading2, {marginTop: 16, textAlign: 'center', color: colors.text}]}>{cancelData.title}</Text>
@@ -401,7 +419,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         <Text style={{color: colors.text, fontWeight: '600'}}>Keep</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.alertBtnDestructive} onPress={confirmCancel}>
-                        <Text style={{color: '#ef4444', fontWeight: '600'}}>Yes, Cancel</Text>
+                        <Text style={{color: '#ffffff', fontWeight: 'bold'}}>Yes, Cancel</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -469,7 +487,17 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   primaryBtnSmall: { paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   secondaryBtnSmall: { paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  cancelBtnSmall: { backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingHorizontal: 16, height: 36, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' },
+  
+  cancelBtnSmall: { 
+    backgroundColor: '#ef4444', 
+    paddingHorizontal: 16, 
+    height: 36, 
+    borderRadius: 18, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  
   primaryBtnText: { color: '#020617', fontSize: 12, fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 24 },
   modalContent: { padding: 24, borderRadius: 16, borderWidth: 1, width: '100%' },
@@ -479,6 +507,14 @@ const styles = StyleSheet.create({
   alertIconBox: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   refundBox: { width: '100%', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 24, borderWidth: 1 },
   alertBtnSecondary: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  alertBtnDestructive: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: 'rgba(239, 68, 68, 0.1)', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+  
+  alertBtnDestructive: { 
+    flex: 1, 
+    paddingVertical: 14, 
+    borderRadius: 12, 
+    backgroundColor: '#ef4444', 
+    alignItems: 'center' 
+  },
+  
   input: { width: '100%', padding: 12, borderRadius: 8, marginBottom: 20, textAlignVertical: 'top', borderWidth: 1 },
 });
