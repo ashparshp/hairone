@@ -6,6 +6,11 @@ const { addMinutes, parse, format, differenceInDays, subDays } = require('date-f
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, getBarberScheduleForDate } = require('../utils/scheduleUtils');
 
+// --- Helper: Round Money ---
+const roundMoney = (amount) => {
+    return Math.round((amount + Number.EPSILON) * 100) / 100;
+};
+
 // --- Helper: Availability Check ---
 const checkAvailability = async (barber, date, startStr, duration, bufferTime = 0) => {
   const start = timeToMinutes(startStr);
@@ -194,18 +199,18 @@ exports.createBooking = async (req, res) => {
     const originalPrice = parsedPrice;
 
     // Calculate Discount
-    const discountAmount = originalPrice * (discountRate / 100);
-    const finalPrice = originalPrice - discountAmount;
+    const discountAmount = roundMoney(originalPrice * (discountRate / 100));
+    const finalPrice = roundMoney(originalPrice - discountAmount);
 
     // Admin Commission (Gross)
-    const adminCommission = originalPrice * (adminRate / 100);
+    const adminCommission = roundMoney(originalPrice * (adminRate / 100));
 
     // Net Revenues
     // Admin Net = Commission - Discount (Admin absorbs discount)
-    const adminNetRevenue = adminCommission - discountAmount;
+    const adminNetRevenue = roundMoney(adminCommission - discountAmount);
 
     // Barber Net = Original - Commission (Barber gets remaining from Original)
-    const barberNetRevenue = originalPrice - adminCommission;
+    const barberNetRevenue = roundMoney(originalPrice - adminCommission);
 
     const collectedBy = (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') ? 'ADMIN' : 'BARBER';
 
