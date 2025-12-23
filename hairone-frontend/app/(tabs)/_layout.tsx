@@ -23,7 +23,7 @@ export default function TabLayout() {
 
   // 2. If NO USER (Logout) -> Prevent Tabs from rendering to avoid crash
   if (!user) {
-    return null;
+    return <Redirect href="/(auth)/login" />;
   }
 
   return (
