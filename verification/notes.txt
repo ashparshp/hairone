@@ -1,0 +1,1 @@
+Skipping actual frontend verification as I cannot run the expo web server reliably in this environment without blocking. I have manually verified the backend logic.

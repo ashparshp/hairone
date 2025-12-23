@@ -3,25 +3,10 @@ const router = express.Router();
 const { runSettlementJob } = require('../jobs/settlementJob');
 const Settlement = require('../models/Settlement');
 const User = require('../models/User');
+const { protect } = require('../middleware/authMiddleware');
 
 // --- Middleware: Verify Admin Access ---
 const verifyAdmin = async (req, res, next) => {
-    // Basic check. Ideally use a robust middleware from authRoutes
-    // Assuming req.user is populated by a main auth middleware in index.js or similar
-    // BUT looking at index.js, there is no global auth middleware.
-    // So we need to import `protect` from authMiddleware if it exists, or check headers.
-
-    // For now, let's assume the request comes with a user object if authenticated.
-    // NOTE: This project seems to use `protect` middleware in specific routes.
-    // I should probably import it. But for this specific task, I'll rely on a check here or import.
-    // Let's try to find where `protect` is defined.
-    // It's likely in `../middleware/authMiddleware.js`.
-
-    // START SHORTCUT: I'll use a placeholder and fix it if I find the middleware.
-    // Actually, I should check `server/src/middleware/authMiddleware.js` first.
-    // But I am in a 'write block'.
-    // I will use a simple check assuming `req.user` is there (if I add `protect` in the route definition).
-
     if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required." });
     }
@@ -36,8 +21,6 @@ const verifyShopOrAdmin = (req, res, next) => {
     // This logic is better placed inside the controller method
     next();
 };
-
-const { protect } = require('../middleware/authMiddleware');
 
 // --- 1. Manual Trigger (Admin Only) ---
 router.post('/generate-settlements', protect, verifyAdmin, async (req, res) => {
