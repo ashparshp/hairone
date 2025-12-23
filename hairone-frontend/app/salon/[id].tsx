@@ -190,6 +190,11 @@ export default function ShopDetailsScreen() {
     }
   };
 
+  const getServiceNamesFromIds = (ids: string[]) => {
+      if (!shop?.services || !ids) return '';
+      return ids.map(id => shop.services.find((s:any) => s._id === id)?.name).filter(Boolean).join(', ');
+  };
+
   const handleBook = async () => {
     if (!selectedTime) return showToast("Please select a time slot", "error");
     if (selectedServices.length === 0) return showToast("Please select at least one service", "error");
@@ -198,14 +203,14 @@ export default function ShopDetailsScreen() {
         setLoading(true);
         const dateStr = formatLocalDate(selectedDate);
         
-        // Collect Service Names.
-        // For Combos, do we send the Combo Name or the List of Items?
-        // Booking model expects `serviceNames` [String].
-        // If we send "Combo Name", the user sees that.
-        // If we want to be descriptive, maybe "Combo Name (Service A, Service B)"?
-        // Let's send the Combo Name for simplicity in display, or flatten?
-        // Let's send names of all items in selectedServices.
-        const serviceNames = selectedServices.map(s => s.name);
+        // Construct Descriptive Service Names
+        const serviceNames = selectedServices.map(s => {
+            if (s.type === 'combo' && s.items && s.items.length > 0) {
+                const itemNames = getServiceNamesFromIds(s.items);
+                return `${s.name} (${itemNames})`;
+            }
+            return s.name;
+        });
 
         await api.post('/bookings', {
             userId: user?._id,
@@ -382,6 +387,9 @@ export default function ShopDetailsScreen() {
                                     </View>
 
                                     <Text style={[styles.serviceDuration, {color: colors.textMuted}]}>{combo.duration} mins • {combo.items?.length || 0} items</Text>
+                                    <Text style={{fontSize: 10, color: colors.textMuted, marginTop: 4, fontStyle:'italic'}}>
+                                        Includes: {getServiceNamesFromIds(combo.items)}
+                                    </Text>
                                 </View>
                                 <View style={{alignItems:'flex-end'}}>
                                     {/* Display Logic: Original Service Sum > Combo Price > Global Discount */}
@@ -546,9 +554,16 @@ export default function ShopDetailsScreen() {
                 <View style={[styles.divider, {backgroundColor: colors.border}]} />
                 
                 {selectedServices.map((s, i) => (
-                    <View key={i} style={{flexDirection:'row', justifyContent:'space-between', marginBottom: 8}}>
-                        <Text style={{color: colors.textMuted}}>{s.name} {s.type === 'combo' && '(Combo)'}</Text>
-                        <Text style={{color: colors.text}}>₹{s.price}</Text>
+                    <View key={i} style={{marginBottom: 8}}>
+                        <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+                            <Text style={{color: colors.text, fontWeight: '500'}}>{s.name} {s.type === 'combo' && '(Combo)'}</Text>
+                            <Text style={{color: colors.text}}>₹{s.price}</Text>
+                        </View>
+                        {s.type === 'combo' && (
+                            <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 2, marginLeft: 8}}>
+                                Includes: {getServiceNamesFromIds(s.items)}
+                            </Text>
+                        )}
                     </View>
                 ))}
 
