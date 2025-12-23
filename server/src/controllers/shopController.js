@@ -438,15 +438,65 @@ exports.getShopSlots = async (req, res) => {
       if (checkAvailabilityAt(current)) {
           slots.push(minutesToTime(current));
       } else {
-          // If the exact grid time is blocked, try recovery slots at +5 and +10 minutes
-          // This prevents small buffers from blocking an entire 15-minute slot
-          for (let offset = 5; offset < 15; offset += 5) {
-              const recoveryTime = current + offset;
-              if (recoveryTime + serviceDuration > maxEnd) break;
+          // If the grid time is blocked, try to find the "exact" next available time
+          // based on the end times of conflicting bookings. This handles small buffers efficiently.
+          // We look for a recovery slot only within the current 15-minute grid cell (current to current+14)
+          // to avoid skipping ahead and creating duplicates for the next loop iteration.
 
-              if (checkAvailabilityAt(recoveryTime)) {
-                  slots.push(minutesToTime(recoveryTime));
-                  break; // Only add the first valid recovery slot to avoid clutter
+          const recoveryCandidates = [];
+
+          // Collect end times of conflicting bookings for all barbers
+          for (const barber of barbersToCheck) {
+             const { today, yesterday } = barberSchedules[barber._id];
+             const bBookings = bookingsMap[barber._id];
+
+             // Check conflicts in Today's schedule
+             if (today.isOpen) {
+                 const busyToday = [
+                     ...bBookings.today,
+                     ...bBookings.yesterday.map(r => ({ start: r.start - 1440, end: r.end - 1440 }))
+                 ];
+                 // Find bookings that overlap 'current'
+                 // Range overlaps if (current < range.end && current+dur+buf > range.start)
+                 // But we specifically want the END of the range blocking 'current'.
+                 // Actually, isBarberFree checks if (start < range.end && end > range.start).
+                 // We want ranges where this is true.
+                 const endMinutes = current + serviceDuration + bufferTime;
+                 busyToday.forEach(range => {
+                     if (current < range.end && endMinutes > range.start) {
+                         // This range is a conflict. The next possible start is range.end.
+                         recoveryCandidates.push(range.end);
+                     }
+                 });
+             }
+
+             // Check conflicts in Yesterday's schedule (Spillover)
+             if (yesterday.isOpen && yesterday.end > 1440) {
+                 const timeInYesterday = current + 1440;
+                 const endMinutesInYesterday = timeInYesterday + serviceDuration + bufferTime;
+                 const busyYesterday = [
+                     ...bBookings.yesterday,
+                     ...bBookings.today.map(r => ({ start: r.start + 1440, end: r.end + 1440 }))
+                 ];
+                 busyYesterday.forEach(range => {
+                     if (timeInYesterday < range.end && endMinutesInYesterday > range.start) {
+                         // Range end is in yesterday's frame. Convert back to Today's frame.
+                         recoveryCandidates.push(range.end - 1440);
+                     }
+                 });
+             }
+          }
+
+          // Filter and Sort Candidates
+          const validRecoveries = recoveryCandidates
+              .filter(t => t > current && t < current + 15) // Only within this grid step
+              .sort((a, b) => a - b);
+
+          // Check if any candidate is actually free (it might be blocked by another booking)
+          for (const t of validRecoveries) {
+              if (t + serviceDuration <= maxEnd && checkAvailabilityAt(t)) {
+                  slots.push(minutesToTime(t));
+                  break; // Found the earliest valid recovery slot
               }
           }
       }
