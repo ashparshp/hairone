@@ -188,16 +188,46 @@ const handleMap = (lat: number, lng: number, label: string) => {
         <View style={styles.tabWrapper}>
             <View style={[styles.tabContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f1f5f9', borderColor: colors.border}]}>
                 <TouchableOpacity 
-                    style={[styles.tab, activeTab === 'upcoming' && {backgroundColor: colors.card}]}
+                    style={[
+                        styles.tab, 
+                        activeTab === 'upcoming' && { 
+                            backgroundColor: colors.tint,
+                            // Add slight shadow for better separation
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 1.41,
+                            elevation: 2
+                        }
+                    ]}
                     onPress={() => setActiveTab('upcoming')}
                 >
-                    <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'upcoming' && {color: colors.text}]}>Upcoming</Text>
+                    <Text style={[
+                        styles.tabText, 
+                        {color: colors.textMuted}, 
+                        // Force dark text on active tint for readability
+                        activeTab === 'upcoming' && {color: '#020617', fontWeight: 'bold'}
+                    ]}>Upcoming</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                    style={[styles.tab, activeTab === 'history' && {backgroundColor: colors.card}]}
+                    style={[
+                        styles.tab, 
+                        activeTab === 'history' && { 
+                            backgroundColor: colors.tint,
+                            shadowColor: "#000",
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 1.41,
+                            elevation: 2
+                        }
+                    ]}
                     onPress={() => setActiveTab('history')}
                 >
-                    <Text style={[styles.tabText, {color: colors.textMuted}, activeTab === 'history' && {color: colors.text}]}>History</Text>
+                    <Text style={[
+                        styles.tabText, 
+                        {color: colors.textMuted}, 
+                        activeTab === 'history' && {color: '#020617', fontWeight: 'bold'}
+                    ]}>History</Text>
                 </TouchableOpacity>
             </View>
         </View>
