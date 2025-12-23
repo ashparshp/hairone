@@ -42,6 +42,8 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
     setIsLocating(true);
     setLocationName("Locating...");
 
+    let hasLocation = false; // Track success locally within this run
+
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -53,8 +55,24 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
       }
       setPermissionGranted(true);
 
+      // 1. Try Last Known Location first (Fast)
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown) {
+           setLocation(lastKnown);
+           hasLocation = true;
+           // Don't set lastFetched yet, wait for fresh
+           // But update UI immediately
+           // reverse geocode optional here for speed
+        }
+      } catch (e) {
+        // Ignore last known error
+      }
+
+      // 2. Fetch Fresh Location
       let loc = await Location.getCurrentPositionAsync({});
       setLocation(loc);
+      hasLocation = true;
       setLastFetched(Date.now());
 
       let address = await Location.reverseGeocodeAsync(loc.coords);
@@ -68,7 +86,10 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
     } catch (e) {
       console.log("Error fetching location", e);
-      setLocationName("Location Unavailable");
+      // If we failed to get current, but have last known (or existing state), preserve it
+      if (!hasLocation && !location) {
+          setLocationName("Location Unavailable");
+      }
     } finally {
       setIsLocating(false);
       setHasAttemptedLocation(true);
