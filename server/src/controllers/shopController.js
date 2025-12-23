@@ -395,7 +395,47 @@ exports.getShopSlots = async (req, res) => {
     }
 
     // Loop through all potential minutes
-    while (current + serviceDuration <= maxEnd) {
+    // Generate Candidate Start Times
+    const candidates = new Set();
+
+    // 1. Standard 15-minute grid
+    let iter = minStart;
+    while (iter < maxEnd) {
+        candidates.add(iter);
+        iter += 15;
+    }
+
+    // 2. Dynamic Start Times (End of Booking + Buffer)
+    // This handles cases where buffer is small (e.g. 5 mins) and we want to offer the slot immediately after.
+    // Instead of waiting for the next 15-min mark.
+    barbersToCheck.forEach(b => {
+        const bBookings = bookingsMap[b._id];
+        // Add end times from Today's bookings
+        bBookings.today.forEach(r => {
+             // r.end ALREADY includes bufferTime from the mapping above
+             // But usually buffer is "gap AFTER booking".
+             // If getShopSlots mapping: end = timeToMinutes(b.endTime) + bufferTime.
+             // Then r.end is exactly the time the barber is free.
+             if (r.end >= minStart && r.end < maxEnd) {
+                 candidates.add(r.end);
+             }
+        });
+        // Add shifted end times from Yesterday's spillover bookings
+        bBookings.yesterday.forEach(r => {
+             const shiftedEnd = r.end - 1440;
+             if (shiftedEnd >= minStart && shiftedEnd < maxEnd && shiftedEnd >= 0) {
+                 candidates.add(shiftedEnd);
+             }
+        });
+    });
+
+    const sortedCandidates = Array.from(candidates).sort((a, b) => a - b);
+
+    // Filter Candidates
+    for (const startMin of sortedCandidates) {
+      if (effectiveMinTime !== -1 && startMin < effectiveMinTime) continue;
+      if (startMin + serviceDuration > maxEnd) break;
+
       let isSlotAvailable = false;
 
       for (const barber of barbersToCheck) {
@@ -407,41 +447,20 @@ exports.getShopSlots = async (req, res) => {
         let fitsToday = false;
         if (today.isOpen) {
             // Construct busy ranges for Today's reference frame
-            // Today's bookings: [start, end]
-            // Yesterday's bookings: [start - 1440, end - 1440] (shift back to see if they overlap start of today?)
-            // Wait, Yesterday's bookings happen on Yesterday.
-            // If Yesterday Booking was 23:00-24:00 (1380-1440). In Today's frame it is -60 to 0.
-            // If Yesterday Booking was 25:00 (01:00 Today). Stored as date=Today, start=01:00.
-            // So bookings stored on 'date' cover Today.
-            // Bookings stored on 'prevDate' cover Yesterday.
-            // Do bookings on 'prevDate' ever spill into Today?
-            // Only if they go past 24:00?
-            // But if they go past 24:00, the system logic for CREATION likely blocked it or stored it as next day?
-            // If I created a booking yesterday 23:30 duration 60 -> ends 00:30 today.
-            // Is it stored as date=Yesterday? Yes.
-            // So it overlaps 00:00-00:30 on Today.
-            // So we DO need to check Yesterday's bookings shifted by -1440.
-
             const busyToday = [
                 ...bBookings.today,
                 ...bBookings.yesterday.map(r => ({ start: r.start - 1440, end: r.end - 1440 }))
             ];
 
-            if (isBarberFree(today, current, serviceDuration + bufferTime, busyToday)) {
+            if (isBarberFree(today, startMin, serviceDuration + bufferTime, busyToday)) {
                 fitsToday = true;
             }
         }
 
         // 2. Check if it fits in Yesterday's Schedule (Spillover)
-        //    We check in Yesterday's reference frame.
-        //    Time 'current' on Today corresponds to 'current + 1440' on Yesterday.
         let fitsYesterday = false;
         if (!fitsToday && yesterday.isOpen && yesterday.end > 1440) {
-            const timeInYesterday = current + 1440;
-
-            // Construct busy ranges for Yesterday's reference frame
-            // Yesterday's bookings: [start, end]
-            // Today's bookings: [start + 1440, end + 1440]
+            const timeInYesterday = startMin + 1440;
 
             const busyYesterday = [
                 ...bBookings.yesterday,
@@ -459,9 +478,7 @@ exports.getShopSlots = async (req, res) => {
         }
       }
 
-      if (isSlotAvailable) slots.push(minutesToTime(current));
-      
-      current += 15;
+      if (isSlotAvailable) slots.push(minutesToTime(startMin));
     }
 
     res.json(slots);
