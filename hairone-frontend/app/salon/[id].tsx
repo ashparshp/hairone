@@ -302,7 +302,7 @@ export default function ShopDetailsScreen() {
 
             <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 140}}>
 
-                {/* SERVICES LIST (RESTRUCTURED UI) */}
+                {/* SERVICES LIST (BIGGER FONT ON NAME) */}
                 {activeTab === 'services' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Services</Text>
@@ -324,10 +324,11 @@ export default function ShopDetailsScreen() {
                                 {/* TOP ROW: Service Name & Price */}
                                 <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12}}>
                                     <View style={{flex: 1, paddingRight: 10}}>
-                                        <Text style={[styles.serviceNameNew, {color: colors.text}]}>{service.name}</Text>
+                                        {/* FONT SIZE INCREASED TO 20 */}
+                                        <Text style={[styles.serviceNameNew, {color: colors.text, fontSize: 20}]}>{service.name}</Text>
                                     </View>
                                     <View style={{alignItems: 'flex-end'}}>
-                                        <Text style={[styles.servicePriceNew, {color: priceColor}]}>
+                                        <Text style={[styles.servicePriceNew, {color: priceColor, fontSize: 16}]}>
                                             ₹{(service.price * (1 - config.userDiscountRate / 100)).toFixed(2)}
                                         </Text>
                                         {config.userDiscountRate > 0 && (
@@ -344,7 +345,7 @@ export default function ShopDetailsScreen() {
                                     <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
                                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
                                             <Clock size={14} color={colors.textMuted} />
-                                            <Text style={{color: colors.textMuted, fontSize: 12, fontWeight: '500'}}>{service.duration} mins</Text>
+                                            <Text style={{color: colors.textMuted, fontSize: 14, fontWeight: '500'}}>{service.duration} mins</Text>
                                         </View>
                                         
                                         {config.userDiscountRate > 0 && (
