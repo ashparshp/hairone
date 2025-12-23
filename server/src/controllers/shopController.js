@@ -395,71 +395,61 @@ exports.getShopSlots = async (req, res) => {
     }
 
     // Loop through all potential minutes
-    while (current + serviceDuration <= maxEnd) {
-      let isSlotAvailable = false;
 
+    // Helper to check availability at a specific time
+    const checkAvailabilityAt = (time) => {
       for (const barber of barbersToCheck) {
         const { today, yesterday } = barberSchedules[barber._id];
         const bBookings = bookingsMap[barber._id];
 
         // 1. Check if it fits in Today's Schedule
-        //    (Busy ranges: Today's bookings AND Yesterday's bookings shifted -1440)
         let fitsToday = false;
         if (today.isOpen) {
-            // Construct busy ranges for Today's reference frame
-            // Today's bookings: [start, end]
-            // Yesterday's bookings: [start - 1440, end - 1440] (shift back to see if they overlap start of today?)
-            // Wait, Yesterday's bookings happen on Yesterday.
-            // If Yesterday Booking was 23:00-24:00 (1380-1440). In Today's frame it is -60 to 0.
-            // If Yesterday Booking was 25:00 (01:00 Today). Stored as date=Today, start=01:00.
-            // So bookings stored on 'date' cover Today.
-            // Bookings stored on 'prevDate' cover Yesterday.
-            // Do bookings on 'prevDate' ever spill into Today?
-            // Only if they go past 24:00?
-            // But if they go past 24:00, the system logic for CREATION likely blocked it or stored it as next day?
-            // If I created a booking yesterday 23:30 duration 60 -> ends 00:30 today.
-            // Is it stored as date=Yesterday? Yes.
-            // So it overlaps 00:00-00:30 on Today.
-            // So we DO need to check Yesterday's bookings shifted by -1440.
-
             const busyToday = [
                 ...bBookings.today,
                 ...bBookings.yesterday.map(r => ({ start: r.start - 1440, end: r.end - 1440 }))
             ];
-
-            if (isBarberFree(today, current, serviceDuration + bufferTime, busyToday)) {
+            if (isBarberFree(today, time, serviceDuration + bufferTime, busyToday)) {
                 fitsToday = true;
             }
         }
 
         // 2. Check if it fits in Yesterday's Schedule (Spillover)
-        //    We check in Yesterday's reference frame.
-        //    Time 'current' on Today corresponds to 'current + 1440' on Yesterday.
         let fitsYesterday = false;
         if (!fitsToday && yesterday.isOpen && yesterday.end > 1440) {
-            const timeInYesterday = current + 1440;
-
-            // Construct busy ranges for Yesterday's reference frame
-            // Yesterday's bookings: [start, end]
-            // Today's bookings: [start + 1440, end + 1440]
-
+            const timeInYesterday = time + 1440;
             const busyYesterday = [
                 ...bBookings.yesterday,
                 ...bBookings.today.map(r => ({ start: r.start + 1440, end: r.end + 1440 }))
             ];
-
             if (isBarberFree(yesterday, timeInYesterday, serviceDuration + bufferTime, busyYesterday)) {
                 fitsYesterday = true;
             }
         }
 
         if (fitsToday || fitsYesterday) {
-          isSlotAvailable = true;
-          break; 
+          return true;
         }
       }
+      return false;
+    };
 
-      if (isSlotAvailable) slots.push(minutesToTime(current));
+    while (current + serviceDuration <= maxEnd) {
+      if (checkAvailabilityAt(current)) {
+          slots.push(minutesToTime(current));
+      } else {
+          // If the exact grid time is blocked, try recovery slots at +5 and +10 minutes
+          // This prevents small buffers from blocking an entire 15-minute slot
+          for (let offset = 5; offset < 15; offset += 5) {
+              const recoveryTime = current + offset;
+              if (recoveryTime + serviceDuration > maxEnd) break;
+
+              if (checkAvailabilityAt(recoveryTime)) {
+                  slots.push(minutesToTime(recoveryTime));
+                  break; // Only add the first valid recovery slot to avoid clutter
+              }
+          }
+      }
       
       current += 15;
     }
