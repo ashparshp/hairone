@@ -10,7 +10,7 @@ import {
   FlatList,
   Modal
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -197,10 +197,9 @@ export default function ManageGalleryScreen() {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.closeArea} onPress={() => setSelectedImage(null)} />
           
-          {/* This View was missing its closing tag </View> */}
           <View style={styles.modalContent}>
             <Image source={{ uri: selectedImage || '' }} style={styles.fullImage} resizeMode="contain" />
-          </View> {/* <--- Change this from </TouchableOpacity> to </View> */}
+          </View>
 
           <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedImage(null)}>
             <Text style={styles.closeBtnText}>Close</Text>
