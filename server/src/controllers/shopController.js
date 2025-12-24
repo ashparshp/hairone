@@ -777,3 +777,67 @@ exports.getPublicConfig = async (req, res) => {
         res.status(500).json({ message: "Config fetch failed" });
     }
 };
+
+// --- 13. Add Gallery Image ---
+exports.addGalleryImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Authorization Check
+    if (req.user.role !== 'admin') {
+        const myShopId = req.user.myShopId && req.user.myShopId._id ? req.user.myShopId._id.toString() : req.user.myShopId?.toString();
+        if (myShopId !== id) {
+            return res.status(403).json({ message: "Not authorized to manage this shop's gallery" });
+        }
+    }
+
+    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+
+    const imageUrl = req.file.location;
+
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $push: { gallery: imageUrl } },
+      { new: true }
+    );
+
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to upload gallery image" });
+  }
+};
+
+// --- 14. Delete Gallery Image ---
+exports.deleteGalleryImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Authorization Check
+    if (req.user.role !== 'admin') {
+        const myShopId = req.user.myShopId && req.user.myShopId._id ? req.user.myShopId._id.toString() : req.user.myShopId?.toString();
+        if (myShopId !== id) {
+            return res.status(403).json({ message: "Not authorized to manage this shop's gallery" });
+        }
+    }
+
+    const { imageUrl } = req.body;
+
+    if (!imageUrl) return res.status(400).json({ message: "Image URL is required" });
+
+    const shop = await Shop.findByIdAndUpdate(
+      id,
+      { $pull: { gallery: imageUrl } },
+      { new: true }
+    );
+
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    res.json(shop);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Failed to delete gallery image" });
+  }
+};

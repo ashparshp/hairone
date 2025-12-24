@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; 
 import { SlideInView } from '../../components/AnimatedViews'; 
 import api, { getShopReviews } from '../../services/api';
-import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus } from 'lucide-react-native';
+import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
@@ -37,7 +37,10 @@ export default function ShopDetailsScreen() {
   const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
 
   // TABS
-  const [activeTab, setActiveTab] = useState<'services' | 'combos' | 'reviews'>('services');
+  const [activeTab, setActiveTab] = useState<'services' | 'combos' | 'reviews' | 'gallery'>('services');
+
+  // GALLERY STATE
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -298,6 +301,12 @@ export default function ShopDetailsScreen() {
                 >
                     <Text style={[styles.tabText, activeTab === 'reviews' ? {color: '#000'} : {color: colors.text}]}>Reviews</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'gallery' && { backgroundColor: colors.tint }]}
+                    onPress={() => setActiveTab('gallery')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'gallery' ? {color: '#000'} : {color: colors.text}]}>Gallery</Text>
+                </TouchableOpacity>
             </View>
 
             <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 140}}>
@@ -529,6 +538,32 @@ export default function ShopDetailsScreen() {
                         <View style={{alignItems: 'center', padding: 20}}>
                             <MessageSquare size={48} color={colors.textMuted} />
                             <Text style={{color: colors.textMuted, marginTop: 10}}>No reviews yet.</Text>
+                        </View>
+                    )}
+                    </>
+                )}
+
+                {/* GALLERY LIST */}
+                {activeTab === 'gallery' && (
+                    <>
+                    <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Shop Portfolio</Text>
+
+                    {shop?.gallery && shop.gallery.length > 0 ? (
+                        <View style={styles.galleryGrid}>
+                            {shop.gallery.map((img: string, idx: number) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={[styles.galleryItem, { borderColor: colors.border }]}
+                                    onPress={() => setViewingImage(img)}
+                                >
+                                    <Image source={{ uri: img }} style={styles.galleryImage} />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={{alignItems: 'center', padding: 20}}>
+                            <ImageIcon size={48} color={colors.textMuted} />
+                            <Text style={{color: colors.textMuted, marginTop: 10}}>No images in gallery.</Text>
                         </View>
                     )}
                     </>
@@ -813,6 +848,18 @@ export default function ShopDetailsScreen() {
              </View>
           </View>
       )}
+
+      {/* FULL SCREEN IMAGE VIEWER */}
+      {viewingImage && (
+        <View style={styles.fullScreenViewer}>
+             <TouchableOpacity style={styles.viewerCloseArea} onPress={() => setViewingImage(null)} />
+             <Image source={{ uri: viewingImage }} style={styles.viewerImage} resizeMode="contain" />
+             <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewingImage(null)}>
+                 <Text style={{color: 'white', fontWeight: 'bold'}}>Close</Text>
+             </TouchableOpacity>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -1064,4 +1111,14 @@ const styles = StyleSheet.create({
   toggleText: { fontWeight: 'bold', fontSize: 14 },
   earliestCard: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
   reviewCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+
+  // GALLERY
+  galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  galleryItem: { width: '48%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden', borderWidth: 1 },
+  galleryImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+
+  fullScreenViewer: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
+  viewerCloseArea: { ...StyleSheet.absoluteFillObject },
+  viewerImage: { width: '100%', height: '80%' },
+  viewerCloseBtn: { position: 'absolute', top: 50, right: 20, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
 });
