@@ -6,6 +6,22 @@ const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, minutesToTime, getBarberScheduleForDate } = require('../utils/scheduleUtils');
 const { subDays, format, startOfWeek, startOfMonth, startOfYear, parseISO, endOfDay } = require('date-fns');
 
+/**
+ * =================================================================================================
+ * SHOP CONTROLLER
+ * =================================================================================================
+ *
+ * Purpose:
+ * This controller handles everything related to a Shop's lifecycle and data.
+ *
+ * Key Responsibilities:
+ * 1. Creation & Updates: Creating shops (with image uploads) and managing profile data.
+ * 2. Geo-Location: Finding "Shops Nearby" using Haversine distance calculations.
+ * 3. Slot Generation: The complex logic of finding available 15-minute slots for booking.
+ * 4. Service Menu: Adding/Editing Services and Combos.
+ * =================================================================================================
+ */
+
 // --- HELPER: Check strict availability based on resolved schedule ---
 // Modified to accept duration INCLUDING buffer for the check
 const isBarberFree = (schedule, startMinutes, totalDurationWithBuffer, busyRanges) => {
@@ -42,6 +58,8 @@ const isBarberFree = (schedule, startMinutes, totalDurationWithBuffer, busyRange
 };
 
 // --- 1. Create Shop (Fixed Role Update) ---
+// Handles the Multipart form submission for creating a shop.
+// It also instantly promotes the user to 'owner' role.
 exports.createShop = async (req, res) => {
   try {
     const {
@@ -122,7 +140,10 @@ exports.updateShop = async (req, res) => {
   }
 };
 
-// --- 3. Get All Shops ---
+// --- 3. Get All Shops (Geospatial Search) ---
+// Returns a list of shops, potentially filtered by:
+// - Distance (Haversine formula using `lat`, `lng`, `radius`)
+// - Availability (`minTime` logic)
 exports.getAllShops = async (req, res) => {
   try {
     const { minTime, type, lat, lng, radius } = req.query;
@@ -306,6 +327,8 @@ exports.updateBarber = async (req, res) => {
 };
 
 // --- 7. Get Slots ---
+// Returns available time slots for a given Date and Duration.
+// Handles complex checks: Buffer Time, Overnight Spillover (Yesterday's late shift), etc.
 exports.getShopSlots = async (req, res) => {
   const { shopId, barberId, date, duration } = req.body; 
 
