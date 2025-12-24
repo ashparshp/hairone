@@ -185,9 +185,12 @@ export default function ManageGalleryScreen() {
       <Modal visible={!!selectedImage} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.closeArea} onPress={() => setSelectedImage(null)} />
+          
+          {/* This View was missing its closing tag </View> */}
           <View style={styles.modalContent}>
             <Image source={{ uri: selectedImage || '' }} style={styles.fullImage} resizeMode="contain" />
-          </TouchableOpacity>
+          </View> {/* <--- Change this from </TouchableOpacity> to </View> */}
+
           <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedImage(null)}>
             <Text style={styles.closeBtnText}>Close</Text>
           </TouchableOpacity>
