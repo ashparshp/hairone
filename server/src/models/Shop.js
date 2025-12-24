@@ -6,6 +6,7 @@ const shopSchema = new mongoose.Schema({
   address: { type: String, required: true },
   coordinates: { lat: Number, lng: Number },
   image: String,
+  gallery: [String],
   type: { type: String, enum: ['male', 'female', 'unisex'], default: 'unisex' },
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },

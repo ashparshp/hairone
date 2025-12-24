@@ -17,7 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { ChevronLeft, MapPin, Save, Store, Camera } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Save, Store, Camera, Image as ImageIcon } from 'lucide-react-native';
 import { FadeInView } from '../../components/AnimatedViews';
 
 export default function ShopDetailsScreen() {
@@ -201,6 +201,15 @@ export default function ShopDetailsScreen() {
                   )}
                 </TouchableOpacity>
 
+                {/* Manage Gallery Button */}
+                <TouchableOpacity
+                    style={[styles.galleryBtn, { backgroundColor: colors.tint, borderColor: colors.tint }]}
+                    onPress={() => router.push('/salon/manage-gallery' as any)}
+                >
+                    <ImageIcon size={18} color="black" />
+                    <Text style={{ color: 'black', fontWeight: 'bold' }}>Manage Photo Gallery</Text>
+                </TouchableOpacity>
+
                 {/* Shop Name Input */}
                 <Text style={[styles.label, {color: colors.textMuted}]}>Shop Name</Text>
                 <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
@@ -366,9 +375,10 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
 
   // Image Picker
-  imagePicker: { width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 20, borderWidth: 1 },
+  imagePicker: { width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', marginBottom: 12, borderWidth: 1 },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   placeholderImage: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  galleryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: 20, borderWidth: 1 },
 
   // Scheduling Rules
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 16 },
