@@ -331,20 +331,22 @@ export default function ShopDetailsScreen() {
                                 onPress={() => toggleService(service)}
                             >
                                 {/* TOP ROW: Service Name & Price */}
-                                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12}}>
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4}}>
                                     <View style={{flex: 1, paddingRight: 10}}>
                                         {/* FONT SIZE INCREASED TO 20 */}
                                         <Text style={[styles.serviceNameNew, {color: colors.text, fontSize: 20}]}>{service.name}</Text>
                                     </View>
                                     <View style={{alignItems: 'flex-end'}}>
-                                        <Text style={[styles.servicePriceNew, {color: priceColor, fontSize: 16}]}>
-                                            ₹{(service.price * (1 - config.userDiscountRate / 100)).toFixed(2)}
-                                        </Text>
-                                        {config.userDiscountRate > 0 && (
-                                            <Text style={{textDecorationLine: 'line-through', color: colors.textMuted, fontSize: 11}}>
-                                                ₹{service.price}
+                                        <View style={{flexDirection: config.userDiscountRate > 0 ? 'row' : 'column', alignItems: 'center', gap: 6}}>
+                                            {config.userDiscountRate > 0 && (
+                                                <Text style={{textDecorationLine: 'line-through', color: colors.textMuted, fontSize: 13}}>
+                                                    ₹{service.price}
+                                                </Text>
+                                            )}
+                                            <Text style={[styles.servicePriceNew, {color: priceColor, fontSize: 16}]}>
+                                                ₹{(service.price * (1 - config.userDiscountRate / 100)).toFixed(2)}
                                             </Text>
-                                        )}
+                                        </View>
                                     </View>
                                 </View>
 
