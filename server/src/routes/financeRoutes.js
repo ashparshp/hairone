@@ -5,6 +5,21 @@ const Settlement = require('../models/Settlement');
 const User = require('../models/User');
 const { protect } = require('../middleware/authMiddleware');
 
+/**
+ * =================================================================================================
+ * FINANCE ROUTES
+ * =================================================================================================
+ *
+ * Purpose:
+ * Exposes the financial capabilities to the frontend.
+ *
+ * Security:
+ * - Almost all routes require the user to be logged in (`protect`).
+ * - Some routes are strictly for Admins (`verifyAdmin`).
+ * - Others perform dynamic checks to ensure a Shop Owner only sees *their* own data.
+ * =================================================================================================
+ */
+
 // --- Middleware: Verify Admin Access ---
 const verifyAdmin = async (req, res, next) => {
     if (!req.user || req.user.role !== 'admin') {

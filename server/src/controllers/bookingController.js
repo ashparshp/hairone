@@ -6,6 +6,25 @@ const { addMinutes, parse, format, differenceInDays, subDays, startOfMonth, endO
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, getBarberScheduleForDate } = require('../utils/scheduleUtils');
 
+/**
+ * =================================================================================================
+ * BOOKING CONTROLLER
+ * =================================================================================================
+ *
+ * Purpose:
+ * This is the heart of the scheduling engine. It handles:
+ * 1. Creating new bookings (with availability checks).
+ * 2. Calculating the financial split (Commission, Discount, Net Revenue).
+ * 3. Managing booking status transitions (Pending -> Confirmed -> Completed).
+ *
+ * Key Logic:
+ * - "Availability Check": Complex logic to ensure slots don't overlap, considering Buffer Times and
+ *   overnight shifts (spillover).
+ * - "Financials": Calculated *at the time of booking* and stored permanently to ensure historical accuracy
+ *   even if commission rates change later.
+ * =================================================================================================
+ */
+
 // --- Helper: Round Money ---
 const roundMoney = (amount) => {
     return Math.round((amount + Number.EPSILON) * 100) / 100;
@@ -98,6 +117,14 @@ const checkAvailability = async (barber, date, startStr, duration, bufferTime = 
 };
 
 // --- 1. Create Booking ---
+/**
+ * CREATE BOOKING
+ * This function handles the complex logic of:
+ * 1. Validating input (Time, Price, Date).
+ * 2. Checking constraints (Max Notice, Min Booking Time, Past Time).
+ * 3. Assigning a Barber (Specific vs. "Any").
+ * 4. Calculating the Money Split (Commission vs Revenue).
+ */
 exports.createBooking = async (req, res) => {
   const { 
     userId, shopId, barberId, serviceNames, 
@@ -214,26 +241,30 @@ exports.createBooking = async (req, res) => {
          }
     }
 
-    // --- FINANCIAL CALCULATIONS ---
+    // --- FINANCIAL CALCULATIONS ------------------------------------------------------------------
+    // 1. Get Global Rates (or defaults)
     const adminRate = (config && typeof config.adminCommissionRate === 'number') ? config.adminCommissionRate : 10;
     const discountRate = (config && typeof config.userDiscountRate === 'number') ? config.userDiscountRate : 0;
 
     const originalPrice = parsedPrice;
 
-    // Calculate Discount
+    // 2. Calculate Discount (Subsidized by Admin usually, but here it reduces the final price)
     const discountAmount = roundMoney(originalPrice * (discountRate / 100));
     const finalPrice = roundMoney(originalPrice - discountAmount);
 
-    // Admin Commission (Gross)
+    // 3. Admin Commission (Gross) - Calculated on the ORIGINAL price
     const adminCommission = roundMoney(originalPrice * (adminRate / 100));
 
-    // Net Revenues
-    // Admin Net = Commission - Discount (Admin absorbs discount)
+    // 4. Net Revenues
+    // Admin Net = Commission - Discount (Admin absorbs the discount cost)
     const adminNetRevenue = roundMoney(adminCommission - discountAmount);
 
-    // Barber Net = Original - Commission (Barber gets remaining from Original)
+    // Barber Net = Original - Commission (Barber gets the rest)
     const barberNetRevenue = roundMoney(originalPrice - adminCommission);
 
+    // 5. Determine who holds the cash right now?
+    // - If Online/UPI: Admin has it.
+    // - If Cash: Barber/Shop has it.
     const collectedBy = (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') ? 'ADMIN' : 'BARBER';
 
     const bookingData = {
