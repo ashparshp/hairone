@@ -76,21 +76,76 @@ The `createBooking` function is the most complex part of the system. It handles:
     *   The system calculates `adminCommission`, `adminNetRevenue`, and `barberNetRevenue` **at the moment of creation**.
     *   These values are saved to the database. This is critical: if you change the commission rate tomorrow, old bookings remain unchanged.
 
+3.  **Check-In Flow:**
+    *   Every booking has a unique 4-digit `bookingKey` (PIN).
+    *   When a customer arrives, the Shop Owner enters this PIN.
+    *   This transitions the status to `checked-in`, preventing future disputes about "No-Shows".
+
 ---
 
-## 4. Key Controllers Reference
+## 4. Admin Panel Architecture
+
+**File:** `server/src/controllers/adminController.js`
+
+The Admin Dashboard is the central control unit. It is protected by `role: 'admin'`.
+
+### Key Features:
+1.  **Shop Approval Workflow:**
+    *   New users apply as "Partners". Their status starts as `pending`.
+    *   Admin reviews the application.
+    *   **Approval:** User role becomes `owner`, Shop is enabled (`isDisabled: false`).
+    *   **Rejection:** Status becomes `rejected`.
+
+2.  **Suspension System:**
+    *   If a shop violates rules, the Admin can **Suspend** it.
+    *   This action:
+        *   Disables the Shop visibility.
+        *   Sets the Owner status to `suspended`.
+        *   **Automatically Cancels** all upcoming bookings to prevent user frustration.
+
+3.  **Global Configuration:**
+    *   Admins control the `SystemConfig` singleton.
+    *   This sets the global `adminCommissionRate` and `userDiscountRate`. Changes here affect *future* bookings only.
+
+---
+
+## 5. Shop Ecosystem & Management
+
+**File:** `server/src/controllers/shopController.js`
+
+This controller manages the physical entities (Shops) and their services.
+
+### Key Logic:
+1.  **Geospatial Search:**
+    *   The `getAllShops` endpoint uses the Haversine formula to calculate the distance between the User's coordinates and every Shop.
+    *   It sorts the results by nearest distance.
+
+2.  **Slot Generation (`getShopSlots`):**
+    *   This is a read-heavy operation. It takes a Date and calculates every available 15-minute slot.
+    *   It accounts for:
+        *   **Buffer Time:** (e.g., 5 mins cleanup between cuts).
+        *   **Notice Period:** (e.g., cannot book within 30 mins).
+        *   **Overnight Shifts:** Handles 24-hour shops or late-night barbers correctly.
+
+3.  **Image Management:**
+    *   Shop images are uploaded via `multer-s3` directly to DigitalOcean Spaces.
+    *   The database stores the public URL string.
+
+---
+
+## 6. Key Controllers Reference
 
 | Controller | File | Purpose |
 | :--- | :--- | :--- |
-| **Booking** | `bookingController.js` | Creating bookings, calculating availability, checking cash limits. |
-| **Finance** | `financeController.js` | Generating reports, showing "Earnings" to owners, handling Settlement API. |
+| **Booking** | `bookingController.js` | Creating bookings, availability, financials, status updates (PIN check). |
+| **Finance** | `financeController.js` | Earnings reports, settlement history, manual settlement creation. |
 | **Settlement Job** | `settlementJob.js` | The nightly background worker. |
-| **Shop** | `shopController.js` | Creating shops, uploading images, managing services. |
-| **Admin** | `adminController.js` | System-wide settings (Commission Rate, Global Discount). |
+| **Shop** | `shopController.js` | Shop creation, geo-search, slot generation, service management. |
+| **Admin** | `adminController.js` | Approvals, suspensions, system stats, global config. |
 
 ---
 
-## 5. Payment Gateway Integration
+## 7. Payment Gateway Integration
 
 Currently, the payment logic works as follows:
 *   **Frontend:** The React Native app handles the UI for payments (PhonePe/UPI).

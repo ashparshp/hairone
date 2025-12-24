@@ -2,7 +2,24 @@ const User = require('../models/User');
 const Shop = require('../models/Shop');
 const Booking = require('../models/Booking');
 
+/**
+ * =================================================================================================
+ * ADMIN CONTROLLER
+ * =================================================================================================
+ *
+ * Purpose:
+ * This controller handles the super-admin functions. It is the "Control Tower" of the application.
+ *
+ * Key Responsibilities:
+ * 1. Application Management: Approving/Rejecting new shop owners.
+ * 2. Shop Oversight: Suspending shops (which cancels their bookings) and viewing all shops.
+ * 3. System Health: Viewing high-level stats (Total Users, Revenue, etc.).
+ * 4. Global Configuration: Setting the Commission Rate and User Discounts.
+ * =================================================================================================
+ */
+
 // USER: Submit Application
+// Called when a user fills out the "Join as Partner" form.
 exports.submitApplication = async (req, res) => {
   const { businessName, ownerName } = req.body;
   const userId = req.user.id;
@@ -34,6 +51,7 @@ exports.getApplications = async (req, res) => {
 };
 
 // ADMIN: Approve/Reject
+// This changes the User Role from 'user' to 'owner'.
 exports.processApplication = async (req, res) => {
   const { userId, action } = req.body;
   try {
@@ -53,6 +71,11 @@ exports.processApplication = async (req, res) => {
 };
 
 // ADMIN: Suspend Shop
+// A critical safety feature. If a shop is bad, we suspend it.
+// LOGIC:
+// 1. Disable the Shop record.
+// 2. Mark the Owner as 'suspended'.
+// 3. CANCEL all future bookings for this shop to prevent customers from showing up.
 exports.suspendShop = async (req, res) => {
   const { shopId } = req.params;
   const { reason } = req.body;
@@ -115,6 +138,7 @@ exports.getAllShops = async (req, res) => {
 };
 
 // ADMIN: Get System Stats
+// Aggregates data for the Admin Dashboard "Reports" tab.
 exports.getSystemStats = async (req, res) => {
     try {
         const Booking = require('../models/Booking');
