@@ -183,7 +183,7 @@ export default function LoginScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#000" />
+                <ActivityIndicator color="#f59e0b" />
               ) : (
                 <Text style={styles.btnText}>Continue</Text>
               )}
