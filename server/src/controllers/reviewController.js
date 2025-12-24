@@ -20,7 +20,7 @@ const Shop = require('../models/Shop');
 exports.createReview = async (req, res) => {
   try {
     const { bookingId, rating, comment } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user._id.toString();
 
     // 1. Validate Input
     if (!bookingId || !rating) {
