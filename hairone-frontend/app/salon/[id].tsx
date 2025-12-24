@@ -293,6 +293,12 @@ export default function ShopDetailsScreen() {
                     <Text style={[styles.tabText, activeTab === 'combos' ? {color: '#000'} : {color: colors.text}]}>Combos</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                style={[styles.tabItem, activeTab === 'portfolio' && { borderBottomColor: colors.tint, borderBottomWidth: 2 }]}
+                onPress={() => setActiveTab('portfolio')}
+            >
+                <Text style={[styles.tabText, {color: activeTab === 'portfolio' ? colors.tint : colors.textMuted}]}>Portfolio</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
                     style={[styles.tab, activeTab === 'reviews' && { backgroundColor: colors.tint }]}
                     onPress={() => setActiveTab('reviews')}
                 >
@@ -375,6 +381,23 @@ export default function ShopDetailsScreen() {
                     })}
                     {(!shop?.services || shop.services.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No services available.</Text>}
                     </>
+                )}
+
+                {/* PORTFOLIO GRID */}
+                {activeTab === 'portfolio' && (
+                    <View style={{paddingVertical: 10}}>
+                         {!shop?.gallery || shop.gallery.length === 0 ? (
+                            <Text style={{color: colors.textMuted, textAlign:'center', marginTop: 40}}>No photos available yet.</Text>
+                         ) : (
+                             <View style={styles.galleryGrid}>
+                                 {shop.gallery.map((img: string, idx: number) => (
+                                    <TouchableOpacity key={idx} onPress={() => {}} style={styles.galleryItem}>
+                                        <Image source={{uri: img}} style={styles.galleryImg} />
+                                    </TouchableOpacity>
+                                 ))}
+                             </View>
+                         )}
+                    </View>
                 )}
 
                 {/* COMBOS LIST (UPDATED CARD UI) */}
@@ -1064,4 +1087,9 @@ const styles = StyleSheet.create({
   toggleText: { fontWeight: 'bold', fontSize: 14 },
   earliestCard: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 24 },
   reviewCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+
+  // Gallery
+  galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  galleryItem: { width: '31%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden' },
+  galleryImg: { width: '100%', height: '100%', resizeMode: 'cover' },
 });
