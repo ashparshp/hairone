@@ -7,7 +7,10 @@ import { LocationProvider } from '../context/LocationContext';
 import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
-import SplashScreen from '../components/SplashScreen';
+import * as SplashScreen from 'expo-splash-screen';
+import SplashScreenComponent from '../components/SplashScreen';
+
+SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const { isLoading } = useAuth();
@@ -21,7 +24,8 @@ function AppContent() {
 
     if (!isLoading) {
       // Keep splash visible for at least a moment or until loading finishes
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
+        await SplashScreen.hideAsync();
         setIsSplashVisible(false);
       }, 2000); // 2 seconds minimum splash for branding effect
       return () => clearTimeout(timer);
@@ -29,7 +33,7 @@ function AppContent() {
   }, [isLoading]);
 
   if (isSplashVisible) {
-    return <SplashScreen />;
+    return <SplashScreenComponent />;
   }
 
   return (

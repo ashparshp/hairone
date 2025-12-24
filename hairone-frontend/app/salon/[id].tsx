@@ -125,8 +125,8 @@ export default function ShopDetailsScreen() {
       const res = await api.post('/auth/favorites', { shopId: id });
       const updatedUser = { ...user, favorites: res.data };
       if (token) login(token, updatedUser);
-      const isNowFav = updatedUser.favorites.includes(id as string);
-      showToast(isNowFav ? "Added to favorites" : "Removed from favorites", "success");
+      // const isNowFav = updatedUser.favorites.includes(id as string);
+      // showToast(isNowFav ? "Added to favorites" : "Removed from favorites", "success");
     } catch (e) {
       console.log("Fav Error", e);
     }
@@ -833,16 +833,16 @@ export default function ShopDetailsScreen() {
 
                 {step < 3 ? (
                     <TouchableOpacity
-                    style={[styles.nextBtn, {backgroundColor: colors.tint}, (step === 2 && !selectedTime) && {opacity: 0.5}]}
+                    style={[styles.nextBtn, {backgroundColor: '#0f172a'}, (step === 2 && !selectedTime) && {opacity: 0.5}]}
                     disabled={step === 2 && !selectedTime}
                     onPress={() => setStep(step + 1)}
                     >
                     <Text style={styles.nextBtnText}>Continue</Text>
-                    <ChevronLeft size={16} color="#0f172a" style={{transform: [{rotate: '180deg'}]}} />
+                    <ChevronLeft size={16} color="#ffffff" style={{transform: [{rotate: '180deg'}]}} />
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity style={[styles.nextBtn, {backgroundColor: colors.tint}]} onPress={handleBook}>
-                        {loading ? <ActivityIndicator color="black"/> : <Text style={styles.nextBtnText}>Confirm Booking</Text>}
+                    <TouchableOpacity style={[styles.nextBtn, {backgroundColor: '#0f172a'}]} onPress={handleBook}>
+                        {loading ? <ActivityIndicator color="white"/> : <Text style={styles.nextBtnText}>Confirm Booking</Text>}
                     </TouchableOpacity>
                 )}
              </View>
@@ -888,20 +888,20 @@ const styles = StyleSheet.create({
   
   // --- NEW SERVICE CARD STYLES ---
   serviceCardNew: {
-    padding: 16, 
-    borderRadius: 16, 
-    marginBottom: 12, 
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: 16,
     borderWidth: 1,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   serviceNameNew: {
     fontWeight: 'bold', 
-    fontSize: 16,
+    fontSize: 18,
   },
   servicePriceNew: {
     fontWeight: 'bold', 
@@ -1105,7 +1105,7 @@ const styles = StyleSheet.create({
   footerPrice: { fontSize: 24, fontWeight: 'bold' },
   footerSub: { fontSize: 12, textTransform: 'uppercase' },
   nextBtn: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nextBtnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+  nextBtnText: { color: '#ffffff', fontWeight: 'bold', fontSize: 16 },
   toggleContainer: { flexDirection: 'row', padding: 4, borderRadius: 12, marginBottom: 24, borderWidth: 1 },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
   toggleText: { fontWeight: 'bold', fontSize: 14 },
