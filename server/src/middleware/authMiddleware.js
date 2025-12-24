@@ -1,6 +1,22 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+/**
+ * =================================================================================================
+ * AUTH MIDDLEWARE
+ * =================================================================================================
+ *
+ * Purpose:
+ * Protects routes by ensuring the request contains a valid JWT token.
+ *
+ * Logic:
+ * 1. Checks for 'Bearer <token>' in the Authorization header.
+ * 2. Decodes the token to get the User ID.
+ * 3. Fetches the full User object from the database (excluding password).
+ * 4. Attaches `req.user` to the request object so subsequent controllers can use it.
+ * =================================================================================================
+ */
+
 exports.protect = async (req, res, next) => {
   let token;
 

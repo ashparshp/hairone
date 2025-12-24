@@ -2,6 +2,21 @@ const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const Shop = require('../models/Shop');
 
+/**
+ * =================================================================================================
+ * REVIEW CONTROLLER
+ * =================================================================================================
+ *
+ * Purpose:
+ * Handles the creation and retrieval of User Reviews.
+ *
+ * Key Responsibilities:
+ * 1. Validation: Ensures reviews are only linked to 'completed' bookings and are unique (1 booking = 1 review).
+ * 2. Creation: Stores the review text and numeric rating (1-5).
+ * 3. Aggregation: *Automatically* updates the Shop's average rating and review count whenever a new review is added.
+ * =================================================================================================
+ */
+
 exports.createReview = async (req, res) => {
   try {
     const { bookingId, rating, comment } = req.body;
@@ -22,6 +37,7 @@ exports.createReview = async (req, res) => {
     }
 
     // 3. Verify Ownership and Status
+    // Prevents reviewing someone else's booking or a booking that isn't done yet.
     if (booking.userId.toString() !== userId) {
       return res.status(403).json({ error: 'You can only review your own bookings' });
     }
@@ -43,11 +59,12 @@ exports.createReview = async (req, res) => {
     await review.save();
 
     // 5. Update Booking
+    // Flag the booking as rated so it doesn't appear in the "Rate Now" list again.
     booking.isRated = true;
     await booking.save();
 
-    // 6. Update Shop Stats (Atomic Update if possible, but calculating avg is easier with 2 queries or aggregation)
-    // We will do a fresh aggregation to be accurate.
+    // 6. Update Shop Stats (Real-time Aggregation)
+    // We re-calculate the average rating from scratch to ensure mathematical accuracy.
     const stats = await Review.aggregate([
       { $match: { shopId: booking.shopId } },
       {
@@ -60,8 +77,10 @@ exports.createReview = async (req, res) => {
     ]);
 
     if (stats.length > 0) {
+      // Update the Shop document with the new cached values.
+      // This makes searching/sorting shops by rating extremely fast (no need to join Reviews table).
       await Shop.findByIdAndUpdate(booking.shopId, {
-        rating: Math.round(stats[0].avgRating * 10) / 10, // Round to 1 decimal
+        rating: Math.round(stats[0].avgRating * 10) / 10, // Round to 1 decimal (e.g., 4.7)
         reviewCount: stats[0].count
       });
     }

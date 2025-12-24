@@ -1,5 +1,22 @@
 // server/src/utils/scheduleUtils.js
 
+/**
+ * =================================================================================================
+ * SCHEDULE UTILITIES
+ * =================================================================================================
+ *
+ * Purpose:
+ * These helper functions form the backbone of the "Availability Engine".
+ * They handle time conversion and, most importantly, determining "Is the Barber open today?".
+ *
+ * Key Concepts:
+ * - Time is stored as "Minutes from Midnight" (0 - 1440) for easy math.
+ * - Hierarchy: Special Hours (Holidays) > Weekly Schedule (Recurring) > Default Hours.
+ * - Overnight Support: If a shift ends *after* it starts (numerically less, e.g., 2 AM < 10 PM),
+ *   we add 1440 minutes to the end time to treat it as a continuous timeline.
+ * =================================================================================================
+ */
+
 // Helper: Convert "HH:mm" to minutes
 const timeToMinutes = (timeStr) => {
   if (!timeStr) return 0;
@@ -37,7 +54,8 @@ const getBarberScheduleForDate = (barber, dateStr) => {
     breaks: []
   };
 
-  // 1. Check Special Hours
+  // 1. Check Special Hours (Date Specific)
+  // Used for Holidays or One-off changes.
   if (barber.specialHours && barber.specialHours.length > 0) {
     const special = barber.specialHours.find(h => h.date === dateStr);
     if (special) {
@@ -47,13 +65,14 @@ const getBarberScheduleForDate = (barber, dateStr) => {
         end: timeToMinutes(special.endHour),
         breaks: []
       };
-      // Handle overnight
+      // Handle overnight: If End < Start (e.g. 02:00 < 22:00), it implies next day.
       if (schedule.end < schedule.start) schedule.end += 1440;
       return schedule;
     }
   }
 
-  // 2. Check Weekly Schedule
+  // 2. Check Weekly Schedule (Day Specific)
+  // Used for regular shifts (e.g., "Mondays are closed", "Fridays open late").
   const dayName = getDayOfWeek(dateStr);
   if (barber.weeklySchedule && barber.weeklySchedule.length > 0) {
     const weekly = barber.weeklySchedule.find(w => w.day === dayName);
@@ -74,14 +93,15 @@ const getBarberScheduleForDate = (barber, dateStr) => {
     }
   }
 
-  // 3. Default
+  // 3. Default (Fallback)
+  // If no special rules apply, use the Barber's global default hours.
   const defaultBreaks = (barber.breaks || []).map(b => ({
     start: timeToMinutes(b.startTime),
     end: timeToMinutes(b.endTime)
   }));
 
   schedule = {
-    isOpen: barber.isAvailable,
+    isOpen: barber.isAvailable, // Global toggle
     start: timeToMinutes(barber.startHour),
     end: timeToMinutes(barber.endHour),
     breaks: defaultBreaks
