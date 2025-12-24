@@ -119,15 +119,21 @@ export default function ProfileScreen() {
   };
 
   const MenuItem = ({ icon: Icon, label, subLabel, onPress, destructive = false }: any) => (
-    <TouchableOpacity style={[styles.menuItem, {backgroundColor: colors.card}]} onPress={onPress}>
-      <View style={[styles.menuIconBox, destructive && { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}>
-        <Icon size={20} color={destructive ? '#ef4444' : colors.tint} />
+    <TouchableOpacity
+      style={[
+        styles.menuItem,
+        { backgroundColor: destructive ? '#ef4444' : colors.card }
+      ]}
+      onPress={onPress}
+    >
+      <View style={[styles.menuIconBox, destructive && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+        <Icon size={20} color={destructive ? 'white' : colors.tint} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.menuLabel, {color: colors.text}, destructive && { color: '#ef4444' }]}>{label}</Text>
-        {subLabel && <Text style={[styles.menuSubLabel, {color: colors.textMuted}]}>{subLabel}</Text>}
+        <Text style={[styles.menuLabel, { color: destructive ? 'white' : colors.text }]}>{label}</Text>
+        {subLabel && <Text style={[styles.menuSubLabel, { color: destructive ? 'rgba(255,255,255,0.8)' : colors.textMuted }]}>{subLabel}</Text>}
       </View>
-      <ChevronRight size={16} color={colors.textMuted} />
+      <ChevronRight size={16} color={destructive ? 'white' : colors.textMuted} />
     </TouchableOpacity>
   );
 
