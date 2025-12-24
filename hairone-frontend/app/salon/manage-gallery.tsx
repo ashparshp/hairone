@@ -25,8 +25,18 @@ export default function ManageGalleryScreen() {
   const { colors, theme } = useTheme();
 
   // Determine Target Shop ID: either passed via params (Admin) or from user profile (Owner)
-  // @ts-ignore
-  const targetShopId = params.shopId || (user?.myShopId && (user.myShopId._id || user.myShopId));
+  const getTargetShopId = () => {
+    if (params.shopId) {
+      return Array.isArray(params.shopId) ? params.shopId[0] : params.shopId;
+    }
+    if (user?.myShopId) {
+      // @ts-ignore
+      return typeof user.myShopId === 'object' ? user.myShopId._id : user.myShopId;
+    }
+    return null;
+  };
+
+  const targetShopId = getTargetShopId();
 
   const [gallery, setGallery] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
