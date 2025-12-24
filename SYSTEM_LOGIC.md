@@ -133,7 +133,17 @@ This controller manages the physical entities (Shops) and their services.
 
 ---
 
-## 6. Key Controllers Reference
+## 6. Support & Reviews
+
+*   **Support System (`supportController.js`):**
+    *   Simple Ticket system. Users create tickets (`SupportTicket` model), and both Admins and Users append messages to the same document array.
+*   **Reviews (`reviewController.js`):**
+    *   Strict validation ensures only `completed` bookings can be reviewed.
+    *   **Real-time Aggregation:** When a review is posted, the system recalculates the Shop's average rating instantly and updates the `Shop` document. This keeps "Sort by Rating" queries fast.
+
+---
+
+## 7. Key Controllers Reference
 
 | Controller | File | Purpose |
 | :--- | :--- | :--- |
@@ -142,10 +152,11 @@ This controller manages the physical entities (Shops) and their services.
 | **Settlement Job** | `settlementJob.js` | The nightly background worker. |
 | **Shop** | `shopController.js` | Shop creation, geo-search, slot generation, service management. |
 | **Admin** | `adminController.js` | Approvals, suspensions, system stats, global config. |
+| **Support** | `supportController.js` | User/Admin help desk ticketing system. |
 
 ---
 
-## 7. Payment Gateway Integration
+## 8. Payment Gateway Integration
 
 Currently, the payment logic works as follows:
 *   **Frontend:** The React Native app handles the UI for payments (PhonePe/UPI).
