@@ -277,6 +277,13 @@ export default function DashboardScreen() {
             onPress={() => router.push("/salon/shop-details" as any)}
           />
           <ActionCard
+            icon={ImageIcon}
+            title="Portfolio"
+            sub="Manage shop gallery"
+            color="#a855f7"
+            onPress={() => router.push("/salon/manage-gallery" as any)}
+          />
+          <ActionCard
             icon={Scissors}
             title="Services Menu"
             sub="Manage services & pricing"
