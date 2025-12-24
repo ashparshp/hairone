@@ -1,6 +1,20 @@
 // server/src/utils/dateUtils.js
 
 /**
+ * =================================================================================================
+ * DATE UTILITIES
+ * =================================================================================================
+ *
+ * Purpose:
+ * Centralizes date conversions, specifically handling Indian Standard Time (IST).
+ *
+ * Why:
+ * Servers often run in UTC. If a user in India asks "Is it 9 PM?", a UTC server might think it's 3:30 PM.
+ * This file forces the server to calculate "Current Time" relative to the business's timezone (IST).
+ * =================================================================================================
+ */
+
+/**
  * Returns the current date and time in IST (Indian Standard Time).
  * IST is UTC + 5:30.
  *

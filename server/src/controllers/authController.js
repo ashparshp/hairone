@@ -1,7 +1,25 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
+/**
+ * =================================================================================================
+ * AUTH CONTROLLER
+ * =================================================================================================
+ *
+ * Purpose:
+ * Manages user authentication and profile management.
+ *
+ * Key Responsibilities:
+ * 1. Login/Registration: Currently uses a "Mock OTP" flow for simplicity.
+ * 2. JWT Generation: Creates secure tokens for session management.
+ * 3. Profile Updates: Handles user details and avatar uploads.
+ * 4. Favorites: Toggles favorite shops for the user.
+ * =================================================================================================
+ */
+
 // 1. Send OTP (Mock)
+// In a real production environment, this would call an SMS Gateway API (e.g., Twilio, Msg91).
+// Currently, it just logs the OTP to the console for testing.
 exports.sendOTP = async (req, res) => {
   const { phone } = req.body;
   console.log(`[OTP SERVICE] Sent 1234 to ${phone}`);
@@ -10,6 +28,12 @@ exports.sendOTP = async (req, res) => {
 };
 
 // 2. Verify OTP & Login
+// This is the main entry point. It checks the OTP and returns a JWT.
+// Logic:
+// - Validate OTP (Hardcoded '1234').
+// - Find User by Phone.
+// - If User doesn't exist -> Create new User (Auto-Registration).
+// - Generate JWT Token signing the User ID and Role.
 exports.verifyOTP = async (req, res) => {
   const { phone, otp } = req.body;
 
@@ -31,6 +55,7 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Generate JWT Token
+    // Expires in 30 days to keep users logged in for a long time on mobile.
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '30d',
     });
@@ -48,6 +73,7 @@ exports.verifyOTP = async (req, res) => {
 };
 
 // 3. Update Profile
+// Standard CRUD to update name, email, gender, and avatar image.
 exports.updateProfile = async (req, res) => {
   const { name, email, gender } = req.body;
   
@@ -69,6 +95,7 @@ exports.updateProfile = async (req, res) => {
 };
 
 // 4. Toggle Favorite
+// Adds or removes a Shop ID from the user's `favorites` array.
 exports.toggleFavorite = async (req, res) => {
   const { shopId } = req.body;
   const userId = req.user.id;
