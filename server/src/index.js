@@ -9,12 +9,10 @@ const { initializeCron } = require("./jobs/settlementJob");
 dotenv.config();
 
 // Connect to MongoDB
-if (require.main === module) {
-  connectDB().then(() => {
-    initConfig();
-    initializeCron(); // Start the scheduler
-  });
-}
+connectDB().then(() => {
+  initConfig();
+  initializeCron(); // Start the scheduler
+});
 
 const app = express();
 
@@ -39,17 +37,12 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/support", require("./routes/supportRoutes"));
 app.use("/api/reviews", require("./routes/reviewRoutes"));
 app.use("/api/finance", require("./routes/financeRoutes"));
-app.use("/api/analytics", require("./routes/analyticsRoutes"));
 
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;
 
 // Listen on all network interfaces for mobile access
-if (require.main === module) {
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`☁️  Cloud Storage: DigitalOcean Spaces Active`);
-  });
-}
-
-module.exports = app;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`☁️  Cloud Storage: DigitalOcean Spaces Active`);
+});
