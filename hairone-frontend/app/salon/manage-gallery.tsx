@@ -20,8 +20,13 @@ import { FadeInView } from '../../components/AnimatedViews';
 
 export default function ManageGalleryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { user } = useAuth();
   const { colors, theme } = useTheme();
+
+  // Determine Target Shop ID: either passed via params (Admin) or from user profile (Owner)
+  // @ts-ignore
+  const targetShopId = params.shopId || (user?.myShopId && (user.myShopId._id || user.myShopId));
 
   const [gallery, setGallery] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,17 +35,15 @@ export default function ManageGalleryScreen() {
 
   useEffect(() => {
     fetchGallery();
-  }, []);
+  }, [targetShopId]);
 
   const fetchGallery = async () => {
-    // @ts-ignore
-    if (!user?.myShopId) {
+    if (!targetShopId) {
       setLoading(false);
       return;
     }
     try {
-      // @ts-ignore
-      const res = await api.get(`/shops/${user.myShopId}`);
+      const res = await api.get(`/shops/${targetShopId}`);
       setGallery(res.data.shop.gallery || []);
     } catch (e) {
       console.log(e);
@@ -82,8 +85,7 @@ export default function ManageGalleryScreen() {
         type: type
       });
 
-      // @ts-ignore
-      const res = await api.post(`/shops/${user.myShopId}/gallery`, formData, {
+      const res = await api.post(`/shops/${targetShopId}/gallery`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -108,8 +110,7 @@ export default function ManageGalleryScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // @ts-ignore
-              const res = await api.delete(`/shops/${user.myShopId}/gallery`, {
+              const res = await api.delete(`/shops/${targetShopId}/gallery`, {
                 data: { imageUrl }
               });
               setGallery(res.data.gallery || []);

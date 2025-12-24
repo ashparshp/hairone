@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../services/api';
-import { ArrowLeft, Ban, Calendar, CheckCircle, Clock, DollarSign, MapPin, Phone, ShieldCheck, User } from 'lucide-react-native';
+import { ArrowLeft, Ban, Calendar, CheckCircle, Clock, DollarSign, MapPin, Phone, ShieldCheck, User, Image as ImageIcon } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { FadeInView } from '../../../components/AnimatedViews';
@@ -140,6 +140,14 @@ export default function AdminShopDetails() {
                     </View>
                 </View>
 
+                <TouchableOpacity
+                   style={[styles.actionBtn, {backgroundColor: colors.tint}]}
+                   onPress={() => router.push({ pathname: '/salon/manage-gallery', params: { shopId: id } } as any)}
+                >
+                    <ImageIcon size={18} color="black" />
+                    <Text style={{color: 'black', fontWeight:'bold'}}>Manage Gallery</Text>
+                </TouchableOpacity>
+
                 <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
                    <Text style={[styles.sectionTitle, {color: colors.text}]}>Configuration</Text>
                    <View style={styles.infoRow}>
@@ -266,6 +274,8 @@ const styles = StyleSheet.create({
   statAmount: { fontSize: 24, fontWeight: 'bold' },
 
   dateInput: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderWidth: 1, borderRadius: 8, flex: 1 },
+
+  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 12, marginBottom: 16 },
 
   // Bookings
   bookingItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1 },
