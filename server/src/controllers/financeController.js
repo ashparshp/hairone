@@ -3,11 +3,30 @@ const Settlement = require('../models/Settlement');
 const Shop = require('../models/Shop');
 const mongoose = require('mongoose');
 
+/**
+ * =================================================================================================
+ * FINANCE CONTROLLER
+ * =================================================================================================
+ *
+ * Purpose:
+ * This controller manages the "Money View" of the application. It is responsible for:
+ * 1. Calculating how much money is pending between Shops and the Admin.
+ * 2. Showing financial summaries to Shop Owners (Earnings, Dues, Payouts).
+ * 3. Handling the manual creation of Settlements (if not waiting for the Cron job).
+ *
+ * Key Concepts:
+ * - Admin Owes Shop: Occurs when a user pays ONLINE. The Admin holds the money and must pay the Shop.
+ * - Shop Owes Admin: Occurs when a user pays CASH. The Shop holds the money and owes the Admin a commission.
+ * - Net Balance: The difference between the two above.
+ * =================================================================================================
+ */
+
 const roundMoney = (amount) => {
     return Math.round((amount + Number.EPSILON) * 100) / 100;
 };
 
-// Helper to calculate net
+// Helper to calculate net balance for a list of bookings
+// Used by both Admin and Shop dashboards to see "Live" pending stats.
 const calculateNet = (bookings) => {
     let adminOwesShop = 0; // From Online bookings (Barber Net Revenue)
     let shopOwesAdmin = 0; // From Cash bookings (Admin Net Revenue/Commission)
@@ -28,6 +47,11 @@ const calculateNet = (bookings) => {
     };
 };
 
+/**
+ * GET /admin/finance/pending
+ * Returns a list of all shops with pending (unsettled) money.
+ * Used by the Admin Dashboard.
+ */
 exports.getPendingSettlements = async (req, res) => {
     try {
         // Find all completed bookings that are not settled
@@ -113,6 +137,11 @@ exports.getMyShopPendingDetails = async (req, res) => {
     }
 };
 
+/**
+ * POST /admin/finance/settle
+ * Manually creates a settlement record for a shop.
+ * This effectively "Closes the books" for the selected bookings.
+ */
 exports.createSettlement = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -203,6 +232,10 @@ exports.getSettlementDetails = async (req, res) => {
     }
 };
 
+/**
+ * GET /shops/:id/finance/summary
+ * Returns the "Revenue Stats" card data for the Shop Owner Dashboard.
+ */
 exports.getShopFinanceSummary = async (req, res) => {
     try {
         const { shopId } = req.params;
