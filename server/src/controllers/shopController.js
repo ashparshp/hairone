@@ -778,7 +778,7 @@ exports.getPublicConfig = async (req, res) => {
     }
 };
 
-// --- 13. Add Gallery Image ---
+// --- 13. Add Gallery Image (Support Multi-Upload) ---
 exports.addGalleryImage = async (req, res) => {
   try {
     const { id } = req.params;
@@ -791,13 +791,27 @@ exports.addGalleryImage = async (req, res) => {
         }
     }
 
-    if (!req.file) return res.status(400).json({ message: "No image uploaded" });
+    let imageUrls = [];
 
-    const imageUrl = req.file.location;
+    // Handle single file (legacy/fallback)
+    if (req.file && req.file.location) {
+        imageUrls.push(req.file.location);
+    }
+
+    // Handle multiple files
+    if (req.files && req.files.length > 0) {
+        req.files.forEach(file => {
+            if (file.location) {
+                imageUrls.push(file.location);
+            }
+        });
+    }
+
+    if (imageUrls.length === 0) return res.status(400).json({ message: "No images uploaded" });
 
     const shop = await Shop.findByIdAndUpdate(
       id,
-      { $push: { gallery: imageUrl } },
+      { $push: { gallery: { $each: imageUrls } } },
       { new: true }
     );
 
@@ -806,7 +820,7 @@ exports.addGalleryImage = async (req, res) => {
     res.json(shop);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ message: "Failed to upload gallery image" });
+    res.status(500).json({ message: "Failed to upload gallery images" });
   }
 };
 

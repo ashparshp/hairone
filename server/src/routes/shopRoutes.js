@@ -44,7 +44,7 @@ router.put('/:id', protect, upload.single('image'), compressAndUpload, updateSho
 router.get('/:id/revenue', protect, getShopRevenue);
 
 // GALLERY ROUTES
-router.post('/:id/gallery', protect, upload.single('image'), compressAndUpload, addGalleryImage);
+router.post('/:id/gallery', protect, upload.array('image', 10), compressAndUpload, addGalleryImage);
 router.delete('/:id/gallery', protect, deleteGalleryImage);
 
 // NEW FINANCE ROUTES
