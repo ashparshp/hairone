@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
   businessName: { type: String },
   applicationStatus: { type: String, enum: ['none', 'pending', 'approved', 'rejected', 'suspended'], default: 'none' },
   suspensionReason: { type: String },
+  tokenVersion: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 

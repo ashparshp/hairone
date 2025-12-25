@@ -56,7 +56,11 @@ exports.processApplication = async (req, res) => {
   const { userId, action } = req.body;
   try {
     if (action === 'approve') {
-      const user = await User.findByIdAndUpdate(userId, { role: 'owner', applicationStatus: 'approved' }, { new: true });
+      const user = await User.findByIdAndUpdate(userId, {
+        role: 'owner',
+        applicationStatus: 'approved',
+        $inc: { tokenVersion: 1 }
+      }, { new: true });
       // If shop exists (re-approval), enable it
       if (user.myShopId) {
         await Shop.findByIdAndUpdate(user.myShopId, { isDisabled: false });
