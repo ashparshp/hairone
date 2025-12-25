@@ -833,7 +833,7 @@ export default function ShopDetailsScreen() {
 
                 {step < 3 ? (
                     <TouchableOpacity
-                    style={[styles.nextBtn, {backgroundColor: '#0f172a'}, (step === 2 && !selectedTime) && {opacity: 0.5}]}
+                    style={[styles.nextBtn, {backgroundColor: '#f59e0b'}, (step === 2 && !selectedTime) && {opacity: 0.5}]}
                     disabled={step === 2 && !selectedTime}
                     onPress={() => setStep(step + 1)}
                     >
