@@ -10,18 +10,20 @@ export default function AdminApprovals() {
   const { colors } = useTheme();
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused or activeTab changes
   useFocusEffect(
     React.useCallback(() => {
       fetchData();
-    }, [])
+    }, [activeTab])
   );
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/admin/applications');
+      const endpoint = activeTab === 'pending' ? '/admin/applications' : '/admin/applications?status=history';
+      const res = await api.get(endpoint);
       setApplicants(res.data);
     } catch (e) {
       console.log(e);
@@ -40,40 +42,62 @@ export default function AdminApprovals() {
     }
   };
 
-  const renderApplicant = ({ item, index }: { item: any, index: number }) => (
-    <FadeInView delay={index * 50}>
-    <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
-      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12}}>
-        <View>
-            <Text style={[styles.bizName, {color: colors.text}]}>{item.businessName || 'Untitled Shop'}</Text>
-            <Text style={[styles.userName, {color: colors.textMuted}]}>{item.name} • {item.phone}</Text>
+  const renderApplicant = ({ item, index }: { item: any, index: number }) => {
+    const isPending = item.applicationStatus === 'pending';
+    const statusColor = item.applicationStatus === 'approved' ? '#10b981' : item.applicationStatus === 'rejected' ? '#ef4444' : '#eab308';
+
+    return (
+        <FadeInView delay={index * 50}>
+        <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12}}>
+            <View>
+                <Text style={[styles.bizName, {color: colors.text}]}>{item.businessName || 'Untitled Shop'}</Text>
+                <Text style={[styles.userName, {color: colors.textMuted}]}>{item.name || 'Unknown Owner'} • {item.phone}</Text>
+            </View>
+            <View style={[styles.badge, { backgroundColor: `${statusColor}20` }]}>
+                <Text style={[styles.badgeText, { color: statusColor }]}>{item.applicationStatus.toUpperCase()}</Text>
+            </View>
         </View>
-        <View style={styles.badge}>
-            <Text style={styles.badgeText}>PENDING</Text>
+
+        <Text style={[styles.sub, {color: colors.textMuted}]}>User applied to become a partner.</Text>
+
+        {isPending && (
+            <View style={styles.actionRow}>
+                <TouchableOpacity style={styles.rejectBtn} onPress={() => handleProcess(item._id, 'reject')}>
+                    <X size={16} color="#ef4444" />
+                    <Text style={styles.rejectText}>Reject</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.approveBtn, {backgroundColor: colors.tint}]} onPress={() => handleProcess(item._id, 'approve')}>
+                    <Check size={16} color="#0f172a" />
+                    <Text style={styles.approveText}>Approve</Text>
+                </TouchableOpacity>
+            </View>
+        )}
         </View>
-      </View>
-
-      <Text style={[styles.sub, {color: colors.textMuted}]}>User applied to become a partner.</Text>
-
-      <View style={styles.actionRow}>
-         <TouchableOpacity style={styles.rejectBtn} onPress={() => handleProcess(item._id, 'reject')}>
-            <X size={16} color="#ef4444" />
-            <Text style={styles.rejectText}>Reject</Text>
-         </TouchableOpacity>
-
-         <TouchableOpacity style={[styles.approveBtn, {backgroundColor: colors.tint}]} onPress={() => handleProcess(item._id, 'approve')}>
-            <Check size={16} color="#0f172a" />
-            <Text style={styles.approveText}>Approve</Text>
-         </TouchableOpacity>
-      </View>
-    </View>
-    </FadeInView>
-  );
+        </FadeInView>
+    );
+  };
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <Text style={[styles.headerTitle, {color: colors.text}]}>Pending Applications</Text>
-      <Text style={[styles.subtitle, {color: colors.textMuted}]}>Review and approve new partners.</Text>
+      <Text style={[styles.headerTitle, {color: colors.text}]}>Partner Applications</Text>
+
+      {/* Tabs */}
+      <View style={styles.tabs}>
+         <TouchableOpacity
+            style={[styles.tab, activeTab === 'pending' && {borderBottomColor: colors.tint, borderBottomWidth: 2}]}
+            onPress={() => setActiveTab('pending')}
+         >
+             <Text style={[styles.tabText, {color: activeTab === 'pending' ? colors.tint : colors.textMuted}]}>Pending</Text>
+         </TouchableOpacity>
+         <TouchableOpacity
+            style={[styles.tab, activeTab === 'history' && {borderBottomColor: colors.tint, borderBottomWidth: 2}]}
+            onPress={() => setActiveTab('history')}
+         >
+             <Text style={[styles.tabText, {color: activeTab === 'history' ? colors.tint : colors.textMuted}]}>History</Text>
+         </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator color={colors.tint} style={{marginTop: 50}} />
@@ -86,7 +110,7 @@ export default function AdminApprovals() {
             ListEmptyComponent={
                 <View style={{alignItems: 'center', marginTop: 50, opacity: 0.5}}>
                     <ShieldAlert size={48} color={colors.textMuted} />
-                    <Text style={{color: colors.textMuted, marginTop: 10}}>No pending requests.</Text>
+                    <Text style={{color: colors.textMuted, marginTop: 10}}>No requests found.</Text>
                 </View>
             }
         />
@@ -105,8 +129,12 @@ const styles = StyleSheet.create({
   userName: { fontSize: 14, marginTop: 2 },
   sub: { fontSize: 12, marginVertical: 12 },
 
-  badge: { backgroundColor: 'rgba(234, 179, 8, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
-  badgeText: { color: '#eab308', fontSize: 10, fontWeight: 'bold' },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
+  badgeText: { fontSize: 10, fontWeight: 'bold' },
+
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderColor: '#334155', marginTop: 12 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tabText: { fontWeight: 'bold', fontSize: 14 },
 
   actionRow: { flexDirection: 'row', gap: 12 },
   approveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 10, gap: 8 },

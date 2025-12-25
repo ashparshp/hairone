@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Image, Modal
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../../context/ThemeContext';
 import api from '../../../services/api';
-import { Ban, ShoppingBag, ShieldAlert } from 'lucide-react-native';
+import { Ban, ShoppingBag, ShieldAlert, PlayCircle } from 'lucide-react-native';
 import { FadeInView } from '../../../components/AnimatedViews';
 
 export default function AdminShops() {
@@ -53,6 +53,16 @@ export default function AdminShops() {
     }
   };
 
+  const handleReactivate = async (shopId: string) => {
+      try {
+          await api.post(`/admin/shops/${shopId}/activate`);
+          Alert.alert("Success", "Shop reactivated successfully.");
+          fetchData();
+      } catch (e) {
+          Alert.alert("Error", "Failed to reactivate shop.");
+      }
+  };
+
   const renderShop = ({ item, index }: { item: any, index: number }) => (
     <FadeInView delay={index * 50}>
     <TouchableOpacity
@@ -65,10 +75,14 @@ export default function AdminShops() {
                 <Text style={[styles.bizName, {color: colors.text}]}>{item.name}</Text>
                 <Text style={[styles.userName, {color: colors.textMuted}]}>{item.address}</Text>
             </View>
-            {!item.isDisabled && (
-              <TouchableOpacity style={styles.suspendBtn} onPress={() => openSuspendModal(item._id)}>
-                <Ban size={16} color="#ef4444" />
-              </TouchableOpacity>
+            {item.isDisabled ? (
+                <TouchableOpacity style={styles.activateBtn} onPress={() => handleReactivate(item._id)}>
+                    <PlayCircle size={16} color="#10b981" />
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity style={styles.suspendBtn} onPress={() => openSuspendModal(item._id)}>
+                    <Ban size={16} color="#ef4444" />
+                </TouchableOpacity>
             )}
         </View>
         <View style={{marginTop: 12, flexDirection:'row', justifyContent:'space-between'}}>
@@ -156,6 +170,7 @@ const styles = StyleSheet.create({
   bizName: { fontWeight: 'bold', fontSize: 18 },
   userName: { fontSize: 14, marginTop: 2 },
   suspendBtn: { padding: 8, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 },
+  activateBtn: { padding: 8, backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: 8 },
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },

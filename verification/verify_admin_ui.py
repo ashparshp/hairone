@@ -38,8 +38,14 @@ def verify_admin_tabs():
                 body='{"totalBookings": 150, "totalRevenue": 50000, "shops": 12, "owners": 10, "users": 500, "completedBookings": 140}'
             ))
 
-            # Mock Applications
+            # Mock Applications (Pending)
             page.route(f"{api_url}/admin/applications", lambda route: route.fulfill(status=200, body='[]'))
+            # Mock Applications (History)
+            page.route(f"{api_url}/admin/applications?status=history", lambda route: route.fulfill(
+                status=200,
+                body='[{"_id": "1", "name": "Old User", "applicationStatus": "rejected"}]'
+            ))
+
              # Mock Shops
             page.route(f"{api_url}/admin/shops", lambda route: route.fulfill(status=200, body='[]'))
              # Mock Support
@@ -69,18 +75,24 @@ def verify_admin_tabs():
             page.screenshot(path="/home/jules/verification/admin_home.png")
 
             # 3. Verify Other Tabs
-            # Click Approvals - Use get_by_role('link') because Expo Router tabs are links usually, or text.
-            # But the previous error said get_by_role("tab", name="Shops").
+            # Click Approvals
             print("Navigating to Approvals...")
             page.get_by_text("Approvals").click()
-            page.wait_for_selector("text=Pending Applications")
-            page.screenshot(path="/home/jules/verification/admin_approvals.png")
+            # Header changed to "Partner Applications"
+            page.wait_for_selector("text=Partner Applications")
+
+            # Verify "Pending" tab is active by default
+            expect(page.get_by_text("Pending")).to_be_visible()
+
+            # Click History
+            print("Clicking History Tab...")
+            page.get_by_text("History").click()
+            # Wait for the mocked history item
+            page.wait_for_selector("text=Old User")
+            page.screenshot(path="/home/jules/verification/admin_approvals_history.png")
 
             # Click Shops
             print("Navigating to Shops...")
-            # Use tab role to avoid ambiguity
-            # Note: Lucide icons + text might make the accessible name just "Shops" or "Shops Shops" depending on implementation.
-            # "Shops" resolved to role="tab" in the error message, so let's use that.
             page.get_by_role("tab", name="Shops").click()
             page.wait_for_selector("text=Managed Shops")
             page.screenshot(path="/home/jules/verification/admin_shops.png")
