@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Linking } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
 import { useToast } from '../../context/ToastContext';

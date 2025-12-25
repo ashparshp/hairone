@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     else if (user && inAuthGroup) {
       // Direct Admin to Admin Panel
       if (user.role === 'admin') {
-        router.replace('/admin/dashboard' as any);
+        router.replace('/admin/(tabs)' as any);
       } else if (user.role === 'owner') {
         router.replace('/(tabs)/dashboard');
       } else {

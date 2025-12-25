@@ -18,7 +18,7 @@ export default function TabLayout() {
 
   // 1. If ADMIN -> Redirect out of Tabs to Admin Stack
   if (user?.role === 'admin') {
-    return <Redirect href="/admin/dashboard" />;
+    return <Redirect href="/admin/(tabs)" />;
   }
 
   // 2. If NO USER (Logout) -> Prevent Tabs from rendering to avoid crash
