@@ -181,118 +181,170 @@ exports.createBooking = async (req, res) => {
     let assignedBarberId = barberId;
     const durationInt = parseInt(totalDuration);
 
-    // Auto-Assign ("Any")
-    if (!barberId || barberId === 'any') {
-      const allBarbers = await Barber.find({ shopId, isAvailable: true });
-      const availableBarbers = [];
-      for (const barber of allBarbers) {
-        if (await checkAvailability(barber, date, startTime, durationInt, bufferTime)) {
-          availableBarbers.push(barber);
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        // Auto-Assign ("Any")
+        if (!barberId || barberId === 'any') {
+          const allBarbers = await Barber.find({ shopId, isAvailable: true }).session(session);
+          const availableBarbers = [];
+          for (const barber of allBarbers) {
+            // Need to pass session to availability check if modified to support it,
+            // but for now, we rely on the final strict check inside the transaction.
+            if (await checkAvailability(barber, date, startTime, durationInt, bufferTime)) {
+              availableBarbers.push(barber);
+            }
+          }
+
+          if (availableBarbers.length === 0) {
+              await session.abortTransaction();
+              return res.status(409).json({ message: "Slot no longer available." });
+          }
+
+          const randomIndex = Math.floor(Math.random() * availableBarbers.length);
+          assignedBarberId = availableBarbers[randomIndex]._id;
+        } else {
+          const barber = await Barber.findById(barberId).session(session);
+          if (!barber) {
+              await session.abortTransaction();
+              return res.status(404).json({ message: "Barber not found" });
+          }
+          if (!(await checkAvailability(barber, date, startTime, durationInt, bufferTime))) {
+            await session.abortTransaction();
+            return res.status(409).json({ message: "Barber unavailable." });
+          }
         }
-      }
 
-      if (availableBarbers.length === 0) return res.status(409).json({ message: "Slot no longer available." });
-      
-      const randomIndex = Math.floor(Math.random() * availableBarbers.length);
-      assignedBarberId = availableBarbers[randomIndex]._id;
-    } else {
-      const barber = await Barber.findById(barberId);
-      if (!barber) return res.status(404).json({ message: "Barber not found" });
-      if (!(await checkAvailability(barber, date, startTime, durationInt, bufferTime))) {
-        return res.status(409).json({ message: "Barber unavailable." });
-      }
+        const startObj = parse(startTime, 'HH:mm', new Date());
+        const endObj = addMinutes(startObj, durationInt);
+        const endTime = format(endObj, 'HH:mm');
+
+        // DOUBLE CHECK: Race Condition Guard
+        // Explicitly check for conflicting bookings in this transaction snapshot
+        const conflict = await Booking.findOne({
+            barberId: assignedBarberId,
+            date: date,
+            status: { $ne: 'cancelled' },
+            $or: [
+                { startTime: { $lt: endTime }, endTime: { $gt: startTime } }
+            ]
+        }).session(session);
+
+        if (conflict) {
+            await session.abortTransaction();
+            return res.status(409).json({ message: "Slot was just booked by someone else." });
+        }
+
+        let status = 'upcoming';
+        if (type === 'blocked') {
+            status = 'blocked';
+        } else if (!autoApprove && type !== 'walk-in') {
+            status = 'pending';
+        }
+
+        if (!userId && type !== 'blocked' && type !== 'walk-in') {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "User ID required for online bookings." });
+        }
+
+        const config = await SystemConfig.findOne({ key: 'global' }).session(session);
+
+        // Check Max Cash Bookings Limit
+        if (userId && (paymentMethod === 'cash' || paymentMethod === 'CASH')) {
+             const maxCash = (config && config.maxCashBookingsPerMonth) ? config.maxCashBookingsPerMonth : 5;
+
+             // Use the booking date, not the current server date
+             const bookingDateObj = new Date(date);
+             const monthStart = format(startOfMonth(bookingDateObj), 'yyyy-MM-dd');
+             const monthEnd = format(endOfMonth(bookingDateObj), 'yyyy-MM-dd');
+
+             const cashCount = await Booking.countDocuments({
+                 userId,
+                 status: { $ne: 'cancelled' },
+                 $or: [{ paymentMethod: 'cash' }, { paymentMethod: 'CASH' }],
+                 date: { $gte: monthStart, $lte: monthEnd }
+             }).session(session);
+
+             if (cashCount >= maxCash) {
+                 await session.abortTransaction();
+                 return res.status(400).json({ message: `You have reached the limit of ${maxCash} cash bookings per month. Please pay online.` });
+             }
+        }
+
+        // --- FINANCIAL CALCULATIONS ------------------------------------------------------------------
+        // 1. Get Global Rates (or defaults)
+        const adminRate = (config && typeof config.adminCommissionRate === 'number') ? config.adminCommissionRate : 10;
+        const discountRate = (config && typeof config.userDiscountRate === 'number') ? config.userDiscountRate : 0;
+
+        const originalPrice = parsedPrice;
+
+        // 2. Calculate Discount (Subsidized by Admin usually, but here it reduces the final price)
+        const discountAmount = roundMoney(originalPrice * (discountRate / 100));
+        const finalPrice = roundMoney(originalPrice - discountAmount);
+
+        // 3. Admin Commission (Gross) - Calculated on the ORIGINAL price
+        const adminCommission = roundMoney(originalPrice * (adminRate / 100));
+
+        // 4. Net Revenues
+        // Admin Net = Commission - Discount (Admin absorbs the discount cost)
+        const adminNetRevenue = roundMoney(adminCommission - discountAmount);
+
+        // Barber Net = Original - Commission (Barber gets the rest)
+        const barberNetRevenue = roundMoney(originalPrice - adminCommission);
+
+        // 5. Determine who holds the cash right now?
+        // - If Online/UPI: Admin has it.
+        // - If Cash: Barber/Shop has it.
+
+        // SECURITY: If method is ONLINE, we must verify the payment.
+        // Currently, we trust the client (BAD).
+        // TODO: Implement Payment Gateway Verification here.
+        let collectedBy = 'BARBER';
+        let settlementStatus = 'PENDING';
+
+        if (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') {
+            // Force PENDING_PAYMENT status until webhook confirms it
+            // For now, we allow it but log a warning or flag it.
+            // In this implementation, we will trust it BUT ensure we don't accidentally credit the shop
+            // until we are sure we have the money.
+            collectedBy = 'ADMIN';
+            // In a real system: status = 'pending_payment';
+        }
+
+        const bookingData = {
+          userId, shopId, barberId: assignedBarberId, serviceNames,
+          totalPrice: finalPrice,
+
+          originalPrice,
+          discountAmount,
+          finalPrice,
+
+          adminCommission,
+          adminNetRevenue,
+          barberNetRevenue,
+
+          amountCollectedBy: collectedBy,
+          settlementStatus: 'PENDING',
+
+          totalDuration: durationInt, date, startTime, endTime,
+          paymentMethod: paymentMethod || 'cash',
+          status,
+          type: type || 'online',
+          notes,
+          bookingKey: Math.floor(1000 + Math.random() * 9000).toString()
+        };
+
+        const booking = await Booking.create([bookingData], { session });
+
+        await session.commitTransaction();
+        res.status(201).json(booking[0]);
+    } catch (err) {
+        await session.abortTransaction();
+        throw err;
+    } finally {
+        session.endSession();
     }
-
-    const startObj = parse(startTime, 'HH:mm', new Date());
-    const endObj = addMinutes(startObj, durationInt);
-    const endTime = format(endObj, 'HH:mm');
-
-    let status = 'upcoming';
-    if (type === 'blocked') {
-        status = 'blocked';
-    } else if (!autoApprove && type !== 'walk-in') {
-        status = 'pending';
-    }
-
-    if (!userId && type !== 'blocked' && type !== 'walk-in') {
-        return res.status(400).json({ message: "User ID required for online bookings." });
-    }
-
-    const config = await SystemConfig.findOne({ key: 'global' });
-
-    // Check Max Cash Bookings Limit
-    if (userId && (paymentMethod === 'cash' || paymentMethod === 'CASH')) {
-         const maxCash = (config && config.maxCashBookingsPerMonth) ? config.maxCashBookingsPerMonth : 5;
-
-         // Use the booking date, not the current server date
-         const bookingDateObj = new Date(date);
-         const monthStart = format(startOfMonth(bookingDateObj), 'yyyy-MM-dd');
-         const monthEnd = format(endOfMonth(bookingDateObj), 'yyyy-MM-dd');
-
-         const cashCount = await Booking.countDocuments({
-             userId,
-             status: { $ne: 'cancelled' },
-             $or: [{ paymentMethod: 'cash' }, { paymentMethod: 'CASH' }],
-             date: { $gte: monthStart, $lte: monthEnd }
-         });
-
-         if (cashCount >= maxCash) {
-             return res.status(400).json({ message: `You have reached the limit of ${maxCash} cash bookings per month. Please pay online.` });
-         }
-    }
-
-    // --- FINANCIAL CALCULATIONS ------------------------------------------------------------------
-    // 1. Get Global Rates (or defaults)
-    const adminRate = (config && typeof config.adminCommissionRate === 'number') ? config.adminCommissionRate : 10;
-    const discountRate = (config && typeof config.userDiscountRate === 'number') ? config.userDiscountRate : 0;
-
-    const originalPrice = parsedPrice;
-
-    // 2. Calculate Discount (Subsidized by Admin usually, but here it reduces the final price)
-    const discountAmount = roundMoney(originalPrice * (discountRate / 100));
-    const finalPrice = roundMoney(originalPrice - discountAmount);
-
-    // 3. Admin Commission (Gross) - Calculated on the ORIGINAL price
-    const adminCommission = roundMoney(originalPrice * (adminRate / 100));
-
-    // 4. Net Revenues
-    // Admin Net = Commission - Discount (Admin absorbs the discount cost)
-    const adminNetRevenue = roundMoney(adminCommission - discountAmount);
-
-    // Barber Net = Original - Commission (Barber gets the rest)
-    const barberNetRevenue = roundMoney(originalPrice - adminCommission);
-
-    // 5. Determine who holds the cash right now?
-    // - If Online/UPI: Admin has it.
-    // - If Cash: Barber/Shop has it.
-    const collectedBy = (paymentMethod === 'UPI' || paymentMethod === 'ONLINE') ? 'ADMIN' : 'BARBER';
-
-    const bookingData = {
-      userId, shopId, barberId: assignedBarberId, serviceNames,
-      totalPrice: finalPrice,
-
-      originalPrice,
-      discountAmount,
-      finalPrice,
-
-      adminCommission,
-      adminNetRevenue,
-      barberNetRevenue,
-
-      amountCollectedBy: collectedBy,
-      settlementStatus: 'PENDING',
-
-      totalDuration: durationInt, date, startTime, endTime, 
-      paymentMethod: paymentMethod || 'cash', 
-      status,
-      type: type || 'online',
-      notes,
-      bookingKey: Math.floor(1000 + Math.random() * 9000).toString()
-    };
-
-    const booking = await Booking.create(bookingData);
-
-    res.status(201).json(booking);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Booking failed on server" });

@@ -87,7 +87,10 @@ exports.createShop = async (req, res) => {
     };
 
     if (lat !== undefined && lng !== undefined) {
-      shopData.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
+      shopData.coordinates = {
+          type: 'Point',
+          coordinates: [parseFloat(lng), parseFloat(lat)]
+      };
     }
 
     const shop = await Shop.create(shopData);
@@ -119,7 +122,10 @@ exports.updateShop = async (req, res) => {
     if (autoApproveBookings !== undefined) updates.autoApproveBookings = autoApproveBookings;
 
     if (lat !== undefined && lng !== undefined) {
-      updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
+      updates.coordinates = {
+          type: 'Point',
+          coordinates: [parseFloat(lng), parseFloat(lat)]
+      };
     }
     if (req.file) {
       updates.image = req.file.location;
@@ -142,11 +148,11 @@ exports.updateShop = async (req, res) => {
 
 // --- 3. Get All Shops (Geospatial Search) ---
 // Returns a list of shops, potentially filtered by:
-// - Distance (Haversine formula using `lat`, `lng`, `radius`)
+// - Distance (MongoDB $near)
 // - Availability (`minTime` logic)
 exports.getAllShops = async (req, res) => {
   try {
-    const { minTime, type, lat, lng, radius } = req.query;
+    const { minTime, type, lat, lng, radius, search } = req.query;
 
     const query = { isDisabled: { $ne: true } };
     if (type && type !== 'all') {
@@ -154,7 +160,6 @@ exports.getAllShops = async (req, res) => {
     }
 
     // 0. Search Filter (if provided)
-    const { search } = req.query;
     if (search) {
         const escapedSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
         const regex = new RegExp(escapedSearch, 'i');
@@ -164,32 +169,54 @@ exports.getAllShops = async (req, res) => {
         ];
     }
 
-    let shops = await Shop.find(query).lean();
-
-    // 1. Distance Calculation & Filtering
+    // 1. Distance Calculation & Filtering (Using MongoDB $near)
     if (lat && lng) {
         const userLat = parseFloat(lat);
         const userLng = parseFloat(lng);
-        const searchRadius = radius ? parseFloat(radius) : null;
+        // Default radius to 20km if not provided, or usage-specific
+        const searchRadiusKm = radius ? parseFloat(radius) : 50000; // default huge to sort by dist if no radius
+        const maxDistMeters = searchRadiusKm * 1000;
 
-        shops = shops.map(shop => {
-            if (shop.coordinates && shop.coordinates.lat !== undefined && shop.coordinates.lng !== undefined) {
-                const dist = calculateDistance(userLat, userLng, shop.coordinates.lat, shop.coordinates.lng);
-                return { ...shop, distance: dist };
+        query.coordinates = {
+            $near: {
+                $geometry: {
+                    type: "Point",
+                    coordinates: [userLng, userLat]
+                },
+                $maxDistance: maxDistMeters
             }
-            return { ...shop, distance: null };
-        });
-
-        // Filter by radius ONLY if search is NOT present
-        // If search IS present, we allow global search (ignore radius)
-        if (searchRadius && !search) {
-            shops = shops.filter(s => s.distance !== null && s.distance <= searchRadius);
-        }
-
-        // Sort by distance ascending
-        shops.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+        };
     }
 
+    let shops = await Shop.find(query).lean();
+
+    // Map legacy structure if needed (client expects `distance` prop)
+    // Note: $near sorts by distance but doesn't return the distance value in standard find().
+    // To get distance value we would need aggregation $geoNear.
+    // For now, we will just rely on the sort order.
+    // If strict distance value is needed by UI, we can use simple Haversine on the *filtered* result set (much smaller).
+    if (lat && lng) {
+         shops = shops.map(s => {
+             // Handle both legacy {lat,lng} and new GeoJSON
+             let sLat, sLng;
+             if (s.coordinates && s.coordinates.coordinates) {
+                 sLng = s.coordinates.coordinates[0];
+                 sLat = s.coordinates.coordinates[1];
+             } else if (s.coordinates && s.coordinates.lat) {
+                 sLat = s.coordinates.lat;
+                 sLng = s.coordinates.lng;
+             }
+
+             if (sLat && sLng) {
+                 s.distance = calculateDistance(parseFloat(lat), parseFloat(lng), sLat, sLng);
+             } else {
+                 s.distance = null;
+             }
+             return s;
+         });
+    }
+
+    // 2. Availability Check (Heavy Operation - Limit concurrency if needed)
     const shopsWithSlots = await Promise.all(shops.map(async (shop) => {
       const nextSlot = await findEarliestSlotForShop(shop, minTime);
       return { ...shop, nextAvailableSlot: nextSlot };
@@ -216,9 +243,9 @@ exports.getAllShops = async (req, res) => {
   }
 };
 
-// Haversine Formula (km)
+// Haversine Formula (km) - Kept for UI display only on filtered subset
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth's radius in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a =
