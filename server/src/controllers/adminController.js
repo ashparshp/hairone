@@ -94,7 +94,8 @@ exports.suspendShop = async (req, res) => {
     // 2. Suspend Owner
     await User.findByIdAndUpdate(shop.ownerId, {
       applicationStatus: 'suspended',
-      suspensionReason: reason
+      suspensionReason: reason,
+      $inc: { tokenVersion: 1 }
     });
 
     // 3. Cancel Upcoming Bookings
