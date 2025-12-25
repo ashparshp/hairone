@@ -90,6 +90,12 @@ const api = axios.create({
   },
 });
 
+// Auth Logout Callback Mechanism
+let logoutCallback: (() => void) | null = null;
+export const setupAuthInterceptor = (callback: () => void) => {
+  logoutCallback = callback;
+};
+
 // Request Interceptor: Attach Token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
@@ -109,8 +115,14 @@ api.interceptors.response.use(
   async (error) => {
     // If the server returns 401 (Unauthorized)
     if (error.response?.status === 401) {
-      await SecureStore.deleteItemAsync("token");
-      Alert.alert("Session Expired", "Please log in again.");
+      if (logoutCallback) {
+        Alert.alert("Session Expired", "Please log in again.", [
+          { text: "OK", onPress: () => logoutCallback && logoutCallback() }
+        ]);
+      } else {
+        await SecureStore.deleteItemAsync("token");
+        Alert.alert("Session Expired", "Please log in again.");
+      }
     }
 
     // Handle specific production errors (Server down, Timeout)
