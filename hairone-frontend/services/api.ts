@@ -77,7 +77,7 @@
 
 import axios, { InternalAxiosRequestConfig } from "axios";
 import * as SecureStore from "expo-secure-store";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 
 // 1. Safe access to the environment variable (fallback to empty string or throw error if missing)
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -99,7 +99,13 @@ export const setupAuthInterceptor = (callback: () => void) => {
 // Request Interceptor: Attach Token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    const token = await SecureStore.getItemAsync("token");
+    let token: string | null = null;
+    if (Platform.OS === 'web') {
+        token = localStorage.getItem("token");
+    } else {
+        token = await SecureStore.getItemAsync("token");
+    }
+
     if (token) {
       // FIX: Use .set() method for Axios v1.x+ headers
       config.headers.set("Authorization", `Bearer ${token}`);
@@ -120,7 +126,11 @@ api.interceptors.response.use(
           { text: "OK", onPress: () => logoutCallback && logoutCallback() }
         ]);
       } else {
-        await SecureStore.deleteItemAsync("token");
+        if (Platform.OS === 'web') {
+            localStorage.removeItem("token");
+        } else {
+            await SecureStore.deleteItemAsync("token");
+        }
         Alert.alert("Session Expired", "Please log in again.");
       }
     }

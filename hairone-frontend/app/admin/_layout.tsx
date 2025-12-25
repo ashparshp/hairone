@@ -9,7 +9,10 @@ export default function AdminLayout() {
       headerShown: false,
       contentStyle: { backgroundColor: colors.background }
     }}>
-      <Stack.Screen name="dashboard" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="finance" />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="shop/[id]" />
     </Stack>
   );
 }

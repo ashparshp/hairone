@@ -93,7 +93,7 @@ export default function LoginScreen() {
 
       login(token, user);
 
-      if (user.role === "admin") router.replace("/admin/dashboard" as any);
+      if (user.role === "admin") router.replace("/admin/(tabs)" as any);
       else if (user.role === "owner")
         router.replace("/(tabs)/dashboard" as any);
       else router.replace("/(tabs)/home" as any);
