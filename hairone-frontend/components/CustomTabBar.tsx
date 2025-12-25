@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
 import { Home, CalendarDays, Heart, UserCircle, Briefcase } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
+import { Spacing } from '../constants/Spacing';
 
 interface TabItem {
   id: string;
@@ -11,8 +12,7 @@ interface TabItem {
 }
 
 export const CustomTabBar = ({ state, navigation, user }: any) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { colors } = useTheme();
 
   let tabs: TabItem[] = [];
 
@@ -34,8 +34,8 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
     <View style={[
       styles.container,
       {
-        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        borderColor: isDark ? '#1e293b' : '#f1f5f9'
+        backgroundColor: colors.tabBarBackground,
+        borderColor: colors.tabBarBorder
       }
     ]}>
       <View style={styles.content}>
@@ -81,8 +81,8 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
           };
 
           const Icon = item.icon;
-          const activeColor = isDark ? '#fbbf24' : '#0f172a'; // Amber-400 or Slate-900
-          const inactiveColor = isDark ? '#475569' : '#94a3b8'; // Slate-600 or Slate-400
+          const activeColor = colors.iconActive;
+          const inactiveColor = colors.iconInactive;
 
           return (
             <TouchableOpacity
@@ -94,7 +94,7 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
               <View style={[
                 styles.activeIndicator,
                 isActive && {
-                  backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#f1f5f9',
+                  backgroundColor: colors.slotIconBackground, // Reusing a subtle background color
                   opacity: 1,
                   transform: [{ scale: 1 }]
                 }
@@ -126,9 +126,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-    paddingTop: 8,
-    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xxl : Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
     // Blur effect is tricky in RN without Expo Blur, but background opacity works ok
   },
   content: {
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     bottom: 4,
     left: 8,
     right: 8,
-    borderRadius: 16,
+    borderRadius: Spacing.round.lg,
     opacity: 0,
     transform: [{ scale: 0.75 }],
   },
