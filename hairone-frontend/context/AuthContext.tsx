@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { User } from '../types';
+import api from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -10,6 +11,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, userData: any) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -100,8 +102,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data) {
+        setUser(res.data);
+        if (Platform.OS === 'web') {
+           localStorage.setItem('user', JSON.stringify(res.data));
+        } else {
+           await SecureStore.setItemAsync('user', JSON.stringify(res.data));
+        }
+      }
+    } catch (e) {
+      console.log('Failed to refresh user', e);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

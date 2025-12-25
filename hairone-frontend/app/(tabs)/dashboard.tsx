@@ -32,7 +32,7 @@ import api from "../../services/api";
 import type { Barber } from "../../types";
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { colors, theme } = useTheme();
   const router = useRouter();
   const [barbers, setBarbers] = useState<Barber[]>([]);
@@ -61,8 +61,9 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      refreshUser();
       fetchShopData();
-    }, [user]) // Re-fetch when user context changes (e.g. role update)
+    }, [])
   );
 
   const onRefresh = () => {
