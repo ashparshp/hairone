@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   name: { type: String },
   avatar: { type: String },
-  email: { type: String },
+  email: { type: String, unique: true, sparse: true },
   gender: { type: String, enum: ['male', 'female', 'other'] },
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Shop' }],
   

@@ -4,7 +4,10 @@ const shopSchema = new mongoose.Schema({
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   name: { type: String, required: true },
   address: { type: String, required: true },
-  coordinates: { lat: Number, lng: Number },
+  coordinates: {
+    type: { type: String, default: 'Point', enum: ['Point'] },
+    coordinates: { type: [Number], index: '2dsphere' } // [longitude, latitude]
+  },
   image: String,
   gallery: [String],
   type: { type: String, enum: ['male', 'female', 'unisex'], default: 'unisex' },

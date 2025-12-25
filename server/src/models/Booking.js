@@ -33,4 +33,10 @@ const bookingSchema = new mongoose.Schema({
   settlementId: { type: mongoose.Schema.Types.ObjectId, ref: 'Settlement' }
 }, { timestamps: true });
 
+// Indexes for Performance
+bookingSchema.index({ shopId: 1, date: 1 }); // Common for getting shop bookings
+bookingSchema.index({ barberId: 1, date: 1 }); // Common for availability check
+bookingSchema.index({ userId: 1 }); // User history
+bookingSchema.index({ settlementStatus: 1, status: 1 }); // Settlement Job
+
 module.exports = mongoose.model('Booking', bookingSchema);
