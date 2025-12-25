@@ -841,7 +841,7 @@ export default function ShopDetailsScreen() {
                     <ChevronLeft size={16} color="#ffffff" style={{transform: [{rotate: '180deg'}]}} />
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity style={[styles.nextBtn, {backgroundColor: '#0f172a'}]} onPress={handleBook}>
+                    <TouchableOpacity style={[styles.nextBtn, {backgroundColor: '#f59e0b'}]} onPress={handleBook}>
                         {loading ? <ActivityIndicator color="white"/> : <Text style={styles.nextBtnText}>Confirm Booking</Text>}
                     </TouchableOpacity>
                 )}
