@@ -1,0 +1,66 @@
+
+> hairone@1.0.0 web
+> expo start --web
+
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Starting project at /app/hairone-frontend
+React Compiler enabled
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.0% ( 81/158)
+λ node_modules/expo-router/node/render.js ▓▓░░░░░░░░░░░░░░ 14.4% (125/334)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.0% ( 90/184)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓░░░░░░░░░░ 41.2% (314/489)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.0% (215/372)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 59.8% (510/880)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.0% (334/480)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 59.8% ( 529/2560)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 55.7% (372/529)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 59.8% ( 917/2684)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 55.7% (372/529)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 62.7% (2125/2684)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.7% (501/903)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.0% (2587/2743)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.7% ( 870/2730)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.4% (2729/2871)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.7% (2064/2731)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.4% (2729/2871)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.1% (2600/2739)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 93.1% (2782/2884)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.3% (2760/2904)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.7% (2930/3025)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.8% (3063/3114)
+λ node_modules/expo-router/node/render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.1% (3158/3204)
+λ Bundled 43287ms node_modules/expo-router/node/render.js (3232 modules)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (3199/3205)
+λ Bundled 64ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 50921ms node_modules/expo-router/entry.js (3205 modules)
+Error: Premature close
+    at onclose (node:internal/streams/end-of-stream:171:30)
+    at processTicksAndRejections (node:internal/process/task_queues:85:11)
+Web Bundled 2242ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 32.1% ( 93/194)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.0% (351/525)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.7% (1007/2616)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 73.2% (2285/2671)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 92.0% (2837/2957)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.7% (3084/3136)
+Web Bundled 19833ms node_modules/expo-router/entry.js (3205 modules)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 106ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 705ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 105ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+λ Bundled 77ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 614ms node_modules/expo-router/entry.js (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 289ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Killed
