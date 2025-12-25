@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'rea
 import { Heart, Star, MapPin, Clock } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { ScalePress } from './ScalePress';
+import { Spacing } from '../constants/Spacing';
 
 const { width } = Dimensions.get('window');
 
@@ -15,8 +16,7 @@ interface ShopCardProps {
 }
 
 export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavorite, onToggleFavorite }) => {
-  const { colors, theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { colors } = useTheme();
 
   return (
     <ScalePress
@@ -24,8 +24,8 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
       style={[
         styles.card,
           {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff', // Slate-900 or White
-            borderColor: isDark ? '#334155' : '#e2e8f0', // Slate-700 or Slate-200
+            backgroundColor: colors.card,
+            borderColor: colors.border,
           }
         ]}
       >
@@ -40,10 +40,10 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
             style={styles.heartButton}
             onPress={() => onToggleFavorite && onToggleFavorite(shop._id)}
           >
-            <Heart size={16} color={isFavorite ? "#ef4444" : "white"} fill={isFavorite ? "#ef4444" : "transparent"} strokeWidth={2.5} />
+            <Heart size={16} color={isFavorite ? colors.error : colors.white} fill={isFavorite ? colors.error : colors.transparent} strokeWidth={2.5} />
           </TouchableOpacity>
           <View style={styles.ratingBadge}>
-            <Star size={12} color="#fbbf24" fill="#fbbf24" />
+            <Star size={12} color={colors.ratingStar} fill={colors.ratingStar} />
             <Text style={styles.ratingText}>{shop.rating || 'New'}</Text>
             {/* <Text style={styles.reviewText}>({shop.reviews || 0})</Text> */}
           </View>
@@ -52,12 +52,12 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
         <View style={styles.content}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: isDark ? '#ffffff' : '#0f172a' }]} numberOfLines={1}>
+              <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
                 {shop.name}
               </Text>
               <View style={styles.locationRow}>
-                <MapPin size={12} color="#f59e0b" />
-                <Text style={[styles.locationText, { color: isDark ? '#94a3b8' : '#64748b' }]} numberOfLines={1}>
+                <MapPin size={12} color={colors.primary} />
+                <Text style={[styles.locationText, { color: colors.textMuted }]} numberOfLines={1}>
                   {shop.address} • {shop.distance ? `${shop.distance.toFixed(1)} km` : 'N/A'}
                 </Text>
               </View>
@@ -65,31 +65,31 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
           </View>
 
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}>
-                <Text style={[styles.tagText, { color: isDark ? '#94a3b8' : '#64748b' }]}>{shop.type || 'Unisex'}</Text>
+            <View style={[styles.tag, { backgroundColor: colors.tagBackground }]}>
+                <Text style={[styles.tagText, { color: colors.tagText }]}>{shop.type || 'Unisex'}</Text>
             </View>
              {/* Add more tags if available in future */}
           </View>
 
           {/* Footer */}
-          <View style={[styles.footer, { borderTopColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
+          <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <View style={styles.slotInfo}>
-              <View style={[styles.clockIcon, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#fffbeb' }]}>
-                <Clock size={16} color="#f59e0b" />
+              <View style={[styles.clockIcon, { backgroundColor: colors.slotIconBackground }]}>
+                <Clock size={16} color={colors.primary} />
               </View>
               <View>
-                <Text style={[styles.slotLabel, { color: isDark ? '#64748b' : '#94a3b8' }]}>Earliest</Text>
-                <Text style={[styles.slotValue, { color: isDark ? '#ffffff' : '#0f172a' }]}>
+                <Text style={[styles.slotLabel, { color: colors.textMuted }]}>Earliest</Text>
+                <Text style={[styles.slotValue, { color: colors.slotText }]}>
                   {shop.nextAvailableSlot || 'No slots'}
                 </Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={[styles.bookBtn, { backgroundColor: isDark ? '#f59e0b' : '#0f172a' }]}
+              style={[styles.bookBtn, { backgroundColor: colors.buttonBackground }]}
               onPress={onPress}
             >
-              <Text style={[styles.bookBtnText, { color: isDark ? '#0f172a' : 'white' }]}>Book Now</Text>
+              <Text style={[styles.bookBtnText, { color: colors.buttonText }]}>Book Now</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -99,9 +99,9 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24, // Standardized
-    marginHorizontal: 24, // Fix for edge-to-edge
-    marginBottom: 20,
+    borderRadius: Spacing.round.xl,
+    marginHorizontal: Spacing.xxl,
+    marginBottom: Spacing.xl,
     borderWidth: 1,
     overflow: 'hidden',
     // Shadow logic handled by parent or elevation
@@ -113,10 +113,10 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     height: 160,
-    borderRadius: 16, // Standardized
+    borderRadius: Spacing.round.lg,
     overflow: 'hidden',
-    marginTop: 12,
-    marginHorizontal: 12,
+    marginTop: Spacing.md,
+    marginHorizontal: Spacing.md,
   },
   image: {
     width: '100%',
@@ -124,11 +124,11 @@ const styles = StyleSheet.create({
   },
   heartButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: Spacing.md,
+    right: Spacing.md,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: Spacing.round.full, // 18 is half of 36, so full circle
     backgroundColor: 'rgba(0,0,0,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -137,13 +137,13 @@ const styles = StyleSheet.create({
   },
   ratingBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: Spacing.md,
+    left: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: Spacing.md,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: Spacing.round.md,
     backgroundColor: 'rgba(0,0,0,0.4)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -160,8 +160,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   content: {
-    padding: 16,
-    paddingTop: 16,
+    padding: Spacing.lg,
+    paddingTop: Spacing.lg,
   },
   headerRow: {
     flexDirection: 'row',
@@ -187,13 +187,13 @@ const styles = StyleSheet.create({
   tagsRow: {
     flexDirection: 'row',
     gap: 6,
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   tag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: Spacing.round.sm,
   },
   tagText: {
     fontSize: 10,
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
+    paddingTop: Spacing.lg,
     borderTopWidth: 1,
     borderStyle: 'dashed',
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   clockIcon: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: Spacing.round.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -232,17 +232,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bookBtn: {
-    backgroundColor: '#0f172a', // Slate-900 (Dark mode differs?)
-    paddingHorizontal: 16,
+    // backgroundColor handled in component via colors
+    paddingHorizontal: Spacing.lg,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: Spacing.round.md,
     shadowColor: '#0f172a',
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
   bookBtnText: {
-    color: 'white',
+    // color handled in component
     fontSize: 12,
     fontWeight: 'bold',
   },
