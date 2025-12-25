@@ -56,7 +56,7 @@ exports.verifyOTP = async (req, res) => {
 
     // Generate JWT Token
     // Expires in 30 days to keep users logged in for a long time on mobile.
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user._id, role: user.role, tokenVersion: user.tokenVersion }, process.env.JWT_SECRET, {
       expiresIn: '30d',
     });
 

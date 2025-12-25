@@ -39,6 +39,14 @@ exports.protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, user not found' });
       }
 
+      // Token Version Check (Invalidate old tokens after role change/logout)
+      // We check if the token version in the payload matches the user's current version.
+      // If decoded.tokenVersion is undefined (old tokens), we treat it as 0.
+      const tokenVersion = decoded.tokenVersion || 0;
+      if (tokenVersion !== (req.user.tokenVersion || 0)) {
+        return res.status(401).json({ message: 'Not authorized, token expired or invalid' });
+      }
+
       next();
     } catch (error) {
       console.error(error);
