@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { User } from '../types';
-import api from '../services/api';
+import api, { setupAuthInterceptor } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -101,6 +101,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
   };
+
+  // Register the logout function with the API interceptor
+  useEffect(() => {
+    setupAuthInterceptor(logout);
+  }, []);
 
   const refreshUser = async () => {
     try {
