@@ -146,9 +146,18 @@ exports.updateShop = async (req, res) => {
 // - Availability (`minTime` logic)
 exports.getAllShops = async (req, res) => {
   try {
-    const { minTime, type, lat, lng, radius } = req.query;
+    const { minTime, type, lat, lng, radius, search } = req.query;
 
     const query = { isDisabled: { $ne: true } };
+
+    // Search Query (Text Search)
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { address: { $regex: search, $options: 'i' } }
+      ];
+    }
+
     if (type && type !== 'all') {
         query.type = type.toLowerCase();
     }
@@ -156,6 +165,9 @@ exports.getAllShops = async (req, res) => {
     let shops = await Shop.find(query).lean();
 
     // 1. Distance Calculation & Filtering
+    // Only filter by distance if NOT searching by text (unless search + location is desired, but typically search is global)
+    // The requirement is: "The shop should appear in search results if it exists, regardless of the user’s selected location."
+    // So if 'search' is present, we SKIP the radius filter, but we still calculate distance for sorting if possible.
     if (lat && lng) {
         const userLat = parseFloat(lat);
         const userLng = parseFloat(lng);
@@ -169,7 +181,8 @@ exports.getAllShops = async (req, res) => {
             return { ...shop, distance: null };
         });
 
-        if (searchRadius) {
+        // Only apply radius filter if NO search text is provided
+        if (searchRadius && !search) {
             shops = shops.filter(s => s.distance !== null && s.distance <= searchRadius);
         }
 

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, 
   ActivityIndicator, ScrollView, Modal, Platform, Image
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
@@ -16,9 +16,16 @@ import api from '../../services/api';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
-  const { user, logout, login, token } = useAuth();
+  const { user, logout, login, token, refreshUser } = useAuth();
   const router = useRouter();
   const { colors, theme, toggleTheme } = useTheme();
+
+  // Refresh user profile on focus to check application status
+  useFocusEffect(
+    useCallback(() => {
+        refreshUser();
+    }, [])
+  );
   const { showToast } = useToast();
   
   const [applying, setApplying] = useState(false);

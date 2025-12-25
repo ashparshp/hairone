@@ -49,9 +49,20 @@ export default function HomeScreen() {
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [genderFilter, setGenderFilter] = useState('All');
   const [distanceFilter, setDistanceFilter] = useState(1); // Default 1km
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchText]);
 
   // Location Context
   const {
@@ -83,22 +94,18 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [location, distanceFilter, genderFilter, hasAttemptedLocation])
+    }, [location, distanceFilter, genderFilter, hasAttemptedLocation, debouncedSearch])
   );
 
   // Live Filtering
   const shops = useMemo(() => {
     let filtered = rawShops;
 
-    // Text Search
-    if (searchText) {
-      filtered = filtered.filter((s: any) =>
-        s.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        s.address.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
-
     // Category Filter (Client-side)
+    // Note: Text search is now server-side filtered, but we can keep client side fallback
+    // if we wanted to filter within the results, but the requirement is to search GLOBALLY.
+    // So 'rawShops' will already contain the search results from server.
+
     if (activeCategory !== 'all') {
       filtered = filtered.filter((s: any) =>
          s.services?.some((svc: any) => svc.name.toLowerCase().includes(activeCategory.toLowerCase()))
@@ -106,7 +113,7 @@ export default function HomeScreen() {
     }
 
     return filtered;
-  }, [rawShops, searchText, activeCategory]);
+  }, [rawShops, activeCategory]);
 
   const toggleFavorite = async (shopId: string) => {
     if (!user) return; // or show toast
@@ -139,6 +146,10 @@ export default function HomeScreen() {
           params.append('lat', location.coords.latitude.toString());
           params.append('lng', location.coords.longitude.toString());
           params.append('radius', distanceFilter.toString());
+      }
+
+      if (debouncedSearch) {
+          params.append('search', debouncedSearch);
       }
 
       const res = await api.get(`/shops?${params.toString()}`);

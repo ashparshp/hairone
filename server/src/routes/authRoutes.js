@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { sendOTP, verifyOTP, updateProfile, toggleFavorite } = require('../controllers/authController');
+const { sendOTP, verifyOTP, updateProfile, toggleFavorite, getMe } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const { S3Client } = require('@aws-sdk/client-s3');
@@ -32,5 +32,6 @@ router.post('/otp', sendOTP);
 router.post('/verify', verifyOTP);
 router.put('/profile', protect, upload.single('avatar'), updateProfile);
 router.post('/favorites', protect, toggleFavorite);
+router.get('/me', protect, getMe);
 
 module.exports = router;
