@@ -464,7 +464,7 @@ export default function ManageServicesScreen() {
 
                 <View style={styles.inputGroup}>
                    <Text style={[styles.label, {color: colors.textMuted}]}>Select Services (at least 2)</Text>
-                   <ScrollView style={{maxHeight: 150, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8}}>
+                   <View style={{borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8}}>
                        {services.map(svc => {
                            const isSelected = selectedComboServices.includes(svc._id);
                            return (
@@ -488,7 +488,7 @@ export default function ManageServicesScreen() {
                                </TouchableOpacity>
                            )
                        })}
-                   </ScrollView>
+                   </View>
                 </View>
 
                 <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12}}>
