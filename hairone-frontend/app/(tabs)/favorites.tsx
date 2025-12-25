@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Star, MapPin, HeartOff } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
@@ -12,9 +12,11 @@ export default function FavoritesScreen() {
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavorites();
+    }, [])
+  );
 
   const fetchFavorites = async () => {
     try {

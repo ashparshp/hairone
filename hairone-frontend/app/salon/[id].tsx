@@ -771,7 +771,7 @@ export default function ShopDetailsScreen() {
                     <Banknote size={20} color={isDark ? '#eab308' : '#ca8a04'} />
                 </View>
                 <View style={{flex: 1}}>
-                    <Text style={[styles.payTitle, {color: colors.text}]}>Cash on Delivery</Text>
+                    <Text style={[styles.payTitle, {color: colors.text}]}>Pay at Salon</Text>
                     <Text style={[styles.paySub, {color: colors.textMuted}]}>Pay at the salon after service</Text>
                 </View>
                 <View style={[styles.radioCircle, {borderColor: paymentMethod === 'cash' ? '#10b981' : colors.textMuted}]}>

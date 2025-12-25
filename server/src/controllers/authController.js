@@ -116,3 +116,15 @@ exports.toggleFavorite = async (req, res) => {
     res.status(500).json({ message: "Failed to update favorites" });
   }
 };
+
+// 5. Get Current User Profile
+// Returns the full user object for the authenticated session.
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (e) {
+    res.status(500).json({ message: "Failed to fetch profile" });
+  }
+};

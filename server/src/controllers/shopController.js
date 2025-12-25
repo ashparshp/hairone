@@ -153,6 +153,17 @@ exports.getAllShops = async (req, res) => {
         query.type = type.toLowerCase();
     }
 
+    // 0. Search Filter (if provided)
+    const { search } = req.query;
+    if (search) {
+        const escapedSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+        const regex = new RegExp(escapedSearch, 'i');
+        query.$or = [
+            { name: { $regex: regex } },
+            { address: { $regex: regex } }
+        ];
+    }
+
     let shops = await Shop.find(query).lean();
 
     // 1. Distance Calculation & Filtering
@@ -169,7 +180,9 @@ exports.getAllShops = async (req, res) => {
             return { ...shop, distance: null };
         });
 
-        if (searchRadius) {
+        // Filter by radius ONLY if search is NOT present
+        // If search IS present, we allow global search (ignore radius)
+        if (searchRadius && !search) {
             shops = shops.filter(s => s.distance !== null && s.distance <= searchRadius);
         }
 

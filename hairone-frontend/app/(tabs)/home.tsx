@@ -90,13 +90,8 @@ export default function HomeScreen() {
   const shops = useMemo(() => {
     let filtered = rawShops;
 
-    // Text Search
-    if (searchText) {
-      filtered = filtered.filter((s: any) =>
-        s.name.toLowerCase().includes(searchText.toLowerCase()) ||
-        s.address.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
+    // Text Search is now handled by backend
+    // No client-side filtering for searchText
 
     // Category Filter (Client-side)
     if (activeCategory !== 'all') {
@@ -106,7 +101,16 @@ export default function HomeScreen() {
     }
 
     return filtered;
-  }, [rawShops, searchText, activeCategory]);
+  }, [rawShops, activeCategory]);
+
+  // Debounced search trigger
+  useEffect(() => {
+      const delayDebounceFn = setTimeout(() => {
+        fetchShops();
+      }, 500);
+
+      return () => clearTimeout(delayDebounceFn);
+  }, [searchText]);
 
   const toggleFavorite = async (shopId: string) => {
     if (!user) return; // or show toast
@@ -139,6 +143,10 @@ export default function HomeScreen() {
           params.append('lat', location.coords.latitude.toString());
           params.append('lng', location.coords.longitude.toString());
           params.append('radius', distanceFilter.toString());
+      }
+
+      if (searchText) {
+          params.append('search', searchText);
       }
 
       const res = await api.get(`/shops?${params.toString()}`);
