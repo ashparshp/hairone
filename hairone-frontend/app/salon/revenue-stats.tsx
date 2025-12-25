@@ -226,6 +226,20 @@ function SettlementDetailModal({ settlement, visible, onClose }: { settlement: a
         }
     };
 
+    // --- Calculation Logic ---
+    let totalOnlineRevenue = 0;
+    let totalCashCommission = 0;
+
+    if (details && details.bookings) {
+        details.bookings.forEach((b: any) => {
+            if (b.amountCollectedBy === 'ADMIN') {
+                totalOnlineRevenue += (b.barberNetRevenue || 0);
+            } else {
+                totalCashCommission += (b.adminNetRevenue || 0);
+            }
+        });
+    }
+
     return (
          <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
             <View style={[styles.modalContainer, {backgroundColor: colors.background}]}>
@@ -247,6 +261,26 @@ function SettlementDetailModal({ settlement, visible, onClose }: { settlement: a
 
                              <Text style={{color: colors.textMuted, marginBottom: 4}}>Date</Text>
                              <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>{format(new Date(settlement.createdAt), 'dd MMM yyyy, hh:mm a')}</Text>
+
+                             {!loadingDetails && details && (
+                                <View style={{marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderColor: colors.border}}>
+                                    <Text style={{color: colors.text, fontWeight: 'bold', marginBottom: 8}}>Calculation Summary:</Text>
+                                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
+                                        <Text style={{color: colors.textMuted}}>Online Revenue (Held by Admin)</Text>
+                                        <Text style={{color: '#10b981'}}>+₹{totalOnlineRevenue.toFixed(2)}</Text>
+                                    </View>
+                                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
+                                        <Text style={{color: colors.textMuted}}>Cash Commission (Owed to Admin)</Text>
+                                        <Text style={{color: '#ef4444'}}>-₹{totalCashCommission.toFixed(2)}</Text>
+                                    </View>
+                                    <View style={{flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderColor: colors.border, paddingTop: 4}}>
+                                        <Text style={{color: colors.text, fontWeight: 'bold'}}>Net Settlement</Text>
+                                        <Text style={{color: colors.text, fontWeight: 'bold'}}>
+                                            {totalOnlineRevenue - totalCashCommission >= 0 ? '+' : '-'}₹{Math.abs(totalOnlineRevenue - totalCashCommission).toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </View>
+                             )}
                          </View>
 
                          {isCollection && isPending && (
