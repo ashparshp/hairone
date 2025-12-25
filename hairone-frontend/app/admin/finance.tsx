@@ -15,32 +15,40 @@ export default function AdminFinance() {
   const [generating, setGenerating] = useState(false);
 
   const handleGenerateSettlements = async () => {
-      Alert.alert(
-          "Generate Settlements",
-          "This will calculate weekly settlements for all shops based on completed bookings prior to this week. Proceed?",
-          [
-              { text: "Cancel", style: "cancel" },
-              {
-                  text: "Generate",
-                  style: "default",
-                  onPress: async () => {
-                      setGenerating(true);
-                      try {
-                          const res = await api.post('/finance/generate-settlements');
-                          Alert.alert("Success", res.data.message || "Settlements generated.");
-                          // Refresh history if active
-                          if (activeTab === 'history') {
-                             // Force refresh logic would go here, or just switch tab
+      setGenerating(true);
+      try {
+          const previewRes = await api.post('/finance/preview-settlements');
+          const { cutoffDate, totalPayout, totalCollection, shopCount } = previewRes.data;
+
+          Alert.alert(
+              "Preview Settlement",
+              `Settling ${shopCount} shops up to ${cutoffDate}.\n\nTotal Payout: ₹${totalPayout}\nTotal Collection: ₹${totalCollection}\n\nProceed to generate?`,
+              [
+                  { text: "Cancel", style: "cancel", onPress: () => setGenerating(false) },
+                  {
+                      text: "Proceed",
+                      style: "default",
+                      onPress: async () => {
+                          try {
+                              const res = await api.post('/finance/generate-settlements');
+                              Alert.alert("Success", res.data.message || "Settlements generated.");
+                              // Refresh history if active
+                              if (activeTab === 'history') {
+                                 // Force refresh logic would go here, or just switch tab
+                              }
+                          } catch (e: any) {
+                              Alert.alert("Error", e.response?.data?.message || "Failed to generate settlements.");
+                          } finally {
+                              setGenerating(false);
                           }
-                      } catch (e: any) {
-                          Alert.alert("Error", e.response?.data?.message || "Failed to generate settlements.");
-                      } finally {
-                          setGenerating(false);
                       }
                   }
-              }
-          ]
-      );
+              ]
+          );
+      } catch (e: any) {
+          Alert.alert("Error", e.response?.data?.message || "Failed to preview settlements.");
+          setGenerating(false);
+      }
   };
 
   return (
@@ -57,7 +65,7 @@ export default function AdminFinance() {
             disabled={generating}
             style={{backgroundColor: colors.tint, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8}}
          >
-             {generating ? <ActivityIndicator size="small" color="#000" /> : <Text style={{color: '#000', fontWeight: 'bold', fontSize: 12}}>Generate</Text>}
+             {generating ? <ActivityIndicator size="small" color="#000" /> : <Text style={{color: '#000', fontWeight: 'bold', fontSize: 12}}>Preview</Text>}
          </TouchableOpacity>
       </View>
 
@@ -290,6 +298,20 @@ function HistoryDetailModalFixed({ settlement, visible, onClose }: { settlement:
     const isPayout = settlement.type === 'PAYOUT';
     const isPending = settlement.status.includes('PENDING');
 
+    // --- Calculation Logic ---
+    let totalOnlineRevenue = 0;
+    let totalCashCommission = 0;
+
+    if (details && details.bookings) {
+        details.bookings.forEach((b: any) => {
+            if (b.amountCollectedBy === 'ADMIN') {
+                totalOnlineRevenue += (b.barberNetRevenue || 0);
+            } else {
+                totalCashCommission += (b.adminNetRevenue || 0);
+            }
+        });
+    }
+
     return (
          <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
             <View style={[styles.modalContainer, {backgroundColor: colors.background}]}>
@@ -315,6 +337,26 @@ function HistoryDetailModalFixed({ settlement, visible, onClose }: { settlement:
                         <Text style={{color: colors.text, marginBottom: 8}}>Settlement ID: {settlement._id}</Text>
                         <Text style={{color: colors.text, marginBottom: 8}}>Shop: {settlement.shopId?.name}</Text>
                         <Text style={{color: colors.textMuted}}>Notes: {settlement.notes || 'Auto-generated'}</Text>
+
+                        {!loadingDetails && details && (
+                            <View style={{marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderColor: colors.border}}>
+                                <Text style={{color: colors.text, fontWeight: 'bold', marginBottom: 8}}>Calculation Summary:</Text>
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
+                                    <Text style={{color: colors.textMuted}}>Online Revenue (Held by Admin)</Text>
+                                    <Text style={{color: '#10b981'}}>+₹{totalOnlineRevenue.toFixed(2)}</Text>
+                                </View>
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
+                                    <Text style={{color: colors.textMuted}}>Cash Commission (Owed to Admin)</Text>
+                                    <Text style={{color: '#ef4444'}}>-₹{totalCashCommission.toFixed(2)}</Text>
+                                </View>
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderColor: colors.border, paddingTop: 4}}>
+                                    <Text style={{color: colors.text, fontWeight: 'bold'}}>Net Settlement</Text>
+                                    <Text style={{color: colors.text, fontWeight: 'bold'}}>
+                                        {totalOnlineRevenue - totalCashCommission >= 0 ? '+' : '-'}₹{Math.abs(totalOnlineRevenue - totalCashCommission).toFixed(2)}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
                     </View>
 
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginLeft: 20}]}>Included Bookings</Text>

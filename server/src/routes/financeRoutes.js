@@ -47,6 +47,8 @@ router.post('/generate-settlements', protect, verifyAdmin, async (req, res) => {
     }
 });
 
+router.post('/preview-settlements', protect, verifyAdmin, require('../controllers/financeController').previewSettlementJob);
+
 // --- 2. Get Settlements (Admin: All, Shop: Own) ---
 router.get('/settlements', protect, async (req, res) => {
     try {

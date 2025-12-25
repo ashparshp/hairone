@@ -210,6 +210,95 @@ exports.createSettlement = async (req, res) => {
     }
 };
 
+/**
+ * POST /admin/finance/preview
+ * Calculates upcoming settlements WITHOUT saving anything.
+ */
+exports.previewSettlementJob = async (req, res) => {
+    try {
+        const { startOfWeek, format } = require('date-fns');
+
+        // 1. Define Cutoff (Same as job)
+        const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+        const cutoffDateStr = format(currentWeekStart, 'yyyy-MM-dd');
+
+        // 2. Aggregate (Same as job, but without updating anything)
+        const settlementGroups = await Booking.aggregate([
+            {
+                $match: {
+                    status: 'completed',
+                    $or: [
+                        { settlementStatus: 'PENDING' },
+                        { settlementStatus: { $exists: false } }
+                    ],
+                    date: { $lt: cutoffDateStr }
+                }
+            },
+            {
+                $group: {
+                    _id: '$shopId',
+                    count: { $sum: 1 },
+                    // Calculate what Shop Owes Admin (Commission from Cash)
+                    totalAdminNet: {
+                        $sum: {
+                            $cond: [
+                                { $or: [{ $eq: ['$paymentMethod', 'CASH'] }, { $eq: ['$paymentMethod', 'cash'] }] },
+                                '$adminNetRevenue',
+                                0
+                            ]
+                        }
+                    },
+                    // Calculate what Admin Owes Shop (Revenue from Online)
+                    totalBarberNet: {
+                        $sum: {
+                            $cond: [
+                                { $not: { $or: [{ $eq: ['$paymentMethod', 'CASH'] }, { $eq: ['$paymentMethod', 'cash'] }] } },
+                                '$barberNetRevenue',
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'shops',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'shop'
+                }
+            }
+        ]);
+
+        let totalPayout = 0;
+        let totalCollection = 0;
+        let shopCount = 0;
+
+        settlementGroups.forEach(group => {
+            const rawNet = group.totalBarberNet - group.totalAdminNet;
+            const netAmount = roundMoney(rawNet);
+            shopCount++;
+
+            if (netAmount >= 0) {
+                totalPayout += netAmount;
+            } else {
+                totalCollection += Math.abs(netAmount);
+            }
+        });
+
+        res.json({
+            cutoffDate: cutoffDateStr,
+            shopCount,
+            totalPayout: roundMoney(totalPayout),
+            totalCollection: roundMoney(totalCollection)
+        });
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: 'Preview failed' });
+    }
+};
+
 exports.getSettlementHistory = async (req, res) => {
     try {
         const settlements = await Settlement.find()
