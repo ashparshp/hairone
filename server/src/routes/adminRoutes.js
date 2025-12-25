@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
     submitApplication, getApplications, processApplication,
-    getAllShops, getSystemStats, suspendShop, reapply, getShopBookings,
+    getAllShops, getSystemStats, suspendShop, reactivateShop, reapply, getShopBookings,
     getSystemConfig, updateSystemConfig
 } = require('../controllers/adminController');
 const financeController = require('../controllers/financeController');
@@ -17,6 +17,7 @@ router.post('/process', protect, processApplication);
 // Analytics & Shops
 router.get('/shops', protect, getAllShops);
 router.post('/shops/:shopId/suspend', protect, suspendShop);
+router.post('/shops/:shopId/activate', protect, reactivateShop);
 router.get('/shops/:shopId/bookings', protect, getShopBookings);
 router.get('/stats', protect, getSystemStats);
 

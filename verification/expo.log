@@ -134,3 +134,15 @@ Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░
 Web Bundled 830ms node_modules/expo-router/entry.js (1 module)
 Web Bundled 125ms node_modules/expo-router/entry.js (1 module)
  LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 912ms node_modules/expo-router/node/render.js (1 module)
+Web Bundled 1783ms node_modules/expo-router/entry.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 779ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundled 126ms node_modules/expo-router/node/render.js (1 module)
+"shadow*" style props are deprecated. Use "boxShadow".
+Web Bundled 791ms node_modules/expo-router/entry.js (1 module)
+Web Bundled 273ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console

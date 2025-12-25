@@ -40,10 +40,20 @@ exports.submitApplication = async (req, res) => {
   }
 };
 
-// ADMIN: Get Pending Applications
+// ADMIN: Get Applications (Pending or All)
 exports.getApplications = async (req, res) => {
   try {
-    const applicants = await User.find({ applicationStatus: 'pending' });
+    const { status } = req.query;
+    let query = { applicationStatus: 'pending' };
+
+    if (status === 'history') {
+        // Fetch rejected or approved (processed) applications
+        query = { applicationStatus: { $in: ['approved', 'rejected', 'suspended'] } };
+    } else if (status === 'all') {
+        query = { applicationStatus: { $exists: true } };
+    }
+
+    const applicants = await User.find(query).sort({ updatedAt: -1 });
     res.json(applicants);
   } catch (e) {
     res.status(500).json({ message: "Fetch failed" });
@@ -112,6 +122,25 @@ exports.suspendShop = async (req, res) => {
     console.error(e);
     res.status(500).json({ message: "Failed to suspend shop" });
   }
+};
+
+// ADMIN: Reactivate Shop (Revoke Suspension)
+exports.reactivateShop = async (req, res) => {
+    const { shopId } = req.params;
+    try {
+        const shop = await Shop.findByIdAndUpdate(shopId, { isDisabled: false }, { new: true });
+        if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+        await User.findByIdAndUpdate(shop.ownerId, {
+            applicationStatus: 'approved',
+            $unset: { suspensionReason: 1 } // Remove reason
+        });
+
+        res.json({ message: "Shop reactivated successfully." });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ message: "Failed to reactivate shop" });
+    }
 };
 
 // USER: Reapply (Recover from Suspension)
