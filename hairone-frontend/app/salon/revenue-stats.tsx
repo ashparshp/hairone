@@ -75,17 +75,17 @@ function RevenueOverview() {
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20}}>
             <View style={{backgroundColor: colors.card, padding: 20, borderRadius: 12, marginBottom: 12}}>
                  <Text style={{color: colors.textMuted}}>Total Earnings</Text>
-                 <Text style={{color: colors.text, fontSize: 32, fontWeight: 'bold'}}>₹{(stats?.totalRevenue || 0).toFixed(2)}</Text>
+                 <Text style={{color: colors.text, fontSize: 32, fontWeight: 'bold'}}>₹{(stats?.totalEarnings || 0).toFixed(2)}</Text>
             </View>
 
             <View style={{flexDirection: 'row', gap: 12}}>
                  <View style={{flex: 1, backgroundColor: colors.card, padding: 16, borderRadius: 12}}>
                      <Text style={{color: colors.textMuted, fontSize: 12}}>Pending Payouts</Text>
-                     <Text style={{color: '#10b981', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.pendingPayout || 0).toFixed(2)}</Text>
+                     <Text style={{color: '#10b981', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.details?.pendingPayout || 0).toFixed(2)}</Text>
                  </View>
                  <View style={{flex: 1, backgroundColor: colors.card, padding: 16, borderRadius: 12}}>
                      <Text style={{color: colors.textMuted, fontSize: 12}}>Pending Dues</Text>
-                     <Text style={{color: '#ef4444', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.pendingCollection || 0).toFixed(2)}</Text>
+                     <Text style={{color: '#ef4444', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.details?.pendingDues || 0).toFixed(2)}</Text>
                  </View>
             </View>
         </ScrollView>
