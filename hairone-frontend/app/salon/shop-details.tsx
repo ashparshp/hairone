@@ -41,6 +41,7 @@ export default function ShopDetailsScreen() {
   const [minNotice, setMinNotice] = useState('60');
   const [maxNotice, setMaxNotice] = useState('30');
   const [autoApprove, setAutoApprove] = useState(true);
+  const [blockCustomBookings, setBlockCustomBookings] = useState(false);
 
   useEffect(() => {
     fetchShop();
@@ -70,6 +71,7 @@ export default function ShopDetailsScreen() {
       setMinNotice(s.minBookingNotice !== undefined ? String(s.minBookingNotice) : '60');
       setMaxNotice(s.maxBookingNotice !== undefined ? String(s.maxBookingNotice) : '30');
       setAutoApprove(s.autoApproveBookings !== false);
+      setBlockCustomBookings(s.blockCustomBookings || false);
     } catch (e) {
       console.log(e);
       Alert.alert("Error", "Failed to load shop details");
@@ -109,6 +111,8 @@ export default function ShopDetailsScreen() {
           formData.append('maxBookingNotice', maxNotice);
           // @ts-ignore
           formData.append('autoApproveBookings', autoApprove);
+          // @ts-ignore
+          formData.append('blockCustomBookings', blockCustomBookings);
 
           if (coords) {
               formData.append('lat', String(coords.lat));
@@ -328,6 +332,21 @@ export default function ShopDetailsScreen() {
                         onValueChange={setAutoApprove}
                         trackColor={{false: colors.border, true: colors.tint}}
                         thumbColor={autoApprove ? "#0f172a" : colors.textMuted}
+                    />
+                </View>
+
+                <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                <View style={[styles.row, {marginBottom: 0}]}>
+                    <View style={{flex: 1}}>
+                        <Text style={[styles.label, {color: colors.textMuted}]}>Block Custom Bookings</Text>
+                        <Text style={[styles.helperText, {color: colors.textMuted}]}>Only allow 'Earliest Available'</Text>
+                    </View>
+                    <Switch
+                        value={blockCustomBookings}
+                        onValueChange={setBlockCustomBookings}
+                        trackColor={{false: colors.border, true: colors.tint}}
+                        thumbColor={blockCustomBookings ? "#0f172a" : colors.textMuted}
                     />
                 </View>
 
