@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, minutesToTime, getBarberScheduleForDate } = require('../utils/scheduleUtils');
+const { calculateDistance } = require('../utils/geoUtils');
 const { subDays, format, startOfWeek, startOfMonth, startOfYear, parseISO, endOfDay } = require('date-fns');
 
 /**
@@ -118,6 +119,41 @@ exports.updateShop = async (req, res) => {
     if (maxBookingNotice !== undefined) updates.maxBookingNotice = parseInt(maxBookingNotice);
     if (autoApproveBookings !== undefined) updates.autoApproveBookings = autoApproveBookings;
 
+    // Home Service Updates
+    // Handle both nested object (JSON) and flattened keys (FormData/Multer)
+    let homeServiceData = req.body.homeService;
+
+    // If not found directly, check for flattened keys
+    if (!homeServiceData && req.body['homeService[isAvailable]'] !== undefined) {
+        homeServiceData = {
+            isAvailable: req.body['homeService[isAvailable]'],
+            radiusKm: req.body['homeService[radiusKm]'],
+            travelFee: req.body['homeService[travelFee]'],
+            minOrderValue: req.body['homeService[minOrderValue]'],
+            paymentPreference: req.body['homeService[paymentPreference]'],
+            lateCancellationFeePercent: req.body['homeService[lateCancellationFeePercent]']
+        };
+    }
+
+    if (homeServiceData) {
+      const hs = homeServiceData;
+      const homeServiceUpdate = {};
+
+      // Handle boolean conversion for string inputs (FormData)
+      if (hs.isAvailable !== undefined) {
+          homeServiceUpdate.isAvailable = String(hs.isAvailable) === 'true';
+      }
+      if (hs.radiusKm !== undefined) homeServiceUpdate.radiusKm = parseFloat(hs.radiusKm);
+      if (hs.travelFee !== undefined) homeServiceUpdate.travelFee = parseFloat(hs.travelFee);
+      if (hs.minOrderValue !== undefined) homeServiceUpdate.minOrderValue = parseFloat(hs.minOrderValue);
+      if (hs.paymentPreference !== undefined) homeServiceUpdate.paymentPreference = hs.paymentPreference;
+      if (hs.lateCancellationFeePercent !== undefined) homeServiceUpdate.lateCancellationFeePercent = parseFloat(hs.lateCancellationFeePercent);
+
+      for (const [key, value] of Object.entries(homeServiceUpdate)) {
+        updates[`homeService.${key}`] = value;
+      }
+    }
+
     if (lat !== undefined && lng !== undefined) {
       updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
     }
@@ -146,11 +182,16 @@ exports.updateShop = async (req, res) => {
 // - Availability (`minTime` logic)
 exports.getAllShops = async (req, res) => {
   try {
-    const { minTime, type, lat, lng, radius } = req.query;
+    const { minTime, type, lat, lng, radius, homeService } = req.query;
 
     const query = { isDisabled: { $ne: true } };
     if (type && type !== 'all') {
         query.type = type.toLowerCase();
+    }
+
+    // Home Service Filter
+    if (homeService === 'true') {
+        query['homeService.isAvailable'] = true;
     }
 
     // 0. Search Filter (if provided)
@@ -186,6 +227,14 @@ exports.getAllShops = async (req, res) => {
             shops = shops.filter(s => s.distance !== null && s.distance <= searchRadius);
         }
 
+        // If Home Service requested, enforce the Shop's service radius
+        if (homeService === 'true') {
+            shops = shops.filter(s => {
+                const shopRadius = s.homeService?.radiusKm || 0;
+                return s.distance !== null && s.distance <= shopRadius;
+            });
+        }
+
         // Sort by distance ascending
         shops.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
     }
@@ -216,18 +265,6 @@ exports.getAllShops = async (req, res) => {
   }
 };
 
-// Haversine Formula (km)
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-};
 
 // Helper for Home Screen Card Slot
 const findEarliestSlotForShop = async (shop, minTimeStr = "00:00") => {

@@ -52,6 +52,7 @@ export default function HomeScreen() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [genderFilter, setGenderFilter] = useState('All');
   const [distanceFilter, setDistanceFilter] = useState(1); // Default 1km
+  const [homeServiceFilter, setHomeServiceFilter] = useState(false);
 
   // Location Context
   const {
@@ -83,7 +84,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchShops();
-    }, [location, distanceFilter, genderFilter, hasAttemptedLocation])
+    }, [location, distanceFilter, genderFilter, homeServiceFilter, hasAttemptedLocation])
   );
 
   // Live Filtering
@@ -137,6 +138,10 @@ export default function HomeScreen() {
       if (genderFilter !== 'All') {
           const typeMap: any = { 'Men': 'male', 'Women': 'female', 'Unisex': 'unisex' };
           params.append('type', typeMap[genderFilter] || 'all');
+      }
+
+      if (homeServiceFilter) {
+          params.append('homeService', 'true');
       }
 
       if (location) {
@@ -284,6 +289,28 @@ export default function HomeScreen() {
                         ]}>{g}</Text>
                       </ScalePress>
                     ))}
+                  </View>
+                </View>
+
+                {/* Home Service Filter */}
+                <View style={styles.filterGroup}>
+                  <Text style={[styles.filterLabel, { color: isDark ? '#94a3b8' : '#64748b' }]}>Services</Text>
+                  <View style={styles.chipRow}>
+                    <ScalePress
+                      onPress={() => setHomeServiceFilter(!homeServiceFilter)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: homeServiceFilter ? '#f59e0b' : (isDark ? '#334155' : '#f8fafc'),
+                          borderColor: isDark ? '#334155' : '#e2e8f0'
+                        }
+                      ]}
+                    >
+                       <Text style={[
+                          styles.chipText,
+                          { color: homeServiceFilter ? 'white' : (isDark ? '#cbd5e1' : '#64748b') }
+                        ]}>Home Service</Text>
+                    </ScalePress>
                   </View>
                 </View>
 

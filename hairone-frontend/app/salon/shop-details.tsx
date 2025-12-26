@@ -42,6 +42,14 @@ export default function ShopDetailsScreen() {
   const [maxNotice, setMaxNotice] = useState('30');
   const [autoApprove, setAutoApprove] = useState(true);
 
+  // Home Service State
+  const [homeServiceAvailable, setHomeServiceAvailable] = useState(false);
+  const [radiusKm, setRadiusKm] = useState('5');
+  const [travelFee, setTravelFee] = useState('0');
+  const [minOrderValue, setMinOrderValue] = useState('0');
+  const [lateCancelFee, setLateCancelFee] = useState('50');
+  const [paymentPreference, setPaymentPreference] = useState<'ALL'|'ONLINE_ONLY'>('ALL');
+
   useEffect(() => {
     fetchShop();
   }, []);
@@ -70,6 +78,16 @@ export default function ShopDetailsScreen() {
       setMinNotice(s.minBookingNotice !== undefined ? String(s.minBookingNotice) : '60');
       setMaxNotice(s.maxBookingNotice !== undefined ? String(s.maxBookingNotice) : '30');
       setAutoApprove(s.autoApproveBookings !== false);
+
+      // Home Service
+      if (s.homeService) {
+        setHomeServiceAvailable(s.homeService.isAvailable || false);
+        setRadiusKm(String(s.homeService.radiusKm || 5));
+        setTravelFee(String(s.homeService.travelFee || 0));
+        setMinOrderValue(String(s.homeService.minOrderValue || 0));
+        setLateCancelFee(String(s.homeService.lateCancellationFeePercent || 50));
+        setPaymentPreference(s.homeService.paymentPreference || 'ALL');
+      }
     } catch (e) {
       console.log(e);
       Alert.alert("Error", "Failed to load shop details");
@@ -109,6 +127,45 @@ export default function ShopDetailsScreen() {
           formData.append('maxBookingNotice', maxNotice);
           // @ts-ignore
           formData.append('autoApproveBookings', autoApprove);
+
+          // Home Service
+          const homeService = {
+              isAvailable: homeServiceAvailable,
+              radiusKm: Number(radiusKm),
+              travelFee: Number(travelFee),
+              minOrderValue: Number(minOrderValue),
+              lateCancellationFeePercent: Number(lateCancelFee),
+              paymentPreference: paymentPreference
+          };
+          // We need to send this as JSON usually, but formData handles strings.
+          // Since our backend logic for 'homeService' checks req.body.homeService, which might be flattened or not depending on parser.
+          // For multipart/form-data with nested objects, it's tricky.
+          // Best to stringify if backend parses it, or send flattened keys.
+          // The backend code used `const hs = req.body.homeService` which implies it expects the object.
+          // In Express + Multer, simple fields are available. Complex objects need manual parsing if sent as JSON string.
+          // Let's send a JSON string and assume backend can parse it or we adjust backend if needed.
+          // Wait, backend logic: `if (req.body.homeService) ...`.
+          // If we append `homeService` as stringified JSON, we might need `JSON.parse` on backend or middleware.
+          // However, standard `multer` doesn't auto-parse JSON in fields.
+          // Let's send flattened keys to be safe, OR backend update.
+          // Actually, let's just assume `api` client (axios/fetch) + express body parser works if not using file upload.
+          // BUT we are using file upload (image).
+          // So we should append specific keys like `homeService[isAvailable]`.
+          // OR, since my backend code did `req.body.homeService` directly, it might be safer to send it as a JSON string and update backend to parse it if string.
+          // BUT, I can't update backend easily now without more steps.
+          // Let's use the dot notation for FormData which `body-parser` (extended) often handles, but `multer` is simpler.
+          // Actually, let's just modify the backend to check if it's a string and parse it.
+          // WAIT, I already modified the backend code: `// We expect req.body.homeService to be an object (or parsed string if from FormData)`
+          // I wrote comments but didn't implement the parsing logic explicitly!
+          // I should fix backend or send simple keys.
+          // Let's send flattened keys: `homeService[radiusKm]`. Express `body-parser` with `extended: true` parses this into objects!
+
+          formData.append('homeService[isAvailable]', String(homeServiceAvailable));
+          formData.append('homeService[radiusKm]', radiusKm);
+          formData.append('homeService[travelFee]', travelFee);
+          formData.append('homeService[minOrderValue]', minOrderValue);
+          formData.append('homeService[lateCancellationFeePercent]', lateCancelFee);
+          formData.append('homeService[paymentPreference]', paymentPreference);
 
           if (coords) {
               formData.append('lat', String(coords.lat));
@@ -330,6 +387,107 @@ export default function ShopDetailsScreen() {
                         thumbColor={autoApprove ? "#0f172a" : colors.textMuted}
                     />
                 </View>
+
+            </View>
+        </View>
+        </FadeInView>
+
+        {/* --- SECTION 3: HOME SERVICE --- */}
+        <FadeInView delay={300}>
+        <View style={styles.section}>
+            <Text style={[styles.sectionTitle, {color: colors.text}]}>Home Service Configuration</Text>
+            <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+
+                <View style={styles.row}>
+                    <View style={{flex: 1}}>
+                        <Text style={[styles.label, {color: colors.textMuted}]}>Enable Home Services</Text>
+                        <Text style={[styles.helperText, {color: colors.textMuted}]}>Offer services at customer's location</Text>
+                    </View>
+                    <Switch
+                        value={homeServiceAvailable}
+                        onValueChange={setHomeServiceAvailable}
+                        trackColor={{false: colors.border, true: colors.tint}}
+                        thumbColor={homeServiceAvailable ? "#0f172a" : colors.textMuted}
+                    />
+                </View>
+
+                {homeServiceAvailable && (
+                  <>
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.label, {color: colors.textMuted}]}>Service Radius (km)</Text>
+                        </View>
+                        <TextInput
+                            style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={radiusKm}
+                            onChangeText={setRadiusKm}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.label, {color: colors.textMuted}]}>Travel Fee</Text>
+                        </View>
+                        <TextInput
+                            style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={travelFee}
+                            onChangeText={setTravelFee}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.label, {color: colors.textMuted}]}>Min Order Value</Text>
+                        </View>
+                        <TextInput
+                            style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={minOrderValue}
+                            onChangeText={setMinOrderValue}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.label, {color: colors.textMuted}]}>Late Cancellation Fee (%)</Text>
+                            <Text style={[styles.helperText, {color: colors.textMuted}]}>If cancelled &lt; 2 hrs before</Text>
+                        </View>
+                        <TextInput
+                            style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={lateCancelFee}
+                            onChangeText={setLateCancelFee}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                     <Text style={[styles.label, {marginTop: 8, color: colors.textMuted}]}>Payment Preference</Text>
+                     <View style={styles.typeRow}>
+                         {['ALL', 'ONLINE_ONLY'].map((t) => (
+                             <TouchableOpacity
+                               key={t}
+                               style={[styles.typeChip, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}, paymentPreference === t && {backgroundColor: colors.tint, borderColor: colors.tint}]}
+                               onPress={() => setPaymentPreference(t as any)}
+                             >
+                                 <Text style={[styles.typeText, {color: colors.textMuted}, paymentPreference === t && {color: 'black', fontWeight:'bold'}]}>
+                                     {t === 'ONLINE_ONLY' ? 'Online Only' : 'Any Method'}
+                                 </Text>
+                             </TouchableOpacity>
+                         ))}
+                     </View>
+                  </>
+                )}
 
                 <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.tint}]} onPress={handleUpdateShop} disabled={savingShop}>
                     {savingShop ? <ActivityIndicator color="#0f172a" /> : (
