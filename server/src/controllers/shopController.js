@@ -535,21 +535,11 @@ exports.getShopSlots = async (req, res) => {
 // --- 8. Add Service ---
 exports.addShopService = async (req, res) => {
   const { id } = req.params;
-  const { name, price, duration, isHomeServiceAvailable } = req.body;
+  const { name, price, duration } = req.body;
   try {
     const shop = await Shop.findByIdAndUpdate(
       id,
-      {
-        $push: {
-          services: {
-            name,
-            price,
-            duration: parseInt(duration),
-            isAvailable: true,
-            isHomeServiceAvailable: isHomeServiceAvailable !== undefined ? isHomeServiceAvailable : true
-          }
-        }
-      },
+      { $push: { services: { name, price, duration: parseInt(duration), isAvailable: true } } },
       { new: true }
     );
     res.json(shop);
@@ -577,7 +567,7 @@ exports.deleteShopService = async (req, res) => {
 // --- 10. Update Service (Toggle Availability) ---
 exports.updateShopService = async (req, res) => {
   const { id, serviceId } = req.params;
-  const { name, price, duration, isAvailable, isHomeServiceAvailable } = req.body;
+  const { name, price, duration, isAvailable } = req.body;
 
   try {
     // Construct updates object dynamically
@@ -586,7 +576,6 @@ exports.updateShopService = async (req, res) => {
     if (price !== undefined) updateQuery["services.$.price"] = parseInt(price);
     if (duration !== undefined) updateQuery["services.$.duration"] = parseInt(duration);
     if (isAvailable !== undefined) updateQuery["services.$.isAvailable"] = isAvailable;
-    if (isHomeServiceAvailable !== undefined) updateQuery["services.$.isHomeServiceAvailable"] = isHomeServiceAvailable;
 
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "services._id": serviceId },
@@ -605,7 +594,7 @@ exports.updateShopService = async (req, res) => {
 // --- 10.1 Add Combo ---
 exports.addShopCombo = async (req, res) => {
   const { id } = req.params;
-  const { name, price, originalPrice, duration, items, isHomeServiceAvailable } = req.body;
+  const { name, price, originalPrice, duration, items } = req.body;
 
   try {
     const shop = await Shop.findByIdAndUpdate(
@@ -618,8 +607,7 @@ exports.addShopCombo = async (req, res) => {
             originalPrice: parseInt(originalPrice),
             duration: parseInt(duration),
             items: items || [], // array of service IDs
-            isAvailable: true,
-            isHomeServiceAvailable: isHomeServiceAvailable !== undefined ? isHomeServiceAvailable : true
+            isAvailable: true
           }
         }
       },
@@ -651,7 +639,7 @@ exports.deleteShopCombo = async (req, res) => {
 // --- 10.3 Update Combo ---
 exports.updateShopCombo = async (req, res) => {
   const { id, comboId } = req.params;
-  const { name, price, originalPrice, duration, items, isAvailable, isHomeServiceAvailable } = req.body;
+  const { name, price, originalPrice, duration, items, isAvailable } = req.body;
 
   try {
     // Construct updates object dynamically
@@ -662,7 +650,6 @@ exports.updateShopCombo = async (req, res) => {
     if (duration !== undefined) updateQuery["combos.$.duration"] = parseInt(duration);
     if (items) updateQuery["combos.$.items"] = items;
     if (isAvailable !== undefined) updateQuery["combos.$.isAvailable"] = isAvailable;
-    if (isHomeServiceAvailable !== undefined) updateQuery["combos.$.isHomeServiceAvailable"] = isHomeServiceAvailable;
 
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "combos._id": comboId },

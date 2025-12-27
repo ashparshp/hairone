@@ -35,7 +35,6 @@ export default function ShopDetailsScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'online'>('cash');
   const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest');
   const [isHomeService, setIsHomeService] = useState(false);
-  const [isHomeBookingMode, setIsHomeBookingMode] = useState(false); // Toggle for filtering services
   const [address, setAddress] = useState('');
   const [addressCoords, setAddressCoords] = useState<{lat: number, lng: number} | null>(null);
 
@@ -81,11 +80,6 @@ export default function ShopDetailsScreen() {
     fetchShopDetails();
     fetchConfig();
   }, [id]);
-
-  useEffect(() => {
-      // Sync isHomeService with mode for Booking Logic
-      setIsHomeService(isHomeBookingMode);
-  }, [isHomeBookingMode]);
 
   const fetchConfig = async () => {
      try {
@@ -322,33 +316,8 @@ export default function ShopDetailsScreen() {
       {step === 1 && (
         <SlideInView key="step1" from="right" style={{flex: 1}}>
         <View style={{flex: 1}}>
-
-             {/* HOME SERVICE TOGGLE (Moved to top of Step 1) */}
-             {shop?.homeService?.isAvailable && (
-                 <View style={[styles.homeServiceBanner, {backgroundColor: isHomeBookingMode ? colors.tint : (isDark ? '#1e293b' : '#f1f5f9'), borderColor: isHomeBookingMode ? colors.tint : colors.border}]}>
-                     <View style={{flex: 1}}>
-                         <Text style={[styles.hsTitle, {color: isHomeBookingMode ? 'black' : colors.text}]}>
-                             {isHomeBookingMode ? 'Booking Home Service' : 'Book Home Service?'}
-                         </Text>
-                         <Text style={[styles.hsSub, {color: isHomeBookingMode ? 'black' : colors.textMuted}]}>
-                             {isHomeBookingMode
-                                 ? `Filtering menu for home delivery (+₹${shop.homeService.travelFee})`
-                                 : 'Switch to see home service menu'}
-                         </Text>
-                     </View>
-                     <TouchableOpacity
-                        style={[styles.hsToggleBtn, {backgroundColor: isHomeBookingMode ? 'black' : (isDark ? '#334155' : 'white')}]}
-                        onPress={() => setIsHomeBookingMode(!isHomeBookingMode)}
-                     >
-                         <Text style={{color: isHomeBookingMode ? 'white' : colors.text, fontWeight: 'bold', fontSize: 12}}>
-                             {isHomeBookingMode ? 'ON' : 'OFF'}
-                         </Text>
-                     </TouchableOpacity>
-                 </View>
-             )}
-
             {/* TABS */}
-             <View style={[styles.tabs, {borderColor: colors.border, backgroundColor: colors.card, marginHorizontal: 20, marginTop: 10}]}>
+            <View style={[styles.tabs, {borderColor: colors.border, backgroundColor: colors.card, marginHorizontal: 20, marginTop: 20}]}>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'services' && { backgroundColor: colors.tint }]}
                     onPress={() => setActiveTab('services')}
@@ -381,10 +350,7 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'services' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Services</Text>
-                    {shop?.services && shop.services
-                        .filter((s: any) => s.isAvailable !== false)
-                        .filter((s: any) => !isHomeBookingMode || s.isHomeServiceAvailable !== false)
-                        .map((service: any, index: number) => {
+                    {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === service._id);
                         
                         // Colors
@@ -459,10 +425,7 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'combos' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Exclusive Packages</Text>
-                    {shop?.combos && shop.combos
-                        .filter((c: any) => c.isAvailable !== false)
-                        .filter((c: any) => !isHomeBookingMode || c.isHomeServiceAvailable !== false)
-                        .map((combo: any, index: number) => {
+                    {shop?.combos && shop.combos.filter((c: any) => c.isAvailable !== false).map((combo: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === combo._id);
                         
                         // Calculations
@@ -651,42 +614,56 @@ export default function ShopDetailsScreen() {
         <SlideInView key="step2" from="right" style={{flex: 1}}>
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 160}}>
 
-            {/* Home Service Address (Only if mode enabled) */}
-            {isHomeService && shop?.homeService?.isAvailable && (
+            {/* Home Service Toggle */}
+            {shop?.homeService?.isAvailable && (
                 <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border, marginBottom: 24, padding: 16}]}>
                     <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
                         <View style={{flex:1}}>
-                            <Text style={{color: colors.text, fontWeight:'bold', fontSize: 16}}>Home Delivery</Text>
+                            <Text style={{color: colors.text, fontWeight:'bold', fontSize: 16}}>Book Home Service</Text>
                             <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 4}}>
                                 {shop.name} comes to your location (+₹{shop.homeService.travelFee})
                             </Text>
                         </View>
+                         <TouchableOpacity
+                            style={[
+                                styles.toggleSwitch,
+                                { backgroundColor: isHomeService ? colors.tint : (isDark ? '#334155' : '#e2e8f0') }
+                            ]}
+                            onPress={() => setIsHomeService(!isHomeService)}
+                         >
+                            <View style={[
+                                styles.toggleKnob,
+                                { transform: [{ translateX: isHomeService ? 20 : 0 }] }
+                            ]} />
+                         </TouchableOpacity>
                     </View>
 
-                    <View style={{marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border}}>
-                            <Text style={[styles.label, {color: colors.textMuted}]}>Delivery Address</Text>
-                            <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
-                            <MapPin size={18} color={colors.textMuted} style={{marginLeft: 12}} />
-                            <TextInput // Replaced styles.input with inline or defined style
-                                style={{flex: 1, padding: 14, fontSize: 14, color: colors.text}}
-                                value={address}
-                                onChangeText={setAddress}
-                                placeholder="Enter full address"
-                                placeholderTextColor={colors.textMuted}
-                            />
-                            </View>
-                            <TouchableOpacity
-                            style={{flexDirection:'row', alignItems:'center', gap: 6, marginTop: 8}}
-                            onPress={() => {
-                                // Simulate current location
-                                setAddress("Current Location (Simulated)");
-                                setAddressCoords({ lat: shop.coordinates?.lat, lng: shop.coordinates?.lng });
-                            }}
-                            >
-                                <MapPin size={12} color={colors.tint} />
-                                <Text style={{color: colors.tint, fontSize: 12, fontWeight:'bold'}}>Use Current Location</Text>
-                            </TouchableOpacity>
-                    </View>
+                    {isHomeService && (
+                        <View style={{marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border}}>
+                             <Text style={[styles.label, {color: colors.textMuted}]}>Delivery Address</Text>
+                             <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                                <MapPin size={18} color={colors.textMuted} style={{marginLeft: 12}} />
+                                <TextInput // Replaced styles.input with inline or defined style
+                                    style={{flex: 1, padding: 14, fontSize: 14, color: colors.text}}
+                                    value={address}
+                                    onChangeText={setAddress}
+                                    placeholder="Enter full address"
+                                    placeholderTextColor={colors.textMuted}
+                                />
+                             </View>
+                             <TouchableOpacity
+                                style={{flexDirection:'row', alignItems:'center', gap: 6, marginTop: 8}}
+                                onPress={() => {
+                                    // Simulate current location
+                                    setAddress("Current Location (Simulated)");
+                                    setAddressCoords({ lat: shop.coordinates?.lat, lng: shop.coordinates?.lng });
+                                }}
+                             >
+                                 <MapPin size={12} color={colors.tint} />
+                                 <Text style={{color: colors.tint, fontSize: 12, fontWeight:'bold'}}>Use Current Location</Text>
+                             </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             )}
 
@@ -1251,10 +1228,4 @@ const styles = StyleSheet.create({
   toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'white', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.2, shadowRadius: 1, elevation: 2 },
   label: { fontSize: 12, marginBottom: 8, fontWeight: '600' },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, marginBottom: 12 },
-
-  // Home Service Banner
-  homeServiceBanner: { marginHorizontal: 20, marginTop: 20, padding: 16, borderRadius: 16, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  hsTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 4 },
-  hsSub: { fontSize: 12 },
-  hsToggleBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, minWidth: 60, alignItems: 'center' },
 });
