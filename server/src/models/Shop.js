@@ -14,8 +14,7 @@ const shopSchema = new mongoose.Schema({
     name: String,
     price: Number,
     duration: Number, // minutes
-    isAvailable: { type: Boolean, default: true },
-    isHomeServiceAvailable: { type: Boolean, default: true }
+    isAvailable: { type: Boolean, default: true }
   }],
   combos: [{
     name: { type: String, required: true },
@@ -23,8 +22,7 @@ const shopSchema = new mongoose.Schema({
     originalPrice: { type: Number, required: true },
     duration: { type: Number, required: true },
     items: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Shop.services' }], // Store Service IDs
-    isAvailable: { type: Boolean, default: true },
-    isHomeServiceAvailable: { type: Boolean, default: true }
+    isAvailable: { type: Boolean, default: true }
   }],
   // Scheduling Settings
   bufferTime: { type: Number, default: 0 }, // Minutes between bookings
@@ -40,7 +38,9 @@ const shopSchema = new mongoose.Schema({
     minOrderValue: { type: Number, default: 0 },
     paymentPreference: { type: String, enum: ['ONLINE_ONLY', 'ALL'], default: 'ALL' },
     lateCancellationFeePercent: { type: Number, default: 50 } // Charged if cancelled < 2 hours before
-  }
+  },
+  },
+  blockCustomBookings: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Shop', shopSchema);
