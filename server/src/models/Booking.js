@@ -19,6 +19,14 @@ const bookingSchema = new mongoose.Schema({
   isRated: { type: Boolean, default: false },
   notes: String, // For blocking reason or special requests
 
+  // Home Service Details
+  isHomeService: { type: Boolean, default: false },
+  deliveryAddress: {
+    line1: String,
+    coordinates: { lat: Number, lng: Number }
+  },
+  travelFee: { type: Number, default: 0 },
+
   // Financials
   originalPrice: Number,      // Base Price (Sum of services)
   discountAmount: Number,     // Discount given to user

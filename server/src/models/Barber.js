@@ -30,7 +30,8 @@ const barberSchema = new mongoose.Schema({
     endHour: String,
     reason: String
   }],
-  isAvailable: { type: Boolean, default: true }
+  isAvailable: { type: Boolean, default: true },
+  isHomeServiceAvailable: { type: Boolean, default: true }
 });
 
 module.exports = mongoose.model('Barber', barberSchema);

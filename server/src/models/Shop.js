@@ -29,6 +29,16 @@ const shopSchema = new mongoose.Schema({
   minBookingNotice: { type: Number, default: 60 }, // Minutes before booking
   maxBookingNotice: { type: Number, default: 30 }, // Days in advance
   autoApproveBookings: { type: Boolean, default: true },
+  isDisabled: { type: Boolean, default: false },
+  // Home Service Configuration
+  homeService: {
+    isAvailable: { type: Boolean, default: false },
+    radiusKm: { type: Number, default: 5 },
+    travelFee: { type: Number, default: 0 },
+    minOrderValue: { type: Number, default: 0 },
+    paymentPreference: { type: String, enum: ['ONLINE_ONLY', 'ALL'], default: 'ALL' },
+    lateCancellationFeePercent: { type: Number, default: 50 } // Charged if cancelled < 2 hours before
+  }
   blockCustomBookings: { type: Boolean, default: false },
   isDisabled: { type: Boolean, default: false }
 }, { timestamps: true });

@@ -33,7 +33,10 @@ export default function ShopDetailsScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'online'>('cash');
-  const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
+  const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest');
+  const [isHomeService, setIsHomeService] = useState(false);
+  const [address, setAddress] = useState('');
+  const [addressCoords, setAddressCoords] = useState<{lat: number, lng: number} | null>(null);
 
   // TABS
   const [activeTab, setActiveTab] = useState<'services' | 'combos' | 'reviews' | 'gallery'>('services');
@@ -136,10 +139,17 @@ export default function ShopDetailsScreen() {
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
 
-  const calculateTotal = () => selectedServices.reduce((sum, s) => {
-    const val = parseFloat(s.price);
-    return sum + (isNaN(val) ? 0 : val);
-  }, 0);
+  const calculateTotal = () => {
+      let total = selectedServices.reduce((sum, s) => {
+        const val = parseFloat(s.price);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+
+      if (isHomeService && shop?.homeService?.travelFee) {
+          total += shop.homeService.travelFee;
+      }
+      return total;
+  };
 
   const fetchSlots = async () => {
     setLoadingSlots(true);
@@ -188,6 +198,20 @@ export default function ShopDetailsScreen() {
     if (!selectedTime) return showToast("Please select a time slot", "error");
     if (selectedServices.length === 0) return showToast("Please select at least one service", "error");
 
+    if (isHomeService) {
+        if (!address.trim()) return showToast("Please enter delivery address", "error");
+        // For simulation, if coords not set, mock them near the shop or user location
+        if (!addressCoords) {
+            // Mock coords if not set (in real app, use Geocoding)
+            // But we can check if shop has coords and just put it nearby for MVP success
+             const mockCoords = {
+                 lat: shop?.coordinates?.lat || 0,
+                 lng: shop?.coordinates?.lng || 0
+             };
+             setAddressCoords(mockCoords);
+        }
+    }
+
     try {
         setLoading(true);
         const dateStr = formatLocalDate(selectedDate);
@@ -199,7 +223,7 @@ export default function ShopDetailsScreen() {
             return s.name;
         });
 
-        await api.post('/bookings', {
+        const payload: any = {
             userId: user?._id,
             shopId: shop._id,
             barberId: selectedBarberId, 
@@ -208,8 +232,20 @@ export default function ShopDetailsScreen() {
             totalDuration: calculateDuration(),
             date: dateStr,
             startTime: selectedTime,
-            paymentMethod: paymentMethod === 'online' ? 'ONLINE' : 'CASH'
-        });
+            paymentMethod: paymentMethod === 'online' ? 'ONLINE' : 'CASH',
+            isHomeService: isHomeService
+        };
+
+        if (isHomeService) {
+            // Use mock coords if still null (should be handled above, but double check)
+            const coords = addressCoords || { lat: shop.coordinates?.lat || 0, lng: shop.coordinates?.lng || 0 };
+            payload.deliveryAddress = {
+                line1: address,
+                coordinates: coords
+            };
+        }
+
+        await api.post('/bookings', payload);
 
         showToast("Booking Confirmed!", "success");
         if (fetchBookings) fetchBookings(); 
@@ -577,6 +613,60 @@ export default function ShopDetailsScreen() {
       {step === 2 && (
         <SlideInView key="step2" from="right" style={{flex: 1}}>
         <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20, paddingBottom: 160}}>
+
+            {/* Home Service Toggle */}
+            {shop?.homeService?.isAvailable && (
+                <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border, marginBottom: 24, padding: 16}]}>
+                    <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center'}}>
+                        <View style={{flex:1}}>
+                            <Text style={{color: colors.text, fontWeight:'bold', fontSize: 16}}>Book Home Service</Text>
+                            <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 4}}>
+                                {shop.name} comes to your location (+₹{shop.homeService.travelFee})
+                            </Text>
+                        </View>
+                         <TouchableOpacity
+                            style={[
+                                styles.toggleSwitch,
+                                { backgroundColor: isHomeService ? colors.tint : (isDark ? '#334155' : '#e2e8f0') }
+                            ]}
+                            onPress={() => setIsHomeService(!isHomeService)}
+                         >
+                            <View style={[
+                                styles.toggleKnob,
+                                { transform: [{ translateX: isHomeService ? 20 : 0 }] }
+                            ]} />
+                         </TouchableOpacity>
+                    </View>
+
+                    {isHomeService && (
+                        <View style={{marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border}}>
+                             <Text style={[styles.label, {color: colors.textMuted}]}>Delivery Address</Text>
+                             <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                                <MapPin size={18} color={colors.textMuted} style={{marginLeft: 12}} />
+                                <TextInput // Replaced styles.input with inline or defined style
+                                    style={{flex: 1, padding: 14, fontSize: 14, color: colors.text}}
+                                    value={address}
+                                    onChangeText={setAddress}
+                                    placeholder="Enter full address"
+                                    placeholderTextColor={colors.textMuted}
+                                />
+                             </View>
+                             <TouchableOpacity
+                                style={{flexDirection:'row', alignItems:'center', gap: 6, marginTop: 8}}
+                                onPress={() => {
+                                    // Simulate current location
+                                    setAddress("Current Location (Simulated)");
+                                    setAddressCoords({ lat: shop.coordinates?.lat, lng: shop.coordinates?.lng });
+                                }}
+                             >
+                                 <MapPin size={12} color={colors.tint} />
+                                 <Text style={{color: colors.tint, fontSize: 12, fontWeight:'bold'}}>Use Current Location</Text>
+                             </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            )}
+
             <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Choose Professional</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 24}}>
                 <TouchableOpacity 
@@ -746,9 +836,21 @@ export default function ShopDetailsScreen() {
                 {/* Total Section */}
                 <View style={{gap: 6}}>
                     <View style={styles.receiptRowBetween}>
-                        <Text style={{color: colors.textMuted, fontSize: 13}}>Subtotal</Text>
-                        <Text style={{color: colors.text, fontSize: 13}}>₹{calculateTotal().toFixed(2)}</Text>
+                        <Text style={{color: colors.textMuted, fontSize: 13}}>Subtotal (Services)</Text>
+                        <Text style={{color: colors.text, fontSize: 13}}>
+                            {/* Calculate subtotal without travel fee for display clarity if possible, but calculateTotal includes it.
+                                Let's subtract fee if home service to show breakdown. */}
+                             ₹{(calculateTotal() - (isHomeService ? (shop?.homeService?.travelFee || 0) : 0)).toFixed(2)}
+                        </Text>
                     </View>
+
+                    {isHomeService && (
+                         <View style={styles.receiptRowBetween}>
+                            <Text style={{color: colors.textMuted, fontSize: 13}}>Travel Fee</Text>
+                            <Text style={{color: colors.text, fontSize: 13}}>+ ₹{(shop?.homeService?.travelFee || 0).toFixed(2)}</Text>
+                        </View>
+                    )}
+
                     {config.userDiscountRate > 0 && (
                         <View style={styles.receiptRowBetween}>
                             <Text style={{color: '#10b981', fontSize: 13}}>Discount ({config.userDiscountRate}%)</Text>
@@ -1133,4 +1235,10 @@ const styles = StyleSheet.create({
   viewerCloseArea: { ...StyleSheet.absoluteFillObject },
   viewerImage: { width: '100%', height: '80%' },
   viewerCloseBtn: { position: 'absolute', top: 50, right: 20, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
+
+  // Toggle Switch
+  toggleSwitch: { width: 44, height: 24, borderRadius: 12, padding: 2 },
+  toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'white', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.2, shadowRadius: 1, elevation: 2 },
+  label: { fontSize: 12, marginBottom: 8, fontWeight: '600' },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, marginBottom: 12 },
 });

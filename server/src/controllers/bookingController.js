@@ -5,6 +5,7 @@ const SystemConfig = require('../models/SystemConfig');
 const { addMinutes, parse, format, differenceInDays, subDays, startOfMonth, endOfMonth } = require('date-fns');
 const { getISTTime } = require('../utils/dateUtils');
 const { timeToMinutes, getBarberScheduleForDate } = require('../utils/scheduleUtils');
+const { calculateDistance } = require('../utils/geoUtils');
 
 /**
  * =================================================================================================
@@ -146,6 +147,58 @@ exports.createBooking = async (req, res) => {
     const shop = await Shop.findById(shopId);
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
+    // Home Service Validations
+    let finalTravelFee = 0;
+    if (req.body.isHomeService) {
+        // 1. Check Shop Eligibility
+        if (!shop.homeService || !shop.homeService.isAvailable) {
+            return res.status(400).json({ message: "This shop does not offer home services." });
+        }
+
+        // 2. Check Barber Eligibility (if specific barber selected)
+        if (barberId && barberId !== 'any') {
+            const b = await Barber.findById(barberId);
+            if (!b) return res.status(404).json({ message: "Barber not found" });
+            if (!b.isHomeServiceAvailable) {
+                return res.status(400).json({ message: "Selected barber does not provide home services." });
+            }
+        }
+
+        // 3. Check Minimum Order Value
+        if (shop.homeService.minOrderValue && parsedPrice < shop.homeService.minOrderValue) {
+            return res.status(400).json({ message: `Minimum order value for home service is ${shop.homeService.minOrderValue}.` });
+        }
+
+        // 4. Check Payment Method Preference
+        if (shop.homeService.paymentPreference === 'ONLINE_ONLY') {
+            if (paymentMethod === 'cash' || paymentMethod === 'CASH' || paymentMethod === 'PAY_AT_VENUE') {
+                return res.status(400).json({ message: "This shop only accepts online payment for home services." });
+            }
+        }
+
+        // 5. Radius Check (if coordinates provided)
+        // Note: The frontend should theoretically validate this, but backend validation is safer.
+        // We need user coordinates from the request body.
+        const { deliveryAddress } = req.body;
+        if (!deliveryAddress || !deliveryAddress.coordinates) {
+             return res.status(400).json({ message: "Delivery address coordinates are required." });
+        }
+
+        if (shop.coordinates && shop.coordinates.lat && deliveryAddress.coordinates.lat) {
+             const dist = calculateDistance(
+                 deliveryAddress.coordinates.lat,
+                 deliveryAddress.coordinates.lng,
+                 shop.coordinates.lat,
+                 shop.coordinates.lng
+             );
+             if (dist > (shop.homeService.radiusKm || 5)) {
+                 return res.status(400).json({ message: "Your location is outside the shop's service area." });
+             }
+        }
+
+        finalTravelFee = shop.homeService.travelFee || 0;
+    }
+
     const bufferTime = shop.bufferTime || 0;
     const minNotice = shop.minBookingNotice || 0; // minutes
     const maxNotice = shop.maxBookingNotice || 30; // days
@@ -186,6 +239,9 @@ exports.createBooking = async (req, res) => {
       const allBarbers = await Barber.find({ shopId, isAvailable: true });
       const availableBarbers = [];
       for (const barber of allBarbers) {
+        // For Home Service, skip barbers who don't do home visits
+        if (req.body.isHomeService && !barber.isHomeServiceAvailable) continue;
+
         if (await checkAvailability(barber, date, startTime, durationInt, bufferTime)) {
           availableBarbers.push(barber);
         }
@@ -210,6 +266,8 @@ exports.createBooking = async (req, res) => {
     let status = 'upcoming';
     if (type === 'blocked') {
         status = 'blocked';
+    } else if (req.body.isHomeService) {
+        status = 'pending'; // Always pending for home services
     } else if (!autoApprove && type !== 'walk-in') {
         status = 'pending';
     }
@@ -248,19 +306,24 @@ exports.createBooking = async (req, res) => {
 
     const originalPrice = parsedPrice;
 
+    // Add Travel Fee to Base Price for Commission calculation?
+    // Requirement: "always take set percentage on overall cost."
+    // So Commission Base = Service Price + Travel Fee
+    const commissionBase = originalPrice + finalTravelFee;
+
     // 2. Calculate Discount (Subsidized by Admin usually, but here it reduces the final price)
     const discountAmount = roundMoney(originalPrice * (discountRate / 100));
-    const finalPrice = roundMoney(originalPrice - discountAmount);
+    const finalPrice = roundMoney(originalPrice + finalTravelFee - discountAmount);
 
-    // 3. Admin Commission (Gross) - Calculated on the ORIGINAL price
-    const adminCommission = roundMoney(originalPrice * (adminRate / 100));
+    // 3. Admin Commission (Gross) - Calculated on the TOTAL price
+    const adminCommission = roundMoney(commissionBase * (adminRate / 100));
 
     // 4. Net Revenues
     // Admin Net = Commission - Discount (Admin absorbs the discount cost)
     const adminNetRevenue = roundMoney(adminCommission - discountAmount);
 
-    // Barber Net = Original - Commission (Barber gets the rest)
-    const barberNetRevenue = roundMoney(originalPrice - adminCommission);
+    // Barber Net = Total (Base+Fee) - Commission
+    const barberNetRevenue = roundMoney(commissionBase - adminCommission);
 
     // 5. Determine who holds the cash right now?
     // - If Online/UPI: Admin has it.
@@ -281,6 +344,10 @@ exports.createBooking = async (req, res) => {
 
       amountCollectedBy: collectedBy,
       settlementStatus: 'PENDING',
+
+      isHomeService: req.body.isHomeService || false,
+      deliveryAddress: req.body.deliveryAddress,
+      travelFee: finalTravelFee,
 
       totalDuration: durationInt, date, startTime, endTime, 
       paymentMethod: paymentMethod || 'cash', 
@@ -325,10 +392,44 @@ exports.getMyBookings = async (req, res) => {
 exports.cancelBooking = async (req, res) => {
   try {
     const { id } = req.params;
-    const booking = await Booking.findByIdAndUpdate(id, { status: 'cancelled' }, { new: true });
+    const booking = await Booking.findById(id);
     if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    // Home Service Cancellation Logic
+    if (booking.isHomeService) {
+        // Calculate hours until booking
+        const bookingDateTime = parse(`${booking.date} ${booking.startTime}`, 'yyyy-MM-dd HH:mm', new Date());
+        const now = new Date();
+        const diffHours = (bookingDateTime - now) / 36e5;
+
+        let refundAmount = booking.finalPrice; // Default full refund
+
+        // "if booking cancel before 2 hours then 100% refund else make it customising..."
+        if (diffHours < 2) {
+             const shop = await Shop.findById(booking.shopId);
+             if (shop && shop.homeService && shop.homeService.lateCancellationFeePercent > 0) {
+                 const feePercent = shop.homeService.lateCancellationFeePercent;
+                 const penalty = roundMoney(booking.finalPrice * (feePercent / 100));
+                 refundAmount = roundMoney(booking.finalPrice - penalty);
+
+                 // TODO: Process Partial Refund via Payment Gateway if paid online
+                 // For now, we just log/store the penalty logic.
+                 // Ideally we should update the booking to indicate a penalty was charged.
+                 // We'll update the notes to reflect this.
+                 booking.notes = (booking.notes || "") + ` | Late Cancellation Fee: ${penalty}. Refund: ${refundAmount}.`;
+             }
+        }
+
+        // If shop cancels (we need to know who is cancelling), refund is 100%.
+        // Assuming this endpoint is called by User. If Admin/Shop calls, we might need a flag.
+        // For MVP, applying the logic based on time.
+    }
+
+    booking.status = 'cancelled';
+    await booking.save();
     res.json(booking);
   } catch (e) {
+    console.error(e);
     res.status(500).json({ message: "Failed to cancel booking" });
   }
 };
