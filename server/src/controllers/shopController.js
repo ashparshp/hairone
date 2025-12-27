@@ -84,8 +84,7 @@ exports.createShop = async (req, res) => {
       bufferTime: bufferTime !== undefined ? parseInt(bufferTime) : 0,
       minBookingNotice: minBookingNotice !== undefined ? parseInt(minBookingNotice) : 60,
       maxBookingNotice: maxBookingNotice !== undefined ? parseInt(maxBookingNotice) : 30,
-      autoApproveBookings: autoApproveBookings !== undefined ? autoApproveBookings : true,
-      blockCustomBookings: req.body.blockCustomBookings !== undefined ? req.body.blockCustomBookings : false
+      autoApproveBookings: autoApproveBookings !== undefined ? autoApproveBookings : true
     };
 
     if (lat !== undefined && lng !== undefined) {
@@ -119,7 +118,6 @@ exports.updateShop = async (req, res) => {
     if (minBookingNotice !== undefined) updates.minBookingNotice = parseInt(minBookingNotice);
     if (maxBookingNotice !== undefined) updates.maxBookingNotice = parseInt(maxBookingNotice);
     if (autoApproveBookings !== undefined) updates.autoApproveBookings = autoApproveBookings;
-    if (req.body.blockCustomBookings !== undefined) updates.blockCustomBookings = req.body.blockCustomBookings;
 
     // Home Service Updates
     // Handle both nested object (JSON) and flattened keys (FormData/Multer)
