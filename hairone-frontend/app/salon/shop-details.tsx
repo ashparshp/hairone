@@ -46,6 +46,7 @@ export default function ShopDetailsScreen() {
   const [homeServiceAvailable, setHomeServiceAvailable] = useState(false);
   const [radiusKm, setRadiusKm] = useState('5');
   const [travelFee, setTravelFee] = useState('0');
+  const [travelTime, setTravelTime] = useState('30');
   const [minOrderValue, setMinOrderValue] = useState('0');
   const [lateCancelFee, setLateCancelFee] = useState('50');
   const [paymentPreference, setPaymentPreference] = useState<'ALL'|'ONLINE_ONLY'>('ALL');
@@ -84,6 +85,7 @@ export default function ShopDetailsScreen() {
         setHomeServiceAvailable(s.homeService.isAvailable || false);
         setRadiusKm(String(s.homeService.radiusKm || 5));
         setTravelFee(String(s.homeService.travelFee || 0));
+        setTravelTime(String(s.homeService.travelTimeMin || 30));
         setMinOrderValue(String(s.homeService.minOrderValue || 0));
         setLateCancelFee(String(s.homeService.lateCancellationFeePercent || 50));
         setPaymentPreference(s.homeService.paymentPreference || 'ALL');
@@ -163,6 +165,7 @@ export default function ShopDetailsScreen() {
           formData.append('homeService[isAvailable]', String(homeServiceAvailable));
           formData.append('homeService[radiusKm]', radiusKm);
           formData.append('homeService[travelFee]', travelFee);
+          formData.append('homeService[travelTimeMin]', travelTime);
           formData.append('homeService[minOrderValue]', minOrderValue);
           formData.append('homeService[lateCancellationFeePercent]', lateCancelFee);
           formData.append('homeService[paymentPreference]', paymentPreference);
@@ -423,6 +426,21 @@ export default function ShopDetailsScreen() {
                             style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
                             value={radiusKm}
                             onChangeText={setRadiusKm}
+                            keyboardType="numeric"
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                    <View style={styles.row}>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.label, {color: colors.textMuted}]}>Travel Time Buffer (min)</Text>
+                            <Text style={[styles.helperText, {color: colors.textMuted}]}>Time added before/after service</Text>
+                        </View>
+                        <TextInput
+                            style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                            value={travelTime}
+                            onChangeText={setTravelTime}
                             keyboardType="numeric"
                         />
                     </View>
