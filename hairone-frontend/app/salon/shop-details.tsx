@@ -41,6 +41,7 @@ export default function ShopDetailsScreen() {
   const [minNotice, setMinNotice] = useState('60');
   const [maxNotice, setMaxNotice] = useState('30');
   const [autoApprove, setAutoApprove] = useState(true);
+  const [blockCustomBookings, setBlockCustomBookings] = useState(false);
 
   // Home Service State
   const [homeServiceAvailable, setHomeServiceAvailable] = useState(false);
@@ -88,6 +89,7 @@ export default function ShopDetailsScreen() {
         setLateCancelFee(String(s.homeService.lateCancellationFeePercent || 50));
         setPaymentPreference(s.homeService.paymentPreference || 'ALL');
       }
+      setBlockCustomBookings(s.blockCustomBookings || false);
     } catch (e) {
       console.log(e);
       Alert.alert("Error", "Failed to load shop details");
@@ -127,6 +129,8 @@ export default function ShopDetailsScreen() {
           formData.append('maxBookingNotice', maxNotice);
           // @ts-ignore
           formData.append('autoApproveBookings', autoApprove);
+          // @ts-ignore
+          formData.append('blockCustomBookings', blockCustomBookings);
 
           // Home Service
           const homeService = {
@@ -488,6 +492,21 @@ export default function ShopDetailsScreen() {
                      </View>
                   </>
                 )}
+
+                <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                <View style={[styles.row, {marginBottom: 0}]}>
+                    <View style={{flex: 1}}>
+                        <Text style={[styles.label, {color: colors.textMuted}]}>Block Custom Bookings</Text>
+                        <Text style={[styles.helperText, {color: colors.textMuted}]}>Only allow 'Earliest Available'</Text>
+                    </View>
+                    <Switch
+                        value={blockCustomBookings}
+                        onValueChange={setBlockCustomBookings}
+                        trackColor={{false: colors.border, true: colors.tint}}
+                        thumbColor={blockCustomBookings ? "#0f172a" : colors.textMuted}
+                    />
+                </View>
 
                 <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.tint}]} onPress={handleUpdateShop} disabled={savingShop}>
                     {savingShop ? <ActivityIndicator color="#0f172a" /> : (

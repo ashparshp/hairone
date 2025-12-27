@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking, TextInput } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
@@ -713,20 +713,33 @@ export default function ShopDetailsScreen() {
             </ScrollView>
 
             <Text style={[styles.sectionTitle, {color: colors.textMuted}]}>Booking Option</Text>
-            <View style={[styles.toggleContainer, {backgroundColor: colors.card, borderColor: colors.border}]}>
-                <TouchableOpacity
-                    style={[styles.toggleBtn, bookingType === 'earliest' && {backgroundColor: colors.tint}]}
-                    onPress={() => setBookingType('earliest')}
-                >
-                    <Text style={[styles.toggleText, {color: colors.textMuted}, bookingType === 'earliest' && { color: 'black' }]}>Earliest Available</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.toggleBtn, bookingType === 'schedule' && {backgroundColor: colors.tint}]}
-                    onPress={() => setBookingType('schedule')}
-                >
-                    <Text style={[styles.toggleText, {color: colors.textMuted}, bookingType === 'schedule' && { color: 'black' }]}>Custom Schedule</Text>
-                </TouchableOpacity>
-            </View>
+            {shop?.blockCustomBookings ? (
+                // If custom blocked, only show Earliest available card directly (no toggle needed, or just a static indicator)
+                // But to keep UI consistent, let's show a single full-width button selected
+                <View style={[styles.toggleContainer, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                    <TouchableOpacity
+                        style={[styles.toggleBtn, {backgroundColor: colors.tint}]}
+                        disabled={true}
+                    >
+                        <Text style={[styles.toggleText, { color: 'black' }]}>Earliest Available</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <View style={[styles.toggleContainer, {backgroundColor: colors.card, borderColor: colors.border}]}>
+                    <TouchableOpacity
+                        style={[styles.toggleBtn, bookingType === 'earliest' && {backgroundColor: colors.tint}]}
+                        onPress={() => setBookingType('earliest')}
+                    >
+                        <Text style={[styles.toggleText, {color: colors.textMuted}, bookingType === 'earliest' && { color: 'black' }]}>Earliest Available</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.toggleBtn, bookingType === 'schedule' && {backgroundColor: colors.tint}]}
+                        onPress={() => setBookingType('schedule')}
+                    >
+                        <Text style={[styles.toggleText, {color: colors.textMuted}, bookingType === 'schedule' && { color: 'black' }]}>Custom Schedule</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {bookingType === 'earliest' ? (
                 <View style={[styles.earliestCard, {backgroundColor: colors.card, borderColor: colors.tint}]}>
