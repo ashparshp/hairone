@@ -33,6 +33,7 @@ export default function ManageServicesScreen() {
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState('');
+  const [isHomeServiceAvailable, setIsHomeServiceAvailable] = useState(true);
   const [addingService, setAddingService] = useState(false);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
@@ -40,6 +41,7 @@ export default function ManageServicesScreen() {
   const [newComboName, setNewComboName] = useState('');
   const [newComboPrice, setNewComboPrice] = useState('');
   const [selectedComboServices, setSelectedComboServices] = useState<string[]>([]); // Service IDs
+  const [isComboHomeServiceAvailable, setIsComboHomeServiceAvailable] = useState(true);
   const [addingCombo, setAddingCombo] = useState(false);
   const [editingComboId, setEditingComboId] = useState<string | null>(null);
 
@@ -95,20 +97,19 @@ export default function ManageServicesScreen() {
 
     setAddingService(true);
     try {
+        const payload = {
+            name: newServiceName,
+            price: parseInt(newServicePrice),
+            duration: parseInt(newServiceDuration),
+            isHomeServiceAvailable
+        };
+
         let res;
         if (editingServiceId) {
-            res = await api.put(`/shops/${shop._id}/services/${editingServiceId}`, {
-                name: newServiceName,
-                price: parseInt(newServicePrice),
-                duration: parseInt(newServiceDuration)
-            });
+            res = await api.put(`/shops/${shop._id}/services/${editingServiceId}`, payload);
             Alert.alert("Success", "Service Updated!");
         } else {
-            res = await api.post(`/shops/${shop._id}/services`, {
-                name: newServiceName,
-                price: parseInt(newServicePrice),
-                duration: parseInt(newServiceDuration)
-            });
+            res = await api.post(`/shops/${shop._id}/services`, payload);
             Alert.alert("Success", "Service Added!");
         }
         setShop(res.data);
@@ -157,6 +158,7 @@ export default function ManageServicesScreen() {
       setNewServiceName('');
       setNewServicePrice('');
       setNewServiceDuration('');
+      setIsHomeServiceAvailable(true);
       setEditingServiceId(null);
   };
 
@@ -164,6 +166,7 @@ export default function ManageServicesScreen() {
       setNewServiceName(service.name);
       setNewServicePrice(service.price.toString());
       setNewServiceDuration(service.duration.toString());
+      setIsHomeServiceAvailable(service.isHomeServiceAvailable !== false);
       setEditingServiceId(service._id);
       setActiveTab('services');
   };
@@ -182,7 +185,8 @@ export default function ManageServicesScreen() {
               price: parseInt(newComboPrice),
               originalPrice: comboOriginalPrice,
               duration: comboDuration,
-              items: selectedComboServices
+              items: selectedComboServices,
+              isHomeServiceAvailable: isComboHomeServiceAvailable
           };
 
           let res;
@@ -239,6 +243,7 @@ export default function ManageServicesScreen() {
       setNewComboName('');
       setNewComboPrice('');
       setSelectedComboServices([]);
+      setIsComboHomeServiceAvailable(true);
       setEditingComboId(null);
   };
 
@@ -246,6 +251,7 @@ export default function ManageServicesScreen() {
       setNewComboName(combo.name);
       setNewComboPrice(combo.price.toString());
       setSelectedComboServices(combo.items || []);
+      setIsComboHomeServiceAvailable(combo.isHomeServiceAvailable !== false);
       setEditingComboId(combo._id);
       setActiveTab('combos');
   };
@@ -384,6 +390,16 @@ export default function ManageServicesScreen() {
                     </View>
                 </View>
 
+                <View style={[styles.inputGroup, {flexDirection: 'row', alignItems: 'center', gap: 10}]}>
+                    <Switch
+                        value={isHomeServiceAvailable}
+                        onValueChange={setIsHomeServiceAvailable}
+                        trackColor={{false: colors.border, true: colors.tint}}
+                        thumbColor={isHomeServiceAvailable ? "#0f172a" : "#94a3b8"}
+                    />
+                    <Text style={{color: colors.text}}>Available for Home Service</Text>
+                </View>
+
                 <TouchableOpacity style={[styles.addBtn, {backgroundColor: colors.tint}]} onPress={handleAddOrUpdateService} disabled={addingService}>
                     {addingService ? <ActivityIndicator color="#0f172a"/> : (
                         <Text style={styles.addBtnText}>{editingServiceId ? 'Update Service' : 'Add Service'}</Text>
@@ -506,6 +522,16 @@ export default function ManageServicesScreen() {
                       value={newComboPrice}
                       onChangeText={setNewComboPrice}
                    />
+                </View>
+
+                <View style={[styles.inputGroup, {flexDirection: 'row', alignItems: 'center', gap: 10}]}>
+                    <Switch
+                        value={isComboHomeServiceAvailable}
+                        onValueChange={setIsComboHomeServiceAvailable}
+                        trackColor={{false: colors.border, true: colors.tint}}
+                        thumbColor={isComboHomeServiceAvailable ? "#0f172a" : "#94a3b8"}
+                    />
+                    <Text style={{color: colors.text}}>Available for Home Service</Text>
                 </View>
 
                 <TouchableOpacity style={[styles.addBtn, {backgroundColor: colors.tint}]} onPress={handleAddOrUpdateCombo} disabled={addingCombo}>
