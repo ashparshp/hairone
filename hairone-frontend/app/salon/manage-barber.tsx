@@ -35,6 +35,11 @@ export default function ManageBarberScreen() {
   const [newSpecialEnd, setNewSpecialEnd] = useState('');
   const [newSpecialOpen, setNewSpecialOpen] = useState(true);
 
+  // Availability Flags
+  const [isAvailable, setIsAvailable] = useState(true); // Global
+  const [isShopServiceAvailable, setIsShopServiceAvailable] = useState(true);
+  const [isHomeServiceAvailable, setIsHomeServiceAvailable] = useState(true);
+
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!barberId);
 
@@ -49,6 +54,9 @@ export default function ManageBarberScreen() {
           setStartHour(barber.startHour);
           setEndHour(barber.endHour);
           setBreaks(barber.breaks || []);
+          setIsAvailable(barber.isAvailable !== false);
+          setIsShopServiceAvailable(barber.isShopServiceAvailable !== false);
+          setIsHomeServiceAvailable(barber.isHomeServiceAvailable !== false);
 
           // Hydrate Weekly
           if (barber.weeklySchedule && barber.weeklySchedule.length > 0) {
@@ -91,7 +99,9 @@ export default function ManageBarberScreen() {
         breaks,
         weeklySchedule: sanitizedWeekly,
         specialHours,
-        isAvailable: true
+        isAvailable,
+        isShopServiceAvailable,
+        isHomeServiceAvailable
       };
       
       if (barberId) {
@@ -297,6 +307,39 @@ export default function ManageBarberScreen() {
         </View>
         </FadeInView>
 
+        {/* Availability Settings */}
+        <FadeInView delay={500}>
+        <View style={styles.section}>
+            <Text style={[styles.label, {color: colors.text}]}>Availability Settings</Text>
+            <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+
+                <View style={styles.switchRow}>
+                    <Text style={[styles.switchLabel, {color: colors.text}]}>Active (Global)</Text>
+                    <Switch value={isAvailable} onValueChange={setIsAvailable} />
+                </View>
+                <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                <View style={styles.switchRow}>
+                    <View style={{flex: 1}}>
+                        <Text style={[styles.switchLabel, {color: colors.text}]}>Shop Services</Text>
+                        <Text style={{color: colors.textMuted, fontSize: 10}}>Can accept walk-ins/shop bookings</Text>
+                    </View>
+                    <Switch value={isShopServiceAvailable} onValueChange={setIsShopServiceAvailable} />
+                </View>
+                <View style={[styles.divider, {backgroundColor: colors.border}]} />
+
+                <View style={styles.switchRow}>
+                    <View style={{flex: 1}}>
+                        <Text style={[styles.switchLabel, {color: colors.text}]}>Home Services</Text>
+                        <Text style={{color: colors.textMuted, fontSize: 10}}>Can be booked for home visits</Text>
+                    </View>
+                    <Switch value={isHomeServiceAvailable} onValueChange={setIsHomeServiceAvailable} />
+                </View>
+
+            </View>
+        </View>
+        </FadeInView>
+
         <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.tint}]} onPress={handleSave} disabled={loading}>
           {loading ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.saveText}>Save Changes</Text>}
         </TouchableOpacity>
@@ -381,6 +424,10 @@ const styles = StyleSheet.create({
   tinyInput: { padding: 8, borderRadius: 6, borderWidth: 1, width: 60, textAlign: 'center', fontSize: 12 },
 
   specialRow: { flexDirection: 'row', justifyContent:'space-between', alignItems:'center', padding: 12, borderRadius: 8, marginBottom: 8, borderWidth: 1 },
+
+  switchRow: { flexDirection: 'row', justifyContent:'space-between', alignItems:'center', paddingVertical: 4 },
+  switchLabel: { fontWeight: '600' },
+  divider: { height: 1, marginVertical: 12 },
 
   saveBtn: { padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 20 },
   saveText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },

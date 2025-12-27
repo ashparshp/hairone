@@ -145,6 +145,7 @@ exports.updateShop = async (req, res) => {
       }
       if (hs.radiusKm !== undefined) homeServiceUpdate.radiusKm = parseFloat(hs.radiusKm);
       if (hs.travelFee !== undefined) homeServiceUpdate.travelFee = parseFloat(hs.travelFee);
+      if (hs.travelTimeMin !== undefined) homeServiceUpdate.travelTimeMin = parseFloat(hs.travelTimeMin);
       if (hs.minOrderValue !== undefined) homeServiceUpdate.minOrderValue = parseFloat(hs.minOrderValue);
       if (hs.paymentPreference !== undefined) homeServiceUpdate.paymentPreference = hs.paymentPreference;
       if (hs.lateCancellationFeePercent !== undefined) homeServiceUpdate.lateCancellationFeePercent = parseFloat(hs.lateCancellationFeePercent);
@@ -347,13 +348,16 @@ exports.getShopDetails = async (req, res) => {
 
 // --- 5. Add Barber ---
 exports.addBarber = async (req, res) => {
-  const { shopId, name, startHour, endHour, breaks, weeklySchedule, specialHours } = req.body;
+  const { shopId, name, startHour, endHour, breaks, weeklySchedule, specialHours, isAvailable, isShopServiceAvailable, isHomeServiceAvailable } = req.body;
   try {
     const barber = await Barber.create({
       shopId, name, startHour, endHour,
       breaks: breaks || [],
       weeklySchedule: weeklySchedule || [],
-      specialHours: specialHours || []
+      specialHours: specialHours || [],
+      isAvailable: isAvailable !== undefined ? isAvailable : true,
+      isShopServiceAvailable: isShopServiceAvailable !== undefined ? isShopServiceAvailable : true,
+      isHomeServiceAvailable: isHomeServiceAvailable !== undefined ? isHomeServiceAvailable : true
     });
     res.status(201).json(barber);
   } catch (e) {
@@ -364,12 +368,15 @@ exports.addBarber = async (req, res) => {
 // --- 6. Update Barber ---
 exports.updateBarber = async (req, res) => {
   const { id } = req.params;
-  const { startHour, endHour, breaks, isAvailable, weeklySchedule, specialHours } = req.body;
+  const { startHour, endHour, breaks, isAvailable, weeklySchedule, specialHours, isShopServiceAvailable, isHomeServiceAvailable } = req.body;
+
+  const updates = { startHour, endHour, breaks, weeklySchedule, specialHours };
+  if (isAvailable !== undefined) updates.isAvailable = isAvailable;
+  if (isShopServiceAvailable !== undefined) updates.isShopServiceAvailable = isShopServiceAvailable;
+  if (isHomeServiceAvailable !== undefined) updates.isHomeServiceAvailable = isHomeServiceAvailable;
+
   try {
-    const barber = await Barber.findByIdAndUpdate(id, {
-      startHour, endHour, breaks, isAvailable,
-      weeklySchedule, specialHours
-    }, { new: true });
+    const barber = await Barber.findByIdAndUpdate(id, updates, { new: true });
     res.json(barber);
   } catch (e) {
     res.status(500).json({ message: "Update failed" });
@@ -380,21 +387,72 @@ exports.updateBarber = async (req, res) => {
 // Returns available time slots for a given Date and Duration.
 // Handles complex checks: Buffer Time, Overnight Spillover (Yesterday's late shift), etc.
 exports.getShopSlots = async (req, res) => {
-  const { shopId, barberId, date, duration } = req.body; 
+  const { shopId, barberId, date, duration, isHomeService } = req.body;
 
   try {
     const shop = await Shop.findById(shopId);
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    const bufferTime = shop.bufferTime || 0;
+    // For Home Services, add Travel Time Buffer (default 30 mins)
+    // Travel Buffer is applied TWICE? Usually "Travel To" and "Travel From".
+    // For simplicity and safety, we assume "Service Duration" in slot calculation includes the travel buffer logic.
+    // If we simply extend duration: duration + travelTime.
+    // AND we must ensure previous/next slots don't overlap with this expanded block.
+    // The safest way in a grid system is to extend the 'serviceDuration' for the check.
+    // Let's add (travelTime * 2) to cover round trip, or just travelTime if we assume one-way optimization.
+    // Prompt implies "handling barbers... availability".
+    // Let's use: Effective Duration = Service + TravelBuffer.
+
+    let bufferTime = shop.bufferTime || 0;
+    const travelTime = (shop.homeService && shop.homeService.travelTimeMin) ? shop.homeService.travelTimeMin : 30;
+
+    if (isHomeService) {
+        // If it's a home service, we add travel time to the "Buffer" effectively.
+        // Or we add it to duration.
+        // Let's add it to bufferTime so it pads the END of the service.
+        // And we need padding at the START too?
+        // `isBarberFree` checks strict overlap.
+        // If we want [Travel][Service][Travel], the total block is Duration + 2*Travel.
+        // Let's treating it as a longer service.
+        bufferTime += travelTime; // Post-service travel
+        // We also need pre-service travel.
+        // This is hard in the current loop which increments `current`.
+        // If we treat the required block as `Travel + Duration + Travel`, and check if `current` (Start of Travel) is free.
+        // But the user picks "Service Start Time".
+        // So User picks T. We need [T-Travel] to [T+Duration+Travel] to be free.
+        // Current logic checks [T] to [T+Duration+Buffer].
+        // To verify [T-Travel]... we need a new check or modified `isBarberFree`.
+
+        // COMPROMISE for MVP stability:
+        // We will just expand the `duration` to include `2 * travelTime`.
+        // The slot returned `10:00` will mean "Barber leaves/arrives/starts".
+        // If `10:00` is "Service Start at Customer", then Barber is busy from `09:30` to `10:00 + Duration + 00:30`.
+        // The `getShopSlots` loop checks if `current` is a valid START time.
+        // If we want `current` to be the Service Start, we must check if `current - travel` is free.
+        // This requires looking backwards, which `isBarberFree` doesn't strictly do against `busyRanges` if they are tight.
+        // However, `isBarberFree` checks if `startMinutes < range.end && endMinutes > range.start`.
+        // If we pass `start = current - travel` and `end = current + duration + travel`.
+        // But the `current` variable in the loop is what we return to the user.
+        // User selects `10:00`.
+        // We check availability for interval: `10:00 - Travel` to `10:00 + Duration + Travel`.
+    }
+
     const serviceDuration = duration ? parseInt(duration) : 30;
 
     let barbersToCheck = [];
+    const barberQuery = { shopId, isAvailable: true };
+
+    if (isHomeService) {
+        barberQuery.isHomeServiceAvailable = true;
+    } else {
+        barberQuery.isShopServiceAvailable = true;
+    }
+
     if (barberId && barberId !== 'any') {
-      const b = await Barber.findById(barberId);
+      const b = await Barber.findOne({ _id: barberId, ...barberQuery }); // Ensure strict filter applies to specific barber too
       if (b) barbersToCheck = [b];
     } else {
-      barbersToCheck = await Barber.find({ shopId, isAvailable: true });
+      barbersToCheck = await Barber.find(barberQuery);
     }
 
     if (barbersToCheck.length === 0) return res.json([]);
@@ -473,6 +531,31 @@ exports.getShopSlots = async (req, res) => {
         const { today, yesterday } = barberSchedules[barber._id];
         const bBookings = bookingsMap[barber._id];
 
+        let effectiveStart = time;
+        let effectiveDuration = serviceDuration + bufferTime;
+
+        // If Home Service, we need to check if [Time - Travel] to [Time + Duration + Travel] is free.
+        // We use the `travelTime` calculated earlier (only set if isHomeService is true).
+        // Since `isBarberFree` checks `start < range.end && end > range.start`, we can manipulate start/end.
+        if (isHomeService) {
+             const travelTime = (shop.homeService && shop.homeService.travelTimeMin) ? shop.homeService.travelTimeMin : 30;
+             effectiveStart = time - travelTime;
+             effectiveDuration = serviceDuration + (2 * travelTime); // Travel To + Service + Travel Back?
+             // Actually, `bufferTime` was already incremented by `travelTime` (Post-Service) in the setup above.
+             // So if `bufferTime` = `shopBuffer + travelTime`.
+             // And `effectiveStart` = `time - travelTime`.
+             // `effectiveDuration` = `serviceDuration + shopBuffer + 2*travelTime`.
+             // Wait, `bufferTime` variable in setup was: `let bufferTime = shop.bufferTime || 0; if (isHome) bufferTime += travelTime;`.
+             // So `bufferTime` includes *Post* travel.
+             // We need *Pre* travel.
+             // `effectiveDuration` sent to `isBarberFree` is `serviceDuration + bufferTime`.
+             // So currently it is `Service + ShopBuffer + PostTravel`.
+             // We need to shift start back by `PreTravel` and extend duration by `PreTravel`.
+             // `effectiveStart` = `time - travelTime`.
+             // `effectiveDuration` = `serviceDuration + bufferTime + travelTime`.
+             effectiveDuration += travelTime;
+        }
+
         // 1. Check if it fits in Today's Schedule
         let fitsToday = false;
         if (today.isOpen) {
@@ -480,7 +563,7 @@ exports.getShopSlots = async (req, res) => {
             ...bBookings.today,
             ...bBookings.yesterday.map(r => ({ start: r.start - 1440, end: r.end - 1440 }))
           ];
-          if (isBarberFree(today, time, serviceDuration + bufferTime, busyToday)) {
+          if (isBarberFree(today, effectiveStart, effectiveDuration, busyToday)) {
             fitsToday = true;
           }
         }
@@ -488,12 +571,13 @@ exports.getShopSlots = async (req, res) => {
         // 2. Check if it fits in Yesterday's Schedule (Spillover)
         let fitsYesterday = false;
         if (!fitsToday && yesterday.isOpen && yesterday.end > 1440) {
-          const timeInYesterday = time + 1440;
+          // Adjust time for yesterday context
+          const timeInYesterday = effectiveStart + 1440;
           const busyYesterday = [
             ...bBookings.yesterday,
             ...bBookings.today.map(r => ({ start: r.start + 1440, end: r.end + 1440 }))
           ];
-          if (isBarberFree(yesterday, timeInYesterday, serviceDuration + bufferTime, busyYesterday)) {
+          if (isBarberFree(yesterday, timeInYesterday, effectiveDuration, busyYesterday)) {
             fitsYesterday = true;
           }
         }

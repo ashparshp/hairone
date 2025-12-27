@@ -39,7 +39,8 @@ const shopSchema = new mongoose.Schema({
     travelFee: { type: Number, default: 0 },
     minOrderValue: { type: Number, default: 0 },
     paymentPreference: { type: String, enum: ['ONLINE_ONLY', 'ALL'], default: 'ALL' },
-    lateCancellationFeePercent: { type: Number, default: 50 } // Charged if cancelled < 2 hours before
+    lateCancellationFeePercent: { type: Number, default: 50 }, // Charged if cancelled < 2 hours before
+    travelTimeMin: { type: Number, default: 30 } // Time to travel to/from customer
   }
 }, { timestamps: true });
 
