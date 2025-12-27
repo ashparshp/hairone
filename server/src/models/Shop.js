@@ -39,6 +39,8 @@ const shopSchema = new mongoose.Schema({
     paymentPreference: { type: String, enum: ['ONLINE_ONLY', 'ALL'], default: 'ALL' },
     lateCancellationFeePercent: { type: Number, default: 50 } // Charged if cancelled < 2 hours before
   }
+  blockCustomBookings: { type: Boolean, default: false },
+  isDisabled: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Shop', shopSchema);
