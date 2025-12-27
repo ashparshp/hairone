@@ -13,7 +13,8 @@ import {
   Scissors,
   TrendingUp,
   ShieldAlert,
-  RotateCcw
+  RotateCcw,
+  Home
 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
@@ -124,8 +125,20 @@ export default function DashboardScreen() {
               {item.startHour} - {item.endHour}
             </Text>
             {item.isAvailable ? (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>ON DUTY</Text>
+              <View style={{flexDirection: 'row', gap: 4}}>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>ON DUTY</Text>
+                  </View>
+                  {item.isHomeServiceAvailable && (
+                      <View style={[styles.statusBadge, {backgroundColor: 'rgba(245, 158, 11, 0.1)'}]}>
+                          <Home size={10} color="#f59e0b" />
+                      </View>
+                  )}
+                  {item.isShopServiceAvailable !== false && (
+                      <View style={[styles.statusBadge, {backgroundColor: 'rgba(59, 130, 246, 0.1)'}]}>
+                          <Store size={10} color="#3b82f6" />
+                      </View>
+                  )}
               </View>
             ) : (
               <View

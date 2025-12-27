@@ -8,7 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import api from '../../services/api';
-import { ChevronLeft, User, Clock, Plus, X, Check, Calendar as CalendarIcon, Filter, Phone } from 'lucide-react-native';
+import { ChevronLeft, User, Clock, Plus, X, Check, Calendar as CalendarIcon, Filter, Phone, MapPin, Home } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -192,6 +192,14 @@ export default function ShopScheduleScreen() {
           <Text style={[styles.timeText, {color: colors.text}]}>{item.startTime}</Text>
           {item.type === 'blocked' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>BLOCKED</Text>}
           {item.type === 'walk-in' && <Text style={{color: colors.tint, fontSize:10, fontWeight:'bold', marginTop:4}}>WALK-IN</Text>}
+
+          {item.isHomeService && (
+              <View style={[styles.badge, {backgroundColor: colors.tint, marginTop: 6}]}>
+                  <Home size={10} color="black" />
+                  <Text style={{color:'black', fontSize:9, fontWeight:'bold'}}>HOME</Text>
+              </View>
+          )}
+
           {item.status === 'checked-in' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>CHECKED-IN</Text>}
           {item.status === 'completed' && <Text style={{color:'#10b981', fontSize:10, fontWeight:'bold', marginTop:4}}>DONE</Text>}
           {item.status === 'no-show' && <Text style={{color:'#ef4444', fontSize:10, fontWeight:'bold', marginTop:4}}>NO-SHOW</Text>}
@@ -199,7 +207,7 @@ export default function ShopScheduleScreen() {
 
        <View style={styles.detailsCol}>
           <View style={{flexDirection:'row', justifyContent:'space-between', alignItems: 'flex-start'}}>
-             <View>
+             <View style={{flex: 1, paddingRight: 8}}>
                  <Text style={[styles.customerName, {color: colors.text}]}>
                      {item.userId?.name || (item.type === 'blocked' ? 'Blocked Slot' : 'Guest Customer')}
                  </Text>
@@ -209,7 +217,29 @@ export default function ShopScheduleScreen() {
                          <Text style={{color: colors.tint, fontSize: 12, textDecorationLine: 'underline'}}>{item.userId.phone}</Text>
                      </TouchableOpacity>
                  )}
-                 {item.notes && <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 2, fontStyle:'italic'}}>"{item.notes}"</Text>}
+                 {item.isHomeService && item.deliveryAddress && (
+                     <TouchableOpacity
+                        style={{marginTop: 6, flexDirection: 'row', gap: 6, alignItems:'flex-start'}}
+                        onPress={() => {
+                            if (item.deliveryAddress?.coordinates?.lat) {
+                                const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+                                const latLng = `${item.deliveryAddress.coordinates.lat},${item.deliveryAddress.coordinates.lng}`;
+                                const label = item.deliveryAddress.line1 || 'Customer Location';
+                                const url = Platform.select({
+                                    ios: `${scheme}${label}@${latLng}`,
+                                    android: `${scheme}${latLng}(${label})`
+                                });
+                                Linking.openURL(url!);
+                            }
+                        }}
+                     >
+                         <MapPin size={14} color="#f59e0b" style={{marginTop: 2}} />
+                         <Text style={{color: colors.text, fontSize: 12, flex: 1}} numberOfLines={2}>
+                             {item.deliveryAddress.line1 || 'Location set'}
+                         </Text>
+                     </TouchableOpacity>
+                 )}
+                 {item.notes && <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 4, fontStyle:'italic'}}>"{item.notes}"</Text>}
              </View>
              {item.totalPrice > 0 && <View style={styles.priceTag}><Text style={styles.priceText}>₹{item.totalPrice}</Text></View>}
           </View>
@@ -542,4 +572,6 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: 14, fontWeight: '500' },
 
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+
+  badge: { flexDirection:'row', alignItems:'center', gap: 2, paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
 });
