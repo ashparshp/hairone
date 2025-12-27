@@ -32,19 +32,9 @@ const roundMoney = (amount) => {
 };
 
 // --- Helper: Availability Check ---
-const checkAvailability = async (barber, date, startStr, duration, bufferTime = 0, isHomeService = false, homeServiceConfig = {}) => {
-  let start = timeToMinutes(startStr);
-  let end = start + duration + bufferTime;
-
-  // Apply Home Service Buffers
-  if (isHomeService) {
-      const travelTime = (homeServiceConfig && homeServiceConfig.travelTimeMin) ? homeServiceConfig.travelTimeMin : 30;
-      // Barber needs to travel BEFORE the start time and AFTER the service (plus buffer)
-      start -= travelTime;
-      end += travelTime;
-      // Note: bufferTime usually pads the end. We added travelTime to end.
-      // So Block = [Start - Travel] to [Start + Duration + Buffer + Travel].
-  }
+const checkAvailability = async (barber, date, startStr, duration, bufferTime = 0) => {
+  const start = timeToMinutes(startStr);
+  const end = start + duration + bufferTime;
 
   // 1. Check Today's Schedule
   const scheduleToday = getBarberScheduleForDate(barber, date);
@@ -173,16 +163,6 @@ exports.createBooking = async (req, res) => {
                 return res.status(400).json({ message: "Selected barber does not provide home services." });
             }
         }
-    } else {
-        // Shop Booking Validation
-        // Check if barber allows shop services
-        if (barberId && barberId !== 'any') {
-            const b = await Barber.findById(barberId);
-            if (!b) return res.status(404).json({ message: "Barber not found" });
-            if (b.isShopServiceAvailable === false) { // Default is true, explicit check for false
-                return res.status(400).json({ message: "Selected barber does not provide in-shop services." });
-            }
-        }
 
         // 3. Check Minimum Order Value
         if (shop.homeService.minOrderValue && parsedPrice < shop.homeService.minOrderValue) {
@@ -258,50 +238,11 @@ exports.createBooking = async (req, res) => {
     if (!barberId || barberId === 'any') {
       const allBarbers = await Barber.find({ shopId, isAvailable: true });
       const availableBarbers = [];
-
-      // Determine effective duration with Travel Time for Home Services
-      let effectiveDuration = durationInt;
-      let effectiveStartTime = startTime;
-      // `checkAvailability` takes string start time.
-      // If we need to buffer travel time, we should adjust the passed parameters or modify `checkAvailability`.
-      // Since `checkAvailability` logic is internal, let's keep it simple here.
-      // BUT `checkAvailability` does NOT know about travel time unless we pass a modified duration/start.
-      // Or we can pass `bufferTime` to `checkAvailability`.
-      // If Home Service, bufferTime should include travelTime * 2 (roughly) to pad the slot.
-
-      let effectiveBuffer = bufferTime;
-      if (req.body.isHomeService) {
-          const travelTime = (shop.homeService && shop.homeService.travelTimeMin) ? shop.homeService.travelTimeMin : 30;
-          // As discussed in ShopController, we pad the service block.
-          // Since `checkAvailability` checks strict overlap: `start < existing.end && end > existing.start`.
-          // We want to ensure [T-Travel] to [T+Duration+Travel] is free.
-          // `checkAvailability` calculates `start = timeToMinutes(startStr)` and `end = start + duration + bufferTime`.
-          // To cover Pre-Travel, we can pretend the start time is earlier.
-          // BUT `startTime` is passed as "HH:mm". Shifting it is messy with string parsing here.
-          // Better: Increase `bufferTime` by `2 * travelTime` AND shift `startTime` back by `travelTime`? No.
-          // Logic: The *Barber* is busy for `Duration + 2*Travel`.
-          // If we pass `bufferTime += 2 * travelTime`. The block becomes `Start` to `Start + Duration + 2*Travel`.
-          // This covers `Start -> End + Travel` (Post-travel) but implies Pre-travel happens *during* the service time? No.
-          // It implies the "Busy Block" starts at "Start Time".
-          // If "Start Time" is Customer Appointment time, the Barber is busy starting at "Start Time - Travel".
-          // This "shift back" is critical to avoid clash with a prior booking ending at 9:55 if Appt is 10:00.
-
-          // Since `checkAvailability` is a local helper in this file, I should modify `checkAvailability` signature or logic
-          // to accept `travelTime` or similar. But `checkAvailability` is outside `exports`.
-          // I will modify `checkAvailability` to accept an `extraPadding` object or similar if I can edit it.
-          // I will edit `checkAvailability` in the next step. For now, I will prepare the call.
-          // Let's pass `travelTime` as an argument if I modify the definition.
-          // I will modify `checkAvailability` to accept `travelTime` buffer logic.
-      }
-
       for (const barber of allBarbers) {
         // For Home Service, skip barbers who don't do home visits
         if (req.body.isHomeService && !barber.isHomeServiceAvailable) continue;
-        // For Shop Service, skip barbers who don't do shop visits
-        if (!req.body.isHomeService && barber.isShopServiceAvailable === false) continue;
 
-        // Note: I will update checkAvailability signature below to accept isHomeService and shop config
-        if (await checkAvailability(barber, date, startTime, durationInt, bufferTime, req.body.isHomeService, shop.homeService)) {
+        if (await checkAvailability(barber, date, startTime, durationInt, bufferTime)) {
           availableBarbers.push(barber);
         }
       }
@@ -313,7 +254,7 @@ exports.createBooking = async (req, res) => {
     } else {
       const barber = await Barber.findById(barberId);
       if (!barber) return res.status(404).json({ message: "Barber not found" });
-      if (!(await checkAvailability(barber, date, startTime, durationInt, bufferTime, req.body.isHomeService, shop.homeService))) {
+      if (!(await checkAvailability(barber, date, startTime, durationInt, bufferTime))) {
         return res.status(409).json({ message: "Barber unavailable." });
       }
     }
