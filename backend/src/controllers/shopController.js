@@ -356,7 +356,7 @@ const findEarliestSlotForShop = async (shop, minTimeStr = "00:00") => {
   const bookings = await Booking.find({
     barberId: { $in: barbers.map((b) => b._id) },
     date: date,
-    status: { $ne: "cancelled" },
+    activeBooking: true,
   });
 
   const bookingsMap = {};
@@ -547,7 +547,7 @@ exports.getShopSlots = async (req, res) => {
     const bookings = await Booking.find({
       barberId: { $in: barbersToCheck.map((b) => b._id) },
       date: { $in: [date, prevDate] },
-      status: { $ne: "cancelled" },
+      activeBooking: true,
     });
 
     // Map bookings: barberId -> { today: [], yesterday: [] }
