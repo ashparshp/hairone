@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Search, MapPin, Filter, Sun, Moon, AlertCircle } from "lucide-react-native";
 import {
@@ -84,34 +84,18 @@ export default function HomeScreen() {
     useCallback(() => {
       // Pass 'true' to fetch silently without showing full loading state
       fetchShops(true);
-    }, [location, distanceFilter, genderFilter, hasAttemptedLocation])
+    }, [location, distanceFilter, genderFilter, hasAttemptedLocation, activeCategory, searchText])
   );
 
-  // Live Filtering
-  const shops = useMemo(() => {
-    let filtered = rawShops;
+  const shops = rawShops;
 
-    // Text Search is now handled by backend
-    // No client-side filtering for searchText
-
-    // Category Filter (Client-side)
-    if (activeCategory !== 'all') {
-      filtered = filtered.filter((s: any) =>
-         s.services?.some((svc: any) => svc.name.toLowerCase().includes(activeCategory.toLowerCase()))
-      );
-    }
-
-    return filtered;
-  }, [rawShops, activeCategory]);
-
-  // Debounced search trigger
   useEffect(() => {
       const delayDebounceFn = setTimeout(() => {
         fetchShops();
       }, 500);
 
       return () => clearTimeout(delayDebounceFn);
-  }, [searchText]);
+  }, [searchText, activeCategory]);
 
   const toggleFavorite = async (shopId: string) => {
     if (!user) return; // or show toast

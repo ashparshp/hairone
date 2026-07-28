@@ -13,7 +13,12 @@ const {
   startOfMonth,
   endOfMonth,
 } = require("date-fns");
-const { getISTTime, buildBookingWindowUTC } = require("../utils/dateUtils");
+const {
+  getISTTime,
+  buildBookingWindowUTC,
+  daysBetweenDateStrings,
+  getMonthBoundsFromDateStr,
+} = require("../utils/dateUtils");
 const {
   timeToMinutes,
   getBarberScheduleForDate,
@@ -96,6 +101,24 @@ const isAdmin = (user) => user && user.role === "admin";
 const isOwnerOfShop = (user, shopId) => {
   if (!user || !user.myShopId) return false;
   return user.myShopId.toString() === shopId.toString();
+};
+
+const checkInAttempts = new Map();
+const CHECKIN_MAX_ATTEMPTS = 5;
+const CHECKIN_WINDOW_MS = 15 * 60 * 1000;
+
+const isCheckInRateLimited = (bookingId) => {
+  const now = Date.now();
+  const key = bookingId.toString();
+  const entry = checkInAttempts.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    checkInAttempts.set(key, { count: 1, resetAt: now + CHECKIN_WINDOW_MS });
+    return false;
+  }
+
+  entry.count += 1;
+  return entry.count > CHECKIN_MAX_ATTEMPTS;
 };
 
 // --- Helper: Availability Check ---
@@ -319,7 +342,7 @@ exports.createBooking = async (req, res) => {
     }
 
     if (!isSpecialType) {
-      const daysDiff = differenceInDays(new Date(date), new Date(istDate));
+      const daysDiff = daysBetweenDateStrings(date, istDate);
       if (daysDiff > maxNotice) {
         return res.status(400).json({
           message: `Cannot book more than ${maxNotice} days in advance.`,
@@ -379,9 +402,7 @@ exports.createBooking = async (req, res) => {
           ? config.maxCashBookingsPerMonth
           : 5;
 
-      const bookingDateObj = new Date(date);
-      const monthStart = format(startOfMonth(bookingDateObj), "yyyy-MM-dd");
-      const monthEnd = format(endOfMonth(bookingDateObj), "yyyy-MM-dd");
+      const { monthStart, monthEnd } = getMonthBoundsFromDateStr(date);
 
       const cashCount = await Booking.countDocuments({
         userId: resolvedUserId,
@@ -674,6 +695,11 @@ exports.updateBookingStatus = async (req, res) => {
     }
 
     if (status === "checked-in") {
+      if (isCheckInRateLimited(booking._id)) {
+        return res.status(429).json({
+          message: "Too many check-in attempts. Please try again later.",
+        });
+      }
       if (!bookingKey) {
         return res
           .status(400)
@@ -731,9 +757,12 @@ exports.getBookingLimits = async (req, res) => {
         ? config.maxCashBookingsPerMonth
         : 5;
 
-    const now = new Date();
-    const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
-    const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+    const { date: istDate } = getISTTime();
+    const refDate =
+      req.query.date && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+        ? req.query.date
+        : istDate;
+    const { monthStart, monthEnd } = getMonthBoundsFromDateStr(refDate);
 
     const cashCount = await Booking.countDocuments({
       userId,

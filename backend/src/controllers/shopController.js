@@ -2,6 +2,7 @@ const Shop = require("../models/Shop");
 const Barber = require("../models/Barber");
 const User = require("../models/User");
 const Booking = require("../models/Booking");
+const mongoose = require("mongoose");
 const { getISTTime } = require("../utils/dateUtils");
 const {
   timeToMinutes,
@@ -82,6 +83,13 @@ const canManageShop = (user, shop) => {
   return !!user.myShopId && user.myShopId.toString() === shop._id.toString();
 };
 
+const parseBoolField = (val, defaultVal) => {
+  if (val === undefined || val === null || val === "") return defaultVal;
+  if (val === true || val === "true") return true;
+  if (val === false || val === "false") return false;
+  return defaultVal;
+};
+
 // --- 1. Create Shop (Fixed Role Update) ---
 // Handles the Multipart form submission for creating a shop.
 // It also instantly promotes the user to 'owner' role.
@@ -135,35 +143,72 @@ exports.createShop = async (req, res) => {
         minBookingNotice !== undefined ? parseInt(minBookingNotice) : 60,
       maxBookingNotice:
         maxBookingNotice !== undefined ? parseInt(maxBookingNotice) : 30,
-      autoApproveBookings:
-        autoApproveBookings !== undefined ? autoApproveBookings : true,
-      blockCustomBookings:
-        req.body.blockCustomBookings !== undefined
-          ? req.body.blockCustomBookings
-          : false,
+      autoApproveBookings: parseBoolField(autoApproveBookings, true),
+      blockCustomBookings: parseBoolField(req.body.blockCustomBookings, false),
     };
 
     if (lat !== undefined && lng !== undefined) {
       shopData.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
     }
 
-    const shop = await Shop.create(shopData);
+    const session = await mongoose.startSession();
+    let shop;
 
-    // Update Role to 'owner' after successful shop creation.
-    if (!isAdmin(req.user)) {
-      await User.findByIdAndUpdate(ownerId, {
-        $set: {
-          myShopId: shop._id,
-          role: "owner",
-          businessName: resolvedName,
-          applicationStatus: "approved",
-        },
-        $unset: {
-          partnerDraft: 1,
-          applicationRejectionReason: 1,
-          suspensionReason: 1,
-        },
-      });
+    try {
+      session.startTransaction();
+
+      if (!isAdmin(req.user)) {
+        const owner = await User.findById(ownerId).session(session);
+        if (!owner) {
+          await session.abortTransaction();
+          return res.status(404).json({ message: "User not found" });
+        }
+        if (owner.myShopId) {
+          await session.abortTransaction();
+          return res
+            .status(400)
+            .json({ message: "This account already has a shop" });
+        }
+      }
+
+      [shop] = await Shop.create([shopData], { session });
+
+      if (!isAdmin(req.user)) {
+        const updatedOwner = await User.findOneAndUpdate(
+          {
+            _id: ownerId,
+            $or: [{ myShopId: { $exists: false } }, { myShopId: null }],
+          },
+          {
+            $set: {
+              myShopId: shop._id,
+              role: "owner",
+              businessName: resolvedName,
+              applicationStatus: "approved",
+            },
+            $unset: {
+              partnerDraft: 1,
+              applicationRejectionReason: 1,
+              suspensionReason: 1,
+            },
+          },
+          { session, new: true },
+        );
+
+        if (!updatedOwner) {
+          await session.abortTransaction();
+          return res
+            .status(400)
+            .json({ message: "This account already has a shop" });
+        }
+      }
+
+      await session.commitTransaction();
+    } catch (txError) {
+      await session.abortTransaction();
+      throw txError;
+    } finally {
+      session.endSession();
     }
 
     res.status(201).json(shop);
@@ -207,9 +252,12 @@ exports.updateShop = async (req, res) => {
     if (maxBookingNotice !== undefined)
       updates.maxBookingNotice = parseInt(maxBookingNotice);
     if (autoApproveBookings !== undefined)
-      updates.autoApproveBookings = autoApproveBookings;
+      updates.autoApproveBookings = parseBoolField(autoApproveBookings, true);
     if (req.body.blockCustomBookings !== undefined)
-      updates.blockCustomBookings = req.body.blockCustomBookings;
+      updates.blockCustomBookings = parseBoolField(
+        req.body.blockCustomBookings,
+        false,
+      );
 
     if (lat !== undefined && lng !== undefined) {
       updates.coordinates = { lat: parseFloat(lat), lng: parseFloat(lng) };
@@ -235,7 +283,7 @@ exports.updateShop = async (req, res) => {
 // - Availability (`minTime` logic)
 exports.getAllShops = async (req, res) => {
   try {
-    const { minTime, type, lat, lng, radius } = req.query;
+    const { minTime, type, lat, lng, radius, category } = req.query;
 
     const query = { isDisabled: { $ne: true } };
     if (type && type !== "all") {
@@ -251,6 +299,15 @@ exports.getAllShops = async (req, res) => {
     }
 
     let shops = await Shop.find(query).lean();
+
+    if (category && category !== "all") {
+      const categoryLower = category.toLowerCase();
+      shops = shops.filter((shop) =>
+        shop.services?.some((svc) =>
+          svc.name?.toLowerCase().includes(categoryLower),
+        ),
+      );
+    }
 
     // 1. Distance Calculation & Filtering
     if (lat && lng) {

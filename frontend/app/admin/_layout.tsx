@@ -17,7 +17,7 @@ export default function AdminLayout() {
 
   // Security Check: Only Admin can access this layout
   if (!user || user.role !== 'admin') {
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href="/(tabs)/home" />;
   }
 
   return (
