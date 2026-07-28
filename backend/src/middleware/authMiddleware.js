@@ -65,3 +65,14 @@ exports.admin = (req, res, next) => {
     res.status(403).json({ message: 'Admin access required' });
   }
 };
+
+exports.blockSuspendedOwner = (req, res, next) => {
+  if (
+    req.user &&
+    req.user.role === 'owner' &&
+    req.user.applicationStatus === 'suspended'
+  ) {
+    return res.status(403).json({ message: 'Your account is suspended.' });
+  }
+  next();
+};
