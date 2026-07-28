@@ -28,9 +28,12 @@ const upload = multer({
     }
 });
 
-// 3. Compression and Upload Middleware
-const compressAndUpload = async (req, res, next) => {
+const compressAndUpload = (folder = 'shops') => async (req, res, next) => {
     if (!req.file) return next();
+
+    if (!process.env.DO_SPACES_BUCKET) {
+        return res.status(503).json({ message: 'File uploads are not configured (DO_SPACES_BUCKET missing)' });
+    }
 
     try {
         // Sanitize filename
@@ -39,7 +42,7 @@ const compressAndUpload = async (req, res, next) => {
         // 3. Ensure uniqueness with timestamp
         const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '-');
         const timestamp = Date.now();
-        const filename = `shops/${timestamp}-${originalName}`;
+        const filename = `${folder}/${timestamp}-${originalName}`;
 
         // Compress image
         const compressedBuffer = await sharp(req.file.buffer)
