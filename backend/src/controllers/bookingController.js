@@ -121,6 +121,15 @@ const isCheckInRateLimited = (bookingId) => {
   return entry.count > CHECKIN_MAX_ATTEMPTS;
 };
 
+const generateUniqueBookingKey = async (session) => {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const key = Math.floor(1000 + Math.random() * 9000).toString();
+    const exists = await Booking.exists({ bookingKey: key }).session(session);
+    if (!exists) return key;
+  }
+  throw new Error("Failed to generate unique booking key");
+};
+
 // --- Helper: Availability Check ---
 const checkAvailability = async (
   barber,
@@ -522,7 +531,7 @@ exports.createBooking = async (req, res) => {
         status,
         type: type || "online",
         notes,
-        bookingKey: Math.floor(1000 + Math.random() * 9000).toString(),
+        bookingKey: await generateUniqueBookingKey(session),
       };
 
       const [booking] = await Booking.create([bookingData], { session });
