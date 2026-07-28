@@ -66,6 +66,14 @@ const buildCashBookingCountQuery = (userId, monthStart, monthEnd) => ({
   date: { $gte: monthStart, $lte: monthEnd },
 });
 
+const NON_CANCELLABLE_STATUSES = [
+  "completed",
+  "cancelled",
+  "no-show",
+  "missed",
+  "blocked",
+];
+
 const matchComboByName = (shop, rawName) => {
   for (const combo of shop.combos || []) {
     if (combo.isAvailable === false) continue;
@@ -282,7 +290,7 @@ exports.createBooking = async (req, res) => {
     if (error && error.code === 11000) {
       return res
         .status(409)
-        .json({ message: "Slot already booked. Please choose another time." });
+        .json({ message: "Slot no longer available." });
     }
     res.status(500).json({ message: "Booking failed on server" });
   }
@@ -348,6 +356,13 @@ exports.cancelBooking = async (req, res) => {
       return res.json({
         ...booking.toObject(),
         walletCreditIssued: booking.cancelWalletCreditAmount || 0,
+      });
+    }
+
+    if (NON_CANCELLABLE_STATUSES.includes(booking.status)) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        message: "Completed bookings cannot be cancelled.",
       });
     }
 
@@ -455,6 +470,15 @@ exports.updateBookingStatus = async (req, res) => {
     const previousStatus = booking.status;
     if (previousStatus === status) {
       return res.json(booking);
+    }
+
+    if (
+      status === "cancelled" &&
+      NON_CANCELLABLE_STATUSES.includes(previousStatus)
+    ) {
+      return res.status(400).json({
+        message: "Completed bookings cannot be cancelled.",
+      });
     }
 
     if (status === "checked-in") {

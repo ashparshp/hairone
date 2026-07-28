@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
+const { syncBookingSlotIndexes } = require('../services/bookingSlotMigration');
 
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hairone');
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    await syncBookingSlotIndexes();
   } catch (error) {
     console.error('Database connection failed:', error.message);
     process.exit(1);

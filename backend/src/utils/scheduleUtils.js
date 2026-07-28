@@ -17,6 +17,8 @@
  * =================================================================================================
  */
 
+const SLOT_GRANULARITY_MINUTES = 15;
+
 // Helper: Convert "HH:mm" to minutes
 const timeToMinutes = (timeStr) => {
   if (!timeStr) return 0;
@@ -113,8 +115,56 @@ const getBarberScheduleForDate = (barber, dateStr) => {
   return schedule;
 };
 
+const getNextDateStr = (dateStr) => {
+  const date = new Date(`${dateStr}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const addSlotRange = (keys, dateStr, startMinutes, endMinutes, granularity) => {
+  if (endMinutes <= startMinutes) return;
+
+  const firstBucket = Math.floor(startMinutes / granularity) * granularity;
+  const lastBucket =
+    Math.floor((endMinutes - 1) / granularity) * granularity;
+
+  for (let m = firstBucket; m <= lastBucket; m += granularity) {
+    keys.add(`${dateStr}|${m}`);
+  }
+};
+
+/**
+ * Discrete slot keys for atomic overlap prevention (15-minute buckets).
+ * Keys encode calendar date + minute-of-day, including spillover past midnight.
+ */
+const buildOccupiedSlotKeys = (
+  date,
+  startTime,
+  endTime,
+  bufferTime = 0,
+  granularity = SLOT_GRANULARITY_MINUTES,
+) => {
+  const keys = new Set();
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime) + bufferTime;
+
+  if (end > start) {
+    addSlotRange(keys, date, start, end, granularity);
+  } else {
+    addSlotRange(keys, date, start, 1440, granularity);
+    addSlotRange(keys, getNextDateStr(date), 0, end, granularity);
+  }
+
+  return [...keys];
+};
+
 module.exports = {
+  SLOT_GRANULARITY_MINUTES,
   timeToMinutes,
   minutesToTime,
-  getBarberScheduleForDate
+  getBarberScheduleForDate,
+  buildOccupiedSlotKeys,
 };

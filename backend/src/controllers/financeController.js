@@ -2,6 +2,13 @@ const Booking = require('../models/Booking');
 const Settlement = require('../models/Settlement');
 const Shop = require('../models/Shop');
 const mongoose = require('mongoose');
+const {
+    pendingSettlementMatch,
+    settlementGroupStage,
+    calculateNetFromBookings,
+    settleShopBookings,
+    SettlementRaceError,
+} = require('../services/settlementService');
 
 /**
  * =================================================================================================
@@ -25,73 +32,7 @@ const roundMoney = (amount) => {
     return Math.round((amount + Number.EPSILON) * 100) / 100;
 };
 
-const pendingSettlementMatch = (cutoffDateStr) => ({
-    status: 'completed',
-    date: { $lt: cutoffDateStr },
-    $and: [
-        {
-            $or: [
-                { settlementStatus: 'PENDING' },
-                { settlementStatus: { $exists: false } },
-            ],
-        },
-        {
-            $or: [
-                { settlementId: { $exists: false } },
-                { settlementId: null },
-            ],
-        },
-    ],
-});
-
-const settlementGroupStage = {
-    $group: {
-        _id: '$shopId',
-        bookings: { $push: '$_id' },
-        minDate: { $min: '$date' },
-        maxDate: { $max: '$date' },
-        totalAdminNet: {
-            $sum: {
-                $cond: [
-                    { $eq: ['$amountCollectedBy', 'BARBER'] },
-                    '$adminNetRevenue',
-                    0,
-                ],
-            },
-        },
-        totalBarberNet: {
-            $sum: {
-                $cond: [
-                    { $eq: ['$amountCollectedBy', 'ADMIN'] },
-                    '$barberNetRevenue',
-                    0,
-                ],
-            },
-        },
-    },
-};
-
-// Helper to calculate net balance for a list of bookings
-// Used by both Admin and Shop dashboards to see "Live" pending stats.
-const calculateNet = (bookings) => {
-    let adminOwesShop = 0; // From Online bookings (Barber Net Revenue)
-    let shopOwesAdmin = 0; // From Cash bookings (Admin Net Revenue/Commission)
-
-    bookings.forEach(b => {
-        if (b.amountCollectedBy === 'ADMIN') {
-            adminOwesShop += (b.barberNetRevenue || 0);
-        } else if (b.amountCollectedBy === 'BARBER') {
-            shopOwesAdmin += (b.adminNetRevenue || 0);
-        }
-    });
-
-    const net = roundMoney(adminOwesShop - shopOwesAdmin);
-    return {
-        net, // Positive = Admin Pays Shop. Negative = Shop Pays Admin.
-        adminOwesShop: roundMoney(adminOwesShop),
-        shopOwesAdmin: roundMoney(shopOwesAdmin)
-    };
-};
+const calculateNet = calculateNetFromBookings;
 
 /**
  * GET /admin/finance/pending
@@ -192,57 +133,21 @@ exports.createSettlement = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-        const { shopId, bookingIds } = req.body; // If bookingIds provided, only settle those. Else all pending.
+        const { shopId, bookingIds } = req.body;
 
-        const query = {
+        const settlement = await settleShopBookings({
             shopId,
-            status: 'completed',
-            $or: [{ settlementStatus: 'PENDING' }, { settlementStatus: { $exists: false } }]
-        };
+            bookingIds: bookingIds?.length ? bookingIds : null,
+            adminId: req.user._id,
+            settlementRecordStatus: 'COMPLETED',
+            notes: `Manual settlement by admin ${req.user.name || req.user._id}.`,
+            session,
+        });
 
-        if (bookingIds && bookingIds.length > 0) {
-            query._id = { $in: bookingIds };
-        }
-
-        const bookings = await Booking.find(query).session(session);
-
-        if (bookings.length === 0) {
+        if (!settlement) {
             await session.abortTransaction();
             return res.status(400).json({ message: 'No pending bookings found to settle.' });
         }
-
-        const { net } = calculateNet(bookings);
-        const type = net >= 0 ? 'PAYOUT' : 'COLLECTION';
-        const absAmount = Math.abs(net);
-
-        // Date Range
-        const dates = bookings.map(b => new Date(b.date));
-        const minDate = new Date(Math.min(...dates));
-        const maxDate = new Date(Math.max(...dates));
-
-        const settlement = new Settlement({
-            shopId,
-            adminId: req.user._id,
-            type,
-            amount: absAmount,
-            bookings: bookings.map(b => b._id),
-            dateRange: { start: minDate, end: maxDate },
-            status: 'COMPLETED'
-        });
-
-        await settlement.save({ session });
-
-        // Update Bookings
-        await Booking.updateMany(
-            { _id: { $in: bookings.map(b => b._id) } },
-            {
-                $set: {
-                    settlementStatus: 'SETTLED',
-                    settlementId: settlement._id
-                }
-            },
-            { session }
-        );
 
         await session.commitTransaction();
         res.json({ message: 'Settlement created successfully', settlement });
@@ -250,6 +155,9 @@ exports.createSettlement = async (req, res) => {
     } catch (e) {
         await session.abortTransaction();
         console.error(e);
+        if (e instanceof SettlementRaceError) {
+            return res.status(409).json({ message: e.message });
+        }
         res.status(500).json({ message: 'Settlement failed' });
     } finally {
         session.endSession();

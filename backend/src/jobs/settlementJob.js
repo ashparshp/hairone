@@ -1,9 +1,13 @@
-const cron = require('node-cron');
-const mongoose = require('mongoose');
-const Booking = require('../models/Booking');
-const Settlement = require('../models/Settlement');
-const Shop = require('../models/Shop');
-const { startOfWeek, format } = require('date-fns');
+const cron = require("node-cron");
+const mongoose = require("mongoose");
+const Booking = require("../models/Booking");
+const { startOfWeek, format } = require("date-fns");
+const {
+  pendingSettlementMatch,
+  settleShopBookings,
+  acquireSettlementJobLock,
+  releaseSettlementJobLock,
+} = require("../services/settlementService");
 
 /**
  * =================================================================================================
@@ -28,161 +32,79 @@ const { startOfWeek, format } = require('date-fns');
  * =================================================================================================
  */
 
-// --- Helper: Round to 2 decimals ---
-const roundMoney = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-const pendingSettlementMatch = (cutoffDateStr) => ({
-  status: "completed",
-  date: { $lt: cutoffDateStr },
-  $and: [
-    {
-      $or: [
-        { settlementStatus: "PENDING" },
-        { settlementStatus: { $exists: false } },
-      ],
-    },
-    {
-      $or: [{ settlementId: { $exists: false } }, { settlementId: null }],
-    },
-  ],
-});
-
-const settlementGroupStage = {
-  $group: {
-    _id: "$shopId",
-    bookings: { $push: "$_id" },
-    minDate: { $min: "$date" },
-    maxDate: { $max: "$date" },
-    totalAdminNet: {
-      $sum: {
-        $cond: [
-          { $eq: ["$amountCollectedBy", "BARBER"] },
-          "$adminNetRevenue",
-          0,
-        ],
-      },
-    },
-    totalBarberNet: {
-      $sum: {
-        $cond: [
-          { $eq: ["$amountCollectedBy", "ADMIN"] },
-          "$barberNetRevenue",
-          0,
-        ],
-      },
-    },
-  },
-};
-
-// --- The Core Logic ---
 const runSettlementJob = async (manualAdminId = null) => {
-  console.log('--- STARTING SETTLEMENT JOB ---');
-  let settlementCount = 0;
+  if (!acquireSettlementJobLock()) {
+    console.log("Settlement job already running. Skipping duplicate trigger.");
+    return { message: "Settlement job already running.", count: 0 };
+  }
 
-  // Use a transaction for safety to ensure Booking updates and Settlement creation happen together.
+  console.log("--- STARTING SETTLEMENT JOB ---");
+  let settlementCount = 0;
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
 
-    // 1. Define the "Cutoff Date"
-    // We only settle bookings from *before* the current week started (Monday).
-    // This provides a buffer period for cancellations/disputes.
-    const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 }); // Monday
-    const cutoffDateStr = format(currentWeekStart, 'yyyy-MM-dd');
+    const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const cutoffDateStr = format(currentWeekStart, "yyyy-MM-dd");
 
-    console.log(`Searching for unsettled completed bookings before: ${cutoffDateStr}`);
+    console.log(
+      `Searching for unsettled completed bookings before: ${cutoffDateStr}`,
+    );
 
-    // 2. Aggregation: Group by Shop and Calculate Net Balance
-    // Instead of fetching all bookings into memory (slow), we use MongoDB Aggregation.
-    // This efficiently sums up the 'adminNetRevenue' and 'barberNetRevenue' fields.
-    const settlementGroups = await Booking.aggregate([
-      { $match: pendingSettlementMatch(cutoffDateStr) },
-      settlementGroupStage,
-    ]).session(session);
+    const shopIds = await Booking.distinct("shopId", pendingSettlementMatch(cutoffDateStr)).session(
+      session,
+    );
 
-    if (settlementGroups.length === 0) {
-        console.log("No pending bookings found for settlement.");
-        await session.abortTransaction();
-        return { message: "No pending bookings found.", count: 0 };
+    if (shopIds.length === 0) {
+      console.log("No pending bookings found for settlement.");
+      await session.abortTransaction();
+      return { message: "No pending bookings found.", count: 0 };
     }
 
-    console.log(`Found ${settlementGroups.length} shops with pending settlements.`);
+    console.log(`Found ${shopIds.length} shops with pending settlements.`);
 
-    // 3. Process Each Group (Create Settlement Records)
-    for (const group of settlementGroups) {
-        const shopId = group._id;
-        const bookingIds = group.bookings;
+    for (const shopId of shopIds) {
+      const settlement = await settleShopBookings({
+        shopId,
+        cutoffDateStr,
+        adminId: manualAdminId,
+        notes: "Auto-generated settlement via scheduled job.",
+        session,
+      });
 
-        // Calculate Net: (What Admin Owes) - (What Shop Owes)
-        const rawNet = group.totalBarberNet - group.totalAdminNet;
-        const netAmount = roundMoney(rawNet);
-
-        let type = 'PAYOUT';
-        let finalAmount = netAmount;
-
-        // If Net is negative, the Shop owes the Admin more than the Admin owes the Shop.
-        if (netAmount < 0) {
-            type = 'COLLECTION';
-            finalAmount = Math.abs(netAmount);
-        }
-
-        // Create the Settlement Record
-        const [settlement] = await Settlement.create([{
-            shopId,
-            adminId: manualAdminId, // If triggered manually via API
-            type,
-            amount: finalAmount,
-            status: type === 'PAYOUT' ? 'PENDING_PAYOUT' : 'PENDING_COLLECTION',
-            bookings: bookingIds,
-            dateRange: {
-                start: new Date(group.minDate),
-                end: new Date(group.maxDate)
-            },
-            notes: `Auto-generated settlement for ${bookingIds.length} bookings via Aggregation.`
-        }], { session });
-
-        // Update the original Bookings to mark them as SETTLED
-        // This prevents them from being picked up by the next Cron job.
-        await Booking.updateMany(
-            { _id: { $in: bookingIds } },
-            {
-                $set: {
-                    settlementStatus: 'SETTLED',
-                    settlementId: settlement._id
-                }
-            },
-            { session }
-        );
-
-        settlementCount++;
+      if (settlement) settlementCount += 1;
     }
 
     await session.commitTransaction();
-    console.log(`--- SETTLEMENT JOB COMPLETE: Processed ${settlementCount} shops ---`);
+    console.log(
+      `--- SETTLEMENT JOB COMPLETE: Processed ${settlementCount} shops ---`,
+    );
     return { message: "Settlement job complete.", count: settlementCount };
-
   } catch (err) {
     console.error("Error in Settlement Job:", err);
-    await session.abortTransaction();
+    if (session.inTransaction()) await session.abortTransaction();
     throw err;
   } finally {
     session.endSession();
+    releaseSettlementJobLock();
   }
 };
 
-// --- Initialization ---
 const initializeCron = () => {
-  // Schedule: Daily at 00:00 (Midnight)
-  cron.schedule('0 0 * * *', async () => {
-    console.log('Running Scheduled Settlement Job...');
-    await runSettlementJob();
+  cron.schedule("0 0 * * *", async () => {
+    console.log("Running Scheduled Settlement Job...");
+    try {
+      await runSettlementJob();
+    } catch (error) {
+      console.error("Scheduled settlement job failed:", error);
+    }
   });
 
   console.log("📅 Settlement Cron Job Scheduled (Daily at Midnight)");
 };
 
 module.exports = {
-    runSettlementJob,
-    initializeCron
+  runSettlementJob,
+  initializeCron,
 };

@@ -23,6 +23,7 @@ const bookingSchema = new mongoose.Schema(
     startAt: { type: Date },
     endAt: { type: Date },
     activeBooking: { type: Boolean, default: true },
+    occupiedSlotKeys: [String],
 
     status: {
       type: String,
@@ -74,7 +75,7 @@ const bookingSchema = new mongoose.Schema(
     },
     settlementStatus: {
       type: String,
-      enum: ["PENDING", "SETTLED", "PARTIAL"],
+      enum: ["PENDING", "SETTLING", "SETTLED", "PARTIAL"],
       default: "PENDING",
     },
     settlementId: { type: mongoose.Schema.Types.ObjectId, ref: "Settlement" },
@@ -82,9 +83,9 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// Guard against same-barber same-slot duplicates for active bookings.
+// Atomic overlap guard: any shared 15-minute bucket for the same barber conflicts.
 bookingSchema.index(
-  { barberId: 1, date: 1, startTime: 1, activeBooking: 1 },
+  { barberId: 1, occupiedSlotKeys: 1 },
   {
     unique: true,
     partialFilterExpression: { activeBooking: true },

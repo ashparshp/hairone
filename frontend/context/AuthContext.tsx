@@ -116,6 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 4. Logout Function (Clears Storage)
   const logout = React.useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.log('Server logout failed; clearing local session anyway', e);
+    }
+
     if (Platform.OS === 'web') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

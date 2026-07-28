@@ -19,6 +19,7 @@ const {
 const {
   timeToMinutes,
   getBarberScheduleForDate,
+  buildOccupiedSlotKeys,
 } = require("../utils/scheduleUtils");
 const {
   WalletServiceError,
@@ -555,6 +556,12 @@ const createBookingFromPrepared = async (prepared, paymentMeta = {}) => {
       status: prepared.status,
       type: prepared.type,
       notes: prepared.notes,
+      occupiedSlotKeys: buildOccupiedSlotKeys(
+        prepared.date,
+        prepared.startTime,
+        prepared.endTime,
+        prepared.bufferTime,
+      ),
       bookingKey: await generateUniqueBookingKey(session),
       paymentOrderId: paymentMeta.paymentOrderId,
       razorpayOrderId: paymentMeta.razorpayOrderId,
@@ -581,6 +588,9 @@ const createBookingFromPrepared = async (prepared, paymentMeta = {}) => {
     return booking;
   } catch (error) {
     if (session.inTransaction()) await session.abortTransaction();
+    if (error?.code === 11000) {
+      throw new BookingServiceError(409, "Slot no longer available.");
+    }
     throw error;
   } finally {
     session.endSession();
@@ -589,17 +599,7 @@ const createBookingFromPrepared = async (prepared, paymentMeta = {}) => {
 
 const createBookingForUser = async (user, body, paymentMeta = {}) => {
   const prepared = await prepareBooking(user, body);
-  try {
-    return await createBookingFromPrepared(prepared, paymentMeta);
-  } catch (error) {
-    if (error && error.code === 11000) {
-      throw new BookingServiceError(
-        409,
-        "Slot already booked. Please choose another time.",
-      );
-    }
-    throw error;
-  }
+  return createBookingFromPrepared(prepared, paymentMeta);
 };
 
 module.exports = {

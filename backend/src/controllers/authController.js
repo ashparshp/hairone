@@ -134,3 +134,13 @@ exports.getMe = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch profile' });
   }
 };
+
+exports.logout = async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.user._id, { $inc: { tokenVersion: 1 } });
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Logout failed' });
+  }
+};
