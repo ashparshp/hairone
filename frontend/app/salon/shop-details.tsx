@@ -17,8 +17,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { ChevronLeft, MapPin, Save, Store, Camera, Image as ImageIcon } from 'lucide-react-native';
-import { FadeInView } from '../../components/AnimatedViews';
+import { MapPin, Save, Store, Camera, Image as ImageIcon } from 'lucide-react-native';
+import {
+  OwnerCard,
+  OwnerScreen,
+  OwnerScreenHeader,
+  OwnerSectionHeader,
+  ownerStyles,
+} from '../../components/owner/OwnerUI';
 
 export default function ShopDetailsScreen() {
   const router = useRouter();
@@ -174,27 +180,31 @@ export default function ShopDetailsScreen() {
       }
   };
 
-  if (loading) return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.tint} /></View>;
+  if (loading) {
+    return (
+      <OwnerScreen>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.tint} />
+        </View>
+      </OwnerScreen>
+    );
+  }
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-         <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card, borderColor: colors.border}]}>
-            <ChevronLeft size={24} color={colors.text}/>
-         </TouchableOpacity>
-         <Text style={[styles.title, {color: colors.text}]}>Shop Details</Text>
-      </View>
+    <OwnerScreen>
+      <OwnerScreenHeader title="Shop Details" subtitle="Profile & scheduling" onBack={() => router.back()} />
 
-      <ScrollView contentContainerStyle={{paddingBottom: 40}} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[ownerStyles.screenPadding, { paddingTop: 0, gap: 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
 
-        {/* --- SECTION 1: SHOP DETAILS --- */}
-        <FadeInView>
-        <View style={styles.section}>
-            <Text style={[styles.sectionTitle, {color: colors.text}]}>Shop Details</Text>
-            <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View>
+        <OwnerSectionHeader title="Shop profile" />
+        <OwnerCard>
                 {/* Image Picker */}
                 <Text style={[styles.label, {color: colors.textMuted}]}>Shop Image</Text>
-                <TouchableOpacity onPress={pickImage} style={[styles.imagePicker, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                <TouchableOpacity style={[styles.imagePicker, {backgroundColor: colors.surfaceSoft, borderColor: colors.border}]} onPress={pickImage}>
                   {image ? (
                     <Image source={{ uri: image }} style={styles.previewImage} />
                   ) : (
@@ -216,7 +226,7 @@ export default function ShopDetailsScreen() {
 
                 {/* Shop Name Input */}
                 <Text style={[styles.label, {color: colors.textMuted}]}>Shop Name</Text>
-                <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                <View style={[styles.inputContainer, {backgroundColor: colors.surfaceSoft, borderColor: colors.border}]}>
                    <Store size={18} color={colors.textMuted} style={{marginLeft: 12}} />
                    <TextInput
                       style={[styles.input, {color: colors.text}]}
@@ -229,7 +239,7 @@ export default function ShopDetailsScreen() {
 
                 {/* Shop Location */}
                 <Text style={[styles.label, {color: colors.textMuted}]}>Shop Location</Text>
-                <View style={[styles.inputContainer, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}]}>
+                <View style={[styles.inputContainer, {backgroundColor: colors.surfaceSoft, borderColor: colors.border}]}>
                    <MapPin size={18} color={colors.textMuted} style={{marginLeft: 12}} />
                    <TextInput
                       style={[styles.input, {color: colors.text}]}
@@ -241,9 +251,9 @@ export default function ShopDetailsScreen() {
                    />
                 </View>
 
-                <TouchableOpacity style={[styles.locationBtn, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={fetchLocation}>
-                    <MapPin size={14} color={theme === 'dark' ? 'white' : 'black'} />
-                    <Text style={{color: theme === 'dark' ? 'white' : 'black', fontWeight: 'bold', fontSize: 12}}>Use GPS Location</Text>
+                <TouchableOpacity style={[styles.locationBtn, {backgroundColor: colors.surfaceSoft}]} onPress={fetchLocation}>
+                    <MapPin size={14} color={colors.text} />
+                    <Text style={{color: colors.text, fontWeight: '700', fontSize: 12}}>Use GPS location</Text>
                 </TouchableOpacity>
 
                 {/* Shop Type */}
@@ -252,7 +262,7 @@ export default function ShopDetailsScreen() {
                     {['male', 'female', 'unisex'].map((t) => (
                         <TouchableOpacity
                           key={t}
-                          style={[styles.typeChip, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', borderColor: colors.border}, shopType === t && {backgroundColor: colors.tint, borderColor: colors.tint}]}
+                          style={[styles.typeChip, {backgroundColor: colors.surfaceSoft, borderColor: colors.border}, shopType === t && {backgroundColor: colors.tint, borderColor: colors.tint}]}
                           onPress={() => setShopType(t as any)}
                         >
                             <Text style={[styles.typeText, {color: colors.textMuted}, shopType === t && {color: 'black', fontWeight:'bold'}]}>
@@ -261,15 +271,12 @@ export default function ShopDetailsScreen() {
                         </TouchableOpacity>
                     ))}
                 </View>
-            </View>
+        </OwnerCard>
         </View>
-        </FadeInView>
 
-        {/* --- SECTION 2: SCHEDULING RULES --- */}
-        <FadeInView delay={200}>
-        <View style={styles.section}>
-            <Text style={[styles.sectionTitle, {color: colors.text}]}>Scheduling Rules</Text>
-            <View style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}>
+        <View>
+        <OwnerSectionHeader title="Scheduling rules" />
+        <OwnerCard>
 
                 <View style={styles.row}>
                     <View style={{flex: 1}}>
@@ -277,7 +284,7 @@ export default function ShopDetailsScreen() {
                         <Text style={[styles.helperText, {color: colors.textMuted}]}>Gap after each booking</Text>
                     </View>
                     <TextInput
-                        style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                        style={[styles.inputSmall, {backgroundColor: colors.surfaceSoft, color: colors.text, borderColor: colors.border}]}
                         value={bufferTime}
                         onChangeText={setBufferTime}
                         keyboardType="numeric"
@@ -294,7 +301,7 @@ export default function ShopDetailsScreen() {
                         <Text style={[styles.helperText, {color: colors.textMuted}]}>Booking blocked if less than this</Text>
                     </View>
                     <TextInput
-                        style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                        style={[styles.inputSmall, {backgroundColor: colors.surfaceSoft, color: colors.text, borderColor: colors.border}]}
                         value={minNotice}
                         onChangeText={setMinNotice}
                         keyboardType="numeric"
@@ -311,7 +318,7 @@ export default function ShopDetailsScreen() {
                         <Text style={[styles.helperText, {color: colors.textMuted}]}>Booking blocked if further than this</Text>
                     </View>
                     <TextInput
-                        style={[styles.inputSmall, {backgroundColor: theme === 'dark' ? '#0f172a' : '#f8fafc', color: colors.text, borderColor: colors.border}]}
+                        style={[styles.inputSmall, {backgroundColor: colors.surfaceSoft, color: colors.text, borderColor: colors.border}]}
                         value={maxNotice}
                         onChangeText={setMaxNotice}
                         keyboardType="numeric"
@@ -359,12 +366,11 @@ export default function ShopDetailsScreen() {
                     )}
                 </TouchableOpacity>
 
-            </View>
+        </OwnerCard>
         </View>
-        </FadeInView>
 
       </ScrollView>
-    </View>
+    </OwnerScreen>
   );
 }
 

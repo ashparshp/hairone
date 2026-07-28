@@ -4,8 +4,14 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { ChevronLeft, Info, Wallet, TrendingUp, TrendingDown, Clock, X } from 'lucide-react-native';
+import {
+  OwnerCard,
+  OwnerScreen,
+  OwnerScreenHeader,
+  ownerStyles,
+} from '../../components/owner/OwnerUI';
 import { format } from 'date-fns';
+import { Info, Wallet, TrendingUp, TrendingDown, Clock, X } from 'lucide-react-native';
 
 export default function ShopRevenueStats() {
   const router = useRouter();
@@ -15,31 +21,30 @@ export default function ShopRevenueStats() {
   const [activeTab, setActiveTab] = useState<'overview' | 'settlements'>('overview');
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <ChevronLeft size={24} color={colors.text}/>
-         </TouchableOpacity>
-         <Text style={[styles.title, {color: colors.text}]}>Revenue & Settlements</Text>
-      </View>
+    <OwnerScreen>
+      <OwnerScreenHeader
+        title="Revenue"
+        subtitle="Earnings & settlements"
+        onBack={() => router.back()}
+      />
 
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'overview' && {borderBottomColor: colors.tint}]}
+            style={[styles.tab, activeTab === 'overview' && { backgroundColor: colors.card }]}
             onPress={() => setActiveTab('overview')}
           >
-              <Text style={[styles.tabText, {color: activeTab === 'overview' ? colors.tint : colors.textMuted}]}>Overview</Text>
+              <Text style={[styles.tabText, {color: activeTab === 'overview' ? colors.text : colors.textMuted}]}>Overview</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'settlements' && {borderBottomColor: colors.tint}]}
+            style={[styles.tab, activeTab === 'settlements' && { backgroundColor: colors.card }]}
             onPress={() => setActiveTab('settlements')}
           >
-              <Text style={[styles.tabText, {color: activeTab === 'settlements' ? colors.tint : colors.textMuted}]}>Settlements</Text>
+              <Text style={[styles.tabText, {color: activeTab === 'settlements' ? colors.text : colors.textMuted}]}>Settlements</Text>
           </TouchableOpacity>
       </View>
 
       {activeTab === 'overview' ? <RevenueOverview /> : <SettlementsList />}
-    </View>
+    </OwnerScreen>
   );
 }
 
@@ -72,21 +77,21 @@ function RevenueOverview() {
     if (loading) return <ActivityIndicator color={colors.tint} style={{marginTop: 50}} />;
 
     return (
-        <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 20}}>
-            <View style={{backgroundColor: colors.card, padding: 20, borderRadius: 12, marginBottom: 12}}>
-                 <Text style={{color: colors.textMuted}}>Total Earnings</Text>
-                 <Text style={{color: colors.text, fontSize: 32, fontWeight: 'bold'}}>₹{(stats?.totalEarnings || 0).toFixed(2)}</Text>
-            </View>
+        <ScrollView style={{flex: 1}} contentContainerStyle={ownerStyles.screenPadding}>
+            <OwnerCard style={{ marginBottom: 12 }}>
+                 <Text style={{color: colors.textMuted, fontSize: 13}}>Total earnings</Text>
+                 <Text style={{color: colors.text, fontSize: 34, fontWeight: '800', marginTop: 4}}>₹{(stats?.totalEarnings || 0).toFixed(2)}</Text>
+            </OwnerCard>
 
             <View style={{flexDirection: 'row', gap: 12}}>
-                 <View style={{flex: 1, backgroundColor: colors.card, padding: 16, borderRadius: 12}}>
-                     <Text style={{color: colors.textMuted, fontSize: 12}}>Pending Payouts</Text>
-                     <Text style={{color: '#10b981', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.details?.pendingPayout || 0).toFixed(2)}</Text>
-                 </View>
-                 <View style={{flex: 1, backgroundColor: colors.card, padding: 16, borderRadius: 12}}>
-                     <Text style={{color: colors.textMuted, fontSize: 12}}>Pending Dues</Text>
-                     <Text style={{color: '#ef4444', fontSize: 20, fontWeight: 'bold'}}>₹{(stats?.details?.pendingDues || 0).toFixed(2)}</Text>
-                 </View>
+                 <OwnerCard style={{ flex: 1 }}>
+                     <Text style={{color: colors.textMuted, fontSize: 12}}>Pending payouts</Text>
+                     <Text style={{color: colors.statusSuccess, fontSize: 22, fontWeight: '800', marginTop: 4}}>₹{(stats?.details?.pendingPayout || 0).toFixed(2)}</Text>
+                 </OwnerCard>
+                 <OwnerCard style={{ flex: 1 }}>
+                     <Text style={{color: colors.textMuted, fontSize: 12}}>Pending dues</Text>
+                     <Text style={{color: colors.statusDanger, fontSize: 22, fontWeight: '800', marginTop: 4}}>₹{(stats?.details?.pendingDues || 0).toFixed(2)}</Text>
+                 </OwnerCard>
             </View>
         </ScrollView>
     );
@@ -318,14 +323,22 @@ function SettlementDetailModal({ settlement, visible, onClose }: { settlement: a
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
-  backBtn: { padding: 4 },
-  title: { fontSize: 24, fontWeight: 'bold' },
-
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#334155', marginBottom: 20 },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabText: { fontWeight: 'bold' },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 4,
+    gap: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  tabText: { fontWeight: '700', fontSize: 13 },
 
   card: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
 

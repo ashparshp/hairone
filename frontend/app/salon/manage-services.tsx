@@ -15,7 +15,12 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
-import { ChevronLeft, Plus, Clock, IndianRupee, Scissors, Trash2, Edit, Layers, Check } from 'lucide-react-native';
+import { Plus, Clock, IndianRupee, Scissors, Trash2, Edit, Layers, Check } from 'lucide-react-native';
+import {
+  OwnerScreen,
+  OwnerScreenHeader,
+  ownerStyles,
+} from '../../components/owner/OwnerUI';
 
 export default function ManageServicesScreen() {
   const router = useRouter();
@@ -263,34 +268,43 @@ export default function ManageServicesScreen() {
 
   // --- RENDER ---
 
-  if (loading) return <View style={[styles.center, {backgroundColor: colors.background}]}><ActivityIndicator color={colors.tint} /></View>;
+  if (loading) {
+    return (
+      <OwnerScreen>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.tint} />
+        </View>
+      </OwnerScreen>
+    );
+  }
 
   return (
-    <View style={[styles.container, {backgroundColor: colors.background}]}>
-      <View style={styles.header}>
-         <TouchableOpacity onPress={() => router.back()} style={[styles.iconBtn, {backgroundColor: colors.card, borderColor: colors.border}]}>
-            <ChevronLeft size={24} color={colors.text}/>
-         </TouchableOpacity>
-         <Text style={[styles.title, {color: colors.text}]}>Manage Menu</Text>
-      </View>
-      
-      {/* TABS */}
-      <View style={styles.tabs}>
+    <OwnerScreen>
+      <OwnerScreenHeader
+        title="Services"
+        subtitle="Menu & combos"
+        onBack={() => router.back()}
+      />
+
+      <View style={[styles.tabs, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
           <TouchableOpacity
-             style={[styles.tab, activeTab === 'services' && { backgroundColor: colors.tint }]}
+             style={[styles.tab, activeTab === 'services' && { backgroundColor: colors.card }]}
              onPress={() => setActiveTab('services')}
           >
-              <Text style={[styles.tabText, activeTab === 'services' ? {color: '#000'} : {color: colors.text}]}>Services</Text>
+              <Text style={[styles.tabText, { color: activeTab === 'services' ? colors.text : colors.textMuted }]}>Services</Text>
           </TouchableOpacity>
           <TouchableOpacity
-             style={[styles.tab, activeTab === 'combos' && { backgroundColor: colors.tint }]}
+             style={[styles.tab, activeTab === 'combos' && { backgroundColor: colors.card }]}
              onPress={() => setActiveTab('combos')}
           >
-              <Text style={[styles.tabText, activeTab === 'combos' ? {color: '#000'} : {color: colors.text}]}>Combos</Text>
+              <Text style={[styles.tabText, { color: activeTab === 'combos' ? colors.text : colors.textMuted }]}>Combos</Text>
           </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{paddingBottom: 40}} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[ownerStyles.screenPadding, { paddingTop: 0, paddingBottom: 100 }]}
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* --- SECTION: SERVICES --- */}
         {activeTab === 'services' && (
@@ -522,20 +536,24 @@ export default function ManageServicesScreen() {
         )}
 
       </ScrollView>
-    </View>
+    </OwnerScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 1 },
-  title: { fontSize: 24, fontWeight: 'bold' },
   
-  tabs: { flexDirection: 'row', marginBottom: 20, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#334155' },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabText: { fontWeight: 'bold' },
+  tabs: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 4,
+    gap: 4,
+  },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  tabText: { fontWeight: '700', fontSize: 13 },
 
   section: { marginBottom: 30 },
   sectionTitle: { marginBottom: 12, fontSize: 16, fontWeight:'bold' },
