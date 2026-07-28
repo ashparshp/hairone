@@ -301,7 +301,11 @@ exports.reactivateShop = async (req, res) => {
 exports.reapply = async (req, res) => {
   const userId = req.user.id;
   try {
-    if (req.user.role === "owner" && req.user.myShopId) {
+    if (
+      req.user.role === "owner" &&
+      req.user.myShopId &&
+      req.user.applicationStatus !== "suspended"
+    ) {
       return res
         .status(400)
         .json({ message: "Shop already exists for this account" });

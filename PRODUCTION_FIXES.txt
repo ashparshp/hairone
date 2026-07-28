@@ -1,0 +1,427 @@
+================================================================================
+HAIRONE — PRODUCTION FIX TRACKER
+================================================================================
+
+BRANCHING WORKFLOW
+------------------
+  prod   = production environment (DO NOT commit directly to prod)
+  main   = staging environment (merge PRs here after review)
+  fix/*  = one branch per fix, created FROM main
+
+For each fix:
+  1. git checkout main && git pull
+  2. git checkout -b fix/<short-name>
+  3. Implement the fix
+  4. Commit with a clear message
+  5. Push branch and open PR → merge into main
+  6. prod stays untouched until you manually promote main → prod
+
+One fix = one branch = one PR = one commit (or small logical commits in same PR).
+
+================================================================================
+FIX ORDER (work top to bottom)
+================================================================================
+
+------------------------------------------------------------------------------
+FIX 1 — Slot availability uses wrong query
+Branch: fix/active-booking-slot-queries
+Priority: CRITICAL
+------------------------------------------------------------------------------
+
+PROBLEM:
+  Completed/missed/no-show bookings set activeBooking=false but availability
+  queries only exclude status=cancelled. Finished slots stay blocked all day.
+
+FILES:
+  backend/src/controllers/bookingController.js  (checkAvailability ~line 111-130)
+  backend/src/controllers/shopController.js     (getShopSlots ~356, findEarliestSlot ~547)
+  backend/src/controllers/bookingController.js  (getShopBookings ~539)
+
+FIX:
+  Replace status: { $ne: "cancelled" } with activeBooking: true in all
+  conflict/availability queries.
+
+VERIFY:
+  Complete a booking → same slot should appear available again same day.
+
+
+------------------------------------------------------------------------------
+FIX 2 — Server-side price and duration validation
+Branch: fix/server-side-booking-pricing
+Priority: CRITICAL
+------------------------------------------------------------------------------
+
+PROBLEM:
+  createBooking trusts client totalPrice and totalDuration from request body.
+  User can book at ₹0 or any price. Commission/settlement math breaks.
+
+FILES:
+  backend/src/controllers/bookingController.js  (createBooking ~line 165-410)
+
+FIX:
+  - Resolve serviceNames against shop.services and shop.combos
+  - Compute price and duration on server
+  - Reject if client values don't match (or ignore client values entirely)
+  - Use server-computed values for all financial fields
+
+VERIFY:
+  Send manipulated price in API request → server rejects or overrides.
+
+
+------------------------------------------------------------------------------
+FIX 3 — Double-booking race / overlap prevention
+Branch: fix/booking-overlap-race
+Priority: CRITICAL
+------------------------------------------------------------------------------
+
+PROBLEM:
+  Check-then-insert with no transaction. Unique index only blocks identical
+  startTime, not overlapping slots. Two concurrent requests can double-book.
+
+FILES:
+  backend/src/models/Booking.js
+  backend/src/controllers/bookingController.js  (createBooking)
+
+FIX:
+  - Use MongoDB transaction around availability check + insert
+  - OR retry on duplicate key with overlap re-check
+  - Consider overlap validation at insert time (not just same startTime)
+
+VERIFY:
+  Two simultaneous bookings for overlapping times on same barber → one fails.
+
+
+------------------------------------------------------------------------------
+FIX 4 — Enforce blockCustomBookings on backend
+Branch: fix/enforce-block-custom-bookings
+Priority: HIGH
+------------------------------------------------------------------------------
+
+PROBLEM:
+  Shop owners can set blockCustomBookings=true but createBooking never checks it.
+  Frontend can also bypass (see FIX 14).
+
+FILES:
+  backend/src/controllers/bookingController.js  (createBooking)
+  backend/src/models/Shop.js
+
+FIX:
+  Reject custom/scheduled bookings when shop.blockCustomBookings is true.
+  Only allow earliest-available booking type.
+
+VERIFY:
+  Shop with blockCustomBookings=true → custom time booking returns 400/403.
+
+
+------------------------------------------------------------------------------
+FIX 5 — Auth hardening
+Branch: fix/auth-hardening
+Priority: CRITICAL
+------------------------------------------------------------------------------
+
+PROBLEM A:
+  Hardcoded OTP "1234" — anyone can log in with any phone number.
+
+PROBLEM B:
+  authMiddleware uses JWT_SECRET || 'secret' fallback — forgeable if misconfigured.
+
+FILES:
+  backend/src/controllers/authController.js
+  backend/src/middleware/authMiddleware.js
+
+FIX:
+  - Remove JWT 'secret' fallback; fail startup if JWT_SECRET missing in production
+  - Gate mock OTP behind NODE_ENV !== 'production' AND env flag (e.g. MOCK_OTP=true)
+  - In production: integrate SMS provider (Twilio/Msg91) or block verify until configured
+  - Rate-limit sendOTP per phone number
+
+VERIFY:
+  Production mode without MOCK_OTP → OTP 1234 rejected.
+  Missing JWT_SECRET → server refuses to start.
+
+
+------------------------------------------------------------------------------
+FIX 6 — Support ticket IDOR
+Branch: fix/support-ticket-ownership
+Priority: CRITICAL
+------------------------------------------------------------------------------
+
+PROBLEM:
+  getTicket and replyTicket don't verify ticket belongs to requesting user.
+  Any logged-in user can read/reply to another user's tickets.
+
+FILES:
+  backend/src/controllers/supportController.js
+  backend/src/routes/supportRoutes.js
+
+FIX:
+  - getTicket: if not admin, require ticket.userId === req.user.id
+  - replyTicket: same ownership check for non-admin users
+  - Return 403 if unauthorized
+
+VERIFY:
+  User A cannot GET or POST reply on User B's ticket.
+
+
+------------------------------------------------------------------------------
+FIX 7 — Frontend session and logout cleanup
+Branch: fix/frontend-session-hydration
+Priority: HIGH
+------------------------------------------------------------------------------
+
+PROBLEM A:
+  Stored token/user trusted on startup without /auth/me validation.
+
+PROBLEM B:
+  BookingContext never clears myBookings on logout → cross-user data leak.
+
+PROBLEM C:
+  app/index.tsx always redirects to login before auth hydrates → login flash.
+
+PROBLEM D:
+  login() is async but login.tsx navigates without await.
+
+FILES:
+  frontend/context/AuthContext.tsx
+  frontend/context/BookingContext.tsx
+  frontend/app/index.tsx
+  frontend/app/(auth)/login.tsx
+
+FIX:
+  - On startup: call /auth/me to validate token; clear storage on failure
+  - On logout: clear myBookings in BookingContext (expose reset or listen to auth)
+  - index.tsx: show loader while isLoading, then redirect based on auth state
+  - login.tsx: await login(token, user) before router.replace
+  - OTP auto-submit: guard with loading ref to prevent double verify
+
+VERIFY:
+  Logout → login as different user → no previous bookings shown.
+  Cold start with valid token → no login flash.
+
+
+------------------------------------------------------------------------------
+FIX 8 — Abuse flags and suspension enforcement
+Branch: fix/abuse-and-suspension-enforcement
+Priority: HIGH
+------------------------------------------------------------------------------
+
+PROBLEM A:
+  isFlagged set on users but createBooking never checks it.
+
+PROBLEM B:
+  Suspended owners can log in and use owner APIs (only customer booking blocked).
+
+PROBLEM C:
+  cancelBooking doesn't guard already-cancelled → cancellationCount inflates.
+
+PROBLEM D:
+  updateBookingStatus('no-show') doesn't update noShowCount.
+
+PROBLEM E:
+  Suspended owners can't reapply (reapply fails if myShopId exists).
+
+PROBLEM F:
+  yearlyCancellationLimit never resets (lifetime counter, not yearly).
+
+FILES:
+  backend/src/controllers/bookingController.js
+  backend/src/controllers/adminController.js
+  backend/src/middleware/authMiddleware.js (or new middleware)
+  backend/src/jobs/autoCancelJob.js
+
+FIX:
+  - Block createBooking if user.isFlagged
+  - Block owner endpoints if applicationStatus === 'suspended'
+  - cancelBooking: return early if already cancelled; don't increment count twice
+  - Unify no-show/missed counting in one code path
+  - reapply: allow when suspended even if myShopId exists
+  - Add yearly reset cron OR rename config to lifetimeCancellationLimit
+
+VERIFY:
+  Flagged user cannot book. Suspended owner cannot update shop.
+  Double cancel doesn't increase count.
+
+
+------------------------------------------------------------------------------
+FIX 9 — Settlement logic consistency
+Branch: fix/settlement-consistency
+Priority: HIGH
+------------------------------------------------------------------------------
+
+PROBLEM:
+  settlementJob uses paymentMethod; financeController uses amountCollectedBy.
+  PAY_AT_VENUE treated differently in each path. Concurrent settlement has no lock.
+
+FILES:
+  backend/src/jobs/settlementJob.js
+  backend/src/controllers/financeController.js
+  backend/src/controllers/adminController.js
+  backend/src/models/Booking.js
+
+FIX:
+  - Single source of truth: amountCollectedBy everywhere
+  - Map PAY_AT_VENUE consistently as BARBER-collected/cash
+  - Skip bookings already linked to a settlement (idempotency)
+  - Align manual createSettlement with cron job logic
+
+VERIFY:
+  Dashboard net balance matches settlement job output for same bookings.
+
+
+------------------------------------------------------------------------------
+FIX 10 — Frontend booking flow cleanup
+Branch: fix/frontend-booking-flow
+Priority: HIGH
+------------------------------------------------------------------------------
+
+PROBLEM A:
+  Live booking is in salon/[id].tsx. payment.tsx is orphaned (nothing navigates to it).
+
+PROBLEM B:
+  Cash booking limits only enforced at submit → bad UX.
+
+PROBLEM C:
+  blockCustomBookings UI hides toggle but doesn't reset bookingType on shop change.
+
+PROBLEM D:
+  dashboard reapply doesn't call refreshUser() → UI stays "Suspended".
+
+PROBLEM E:
+  manage-services.tsx infinite spinner for non-owners (early return, no setLoading false).
+
+FILES:
+  frontend/app/salon/[id].tsx
+  frontend/app/salon/payment.tsx          (delete or wire up — pick one)
+  frontend/app/(tabs)/dashboard.tsx
+  frontend/app/salon/manage-services.tsx
+  frontend/context/BookingContext.tsx     (unused selection state — clean up)
+
+FIX:
+  - Keep booking in [id].tsx; remove payment.tsx OR wire it properly (recommend remove)
+  - Fetch /bookings/limits before booking; disable cash pay in UI when limit hit
+  - Reset bookingType to 'earliest' when shop.blockCustomBookings or on shop [id] change
+  - After reapply: call refreshUser()
+  - manage-services: setLoading(false) and redirect if !myShopId
+
+VERIFY:
+  Cash limit reached → UI shows before submit. Custom booking blocked in UI matches backend.
+
+
+------------------------------------------------------------------------------
+FIX 11 — Edge cases and production config
+Branch: fix/edge-cases-and-config
+Priority: MEDIUM
+------------------------------------------------------------------------------
+
+PROBLEM A:
+  autoApproveBookings multipart "false" string is truthy in JS.
+
+PROBLEM B:
+  getBookingLimits uses current month; createBooking uses booking date month.
+
+PROBLEM C:
+  differenceInDays with UTC date string vs IST can be wrong near boundaries.
+
+PROBLEM D:
+  Admin layout redirects non-admins to login instead of home.
+
+PROBLEM E:
+  home.tsx filter refetch missing category/search deps; double client+server filter.
+
+PROBLEM F:
+  Check-in PIN is 4 digits with no rate limit.
+
+PROBLEM G:
+  Open CORS allows all origins.
+
+PROBLEM H:
+  EXPO_PUBLIC_API_URL can be undefined.
+
+PROBLEM I:
+  createShop race — two parallel requests can create two shops.
+
+FILES:
+  backend/src/controllers/shopController.js
+  backend/src/controllers/bookingController.js
+  backend/src/index.js
+  frontend/app/admin/_layout.tsx
+  frontend/app/(tabs)/home.tsx
+  frontend/services/api.ts
+  frontend/.env.example (create if missing)
+
+FIX:
+  - Parse boolean form fields explicitly: val === 'true' || val === true
+  - Align limits API month with booking date month
+  - Fix IST date parsing for notice validation
+  - Admin layout: redirect non-admin to /(tabs)/home or dashboard
+  - Fix home filter deps and remove duplicate filtering
+  - Rate-limit check-in attempts per booking
+  - CORS: restrict to allowed origins in production
+  - Fail fast if EXPO_PUBLIC_API_URL missing
+  - createShop: use transaction or unique constraint on owner
+
+VERIFY:
+  multipart false saves as false. Limits UI matches backend for future-month bookings.
+
+
+------------------------------------------------------------------------------
+FIX 12 — Dead code and orphan screens cleanup
+Branch: fix/dead-code-cleanup
+Priority: LOW
+------------------------------------------------------------------------------
+
+PROBLEM:
+  Orphan/unused code causes confusion and future bugs.
+
+FILES TO REVIEW:
+  frontend/app/salon/booking.tsx         (orphan — no navigation to it)
+  frontend/app/salon/payment.tsx         (orphan if FIX 10 removes it)
+  frontend/context/BookingContext.tsx      (unused setSelectedShop/toggleService)
+  backend/src/controllers/adminController.js  (getFinanceStats, settleShop unrouted)
+
+FIX:
+  Remove orphan screens or wire them. Remove dead exports. Clean commented code in api.ts.
+
+VERIFY:
+  No broken imports. App builds and all flows still work.
+
+
+================================================================================
+BRANCH SETUP (run once)
+================================================================================
+
+  git checkout main
+  git pull origin main
+  git checkout -b prod          # create prod from current main
+  git push -u origin prod       # push prod — this is your production baseline
+
+  # prod = production (frozen until you promote)
+  # main = staging (receives merged PRs)
+  # fix/* branches always branch FROM main
+
+================================================================================
+PROMOTING STAGING → PRODUCTION (manual, when ready)
+================================================================================
+
+  git checkout prod
+  git merge main                # or cherry-pick specific fixes
+  git push origin prod
+
+  Only do this when staging (main) is tested and stable.
+
+================================================================================
+NOTES / DECISIONS NEEDED
+================================================================================
+
+  1. Cancelled cash bookings counting toward monthly limit — currently intentional
+     per code comment in bookingController.js. Confirm before changing.
+
+  2. Real SMS OTP (Twilio/Msg91) — FIX 5 adds gating; full provider is separate task.
+
+  3. Do not commit .env files. Ensure frontend/.env and backend/.env are gitignored.
+
+  4. Existing remote branches on origin can stay; work only on fix/* → main → prod.
+
+================================================================================
+END OF FILE
+================================================================================

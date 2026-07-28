@@ -1,0 +1,42 @@
+================================================================================
+HAIRONE — VERIFICATION NOTES (additional / corrections)
+================================================================================
+Verified against codebase. Items below are NOT in PRODUCTION_FIXES.txt or correct it.
+
+------------------------------------------------------------------------------
+CORRECTION — FIX 1 getShopBookings
+------------------------------------------------------------------------------
+  INVALID to change getShopBookings to activeBooking: true.
+  Owner schedule (shop-schedule.tsx) must show completed/cancelled/history.
+  Only availability queries need activeBooking: true:
+    - bookingController.checkAvailability
+    - shopController.getShopSlots
+    - shopController.findEarliestSlotForShop
+
+------------------------------------------------------------------------------
+NEW — getTicket returns 200 with null body for bad ID
+------------------------------------------------------------------------------
+  supportController.getTicket does not 404 when ticket missing; returns null JSON.
+  Priority: MEDIUM | Branch: fix/support-ticket-ownership (bundle with FIX 6)
+
+------------------------------------------------------------------------------
+NEW — createBooking does not validate serviceNames exist on shop
+------------------------------------------------------------------------------
+  Even after FIX 2 (price), empty or fake service names can be stored.
+  Priority: MEDIUM | Branch: fix/server-side-booking-pricing (bundle with FIX 2)
+
+------------------------------------------------------------------------------
+NEW — bookingKey is 4-digit Math.random with no uniqueness check
+------------------------------------------------------------------------------
+  Collision possible; no rate limit on check-in PIN attempts (also in FIX 11F).
+  Priority: MEDIUM
+
+------------------------------------------------------------------------------
+NEW — authController JWT sign uses JWT_SECRET without fallback but verify uses fallback
+------------------------------------------------------------------------------
+  Inconsistent: sign can throw if missing, verify falls back to 'secret'.
+  Covered by FIX 5.
+
+------------------------------------------------------------------------------
+ALL FIXES 1–12 IN PRODUCTION_FIXES.txt: VALID (with FIX 1 getShopBookings excluded)
+==============================================================================
