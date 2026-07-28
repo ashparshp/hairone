@@ -5,9 +5,11 @@ const {
   getPaymentConfig,
   createBookingOrder,
   verifyBookingPayment,
+  getPaymentOrder,
 } = require("../controllers/paymentController");
 
 router.get("/config", protect, getPaymentConfig);
+router.get("/orders/:id", protect, getPaymentOrder);
 router.post("/create-booking-order", protect, createBookingOrder);
 router.post("/verify-booking", protect, verifyBookingPayment);
 

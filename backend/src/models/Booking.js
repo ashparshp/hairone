@@ -44,6 +44,10 @@ const bookingSchema = new mongoose.Schema(
       default: "online",
     },
     paymentMethod: { type: String, default: "CASH" },
+    paymentOrderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PaymentOrder",
+    },
     razorpayOrderId: String,
     razorpayPaymentId: String,
     bookingKey: String,

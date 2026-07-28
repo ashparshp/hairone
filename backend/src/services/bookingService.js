@@ -523,6 +523,7 @@ const createBookingFromPrepared = async (prepared, paymentMeta = {}) => {
       type: prepared.type,
       notes: prepared.notes,
       bookingKey: await generateUniqueBookingKey(session),
+      paymentOrderId: paymentMeta.paymentOrderId,
       razorpayOrderId: paymentMeta.razorpayOrderId,
       razorpayPaymentId: paymentMeta.razorpayPaymentId,
     };
