@@ -8,6 +8,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { SlideInView } from '../../components/AnimatedViews'; 
 import api, { getShopReviews } from '../../services/api';
 import { openRazorpayCheckout } from '../../services/razorpay';
+import {
+  createBookingPaymentOrder,
+  verifyBookingPayment,
+} from '../../services/payments';
 import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 
@@ -255,16 +259,17 @@ export default function ShopDetailsScreen() {
                 return showToast("Online payments are not available right now", "error");
             }
 
-            const orderRes = await api.post('/payments/create-booking-order', bookingPayload);
-            const { paymentOrderId, orderId, amount, currency, keyId, shopName, finalPrice } = orderRes.data;
+            const orderResponse = await createBookingPaymentOrder(bookingPayload);
+            const { paymentOrder, checkout, summary } = orderResponse;
 
             const paymentResult = await openRazorpayCheckout({
-                keyId: keyId || config.razorpayKeyId,
-                orderId,
-                amount,
-                currency,
+                keyId: checkout.keyId || config.razorpayKeyId,
+                orderId: checkout.orderId,
+                amountPaise: checkout.amountPaise,
+                currency: checkout.currency,
+                referenceId: checkout.referenceId,
                 name: 'HairOne',
-                description: `${shopName} booking`,
+                description: `${summary.shopName} · ${checkout.referenceId}`,
                 prefill: {
                     name: user?.name || undefined,
                     contact: user?.phone || undefined,
@@ -272,14 +277,18 @@ export default function ShopDetailsScreen() {
                 },
             });
 
-            await api.post('/payments/verify-booking', {
-                paymentOrderId,
+            if (paymentResult.razorpay_order_id !== checkout.orderId) {
+                throw new Error('Payment order mismatch');
+            }
+
+            await verifyBookingPayment({
+                paymentOrderId: paymentOrder.id,
                 razorpay_order_id: paymentResult.razorpay_order_id,
                 razorpay_payment_id: paymentResult.razorpay_payment_id,
                 razorpay_signature: paymentResult.razorpay_signature,
             });
 
-            showToast(`Paid ₹${finalPrice.toFixed(2)} — booking confirmed!`, "success");
+            showToast(`Paid ₹${summary.finalPrice.toFixed(2)} — booking confirmed!`, "success");
         } else {
             await api.post('/bookings', {
                 ...bookingPayload,
