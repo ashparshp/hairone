@@ -111,6 +111,7 @@ const serializePaymentOrder = (paymentOrder, extras = {}) => ({
   status: paymentOrder.status,
   expiresAt: paymentOrder.expiresAt,
   bookingId: paymentOrder.bookingId || null,
+  failureReason: paymentOrder.failureReason || null,
   ...extras,
 });
 

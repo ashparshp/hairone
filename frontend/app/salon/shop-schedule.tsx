@@ -234,7 +234,7 @@ export default function ShopScheduleScreen() {
                          <Text style={{color: colors.tint, fontSize: 12, textDecorationLine: 'underline'}}>{item.userId.phone}</Text>
                      </TouchableOpacity>
                  )}
-                 {item.notes && <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 2, fontStyle:'italic'}}>"{item.notes}"</Text>}
+                 {item.notes && <Text style={{color: colors.textMuted, fontSize: 10, marginTop: 2, fontStyle:'italic'}}>{item.notes}</Text>}
              </View>
              {item.totalPrice > 0 && <View style={styles.priceTag}><Text style={styles.priceText}>₹{item.totalPrice}</Text></View>}
           </View>

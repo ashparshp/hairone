@@ -6,6 +6,7 @@ export const SharedColors = {
   info: "#3b82f6",
   white: "#ffffff",
   transparent: "transparent",
+  shadow: "#000000",
 };
 
 export const LightColors = {

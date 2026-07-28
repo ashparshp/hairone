@@ -93,6 +93,12 @@ export const verifyBookingPaymentWithRecovery = async (
         throw new Error(paymentOrder.failureReason);
       }
     } catch (pollError) {
+      if (
+        pollError instanceof Error &&
+        pollError.message.includes("credited")
+      ) {
+        throw pollError;
+      }
       lastError = pollError;
     }
   }

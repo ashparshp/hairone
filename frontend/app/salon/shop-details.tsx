@@ -325,7 +325,7 @@ export default function ShopDetailsScreen() {
                 <View style={[styles.row, {marginBottom: 0}]}>
                     <View style={{flex: 1}}>
                         <Text style={[styles.label, {color: colors.textMuted}]}>Auto Approve</Text>
-                        <Text style={[styles.helperText, {color: colors.textMuted}]}>If off, bookings are 'pending'</Text>
+                        <Text style={[styles.helperText, {color: colors.textMuted}]}>If off, bookings are pending</Text>
                     </View>
                     <Switch
                         value={autoApprove}
@@ -340,7 +340,7 @@ export default function ShopDetailsScreen() {
                 <View style={[styles.row, {marginBottom: 0}]}>
                     <View style={{flex: 1}}>
                         <Text style={[styles.label, {color: colors.textMuted}]}>Block Custom Bookings</Text>
-                        <Text style={[styles.helperText, {color: colors.textMuted}]}>Only allow 'Earliest Available'</Text>
+                        <Text style={[styles.helperText, {color: colors.textMuted}]}>Only allow Earliest Available</Text>
                     </View>
                     <Switch
                         value={blockCustomBookings}

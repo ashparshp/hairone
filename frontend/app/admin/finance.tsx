@@ -825,4 +825,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   btnText: { fontWeight: "bold", fontSize: 16 },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  rowCard: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
 });

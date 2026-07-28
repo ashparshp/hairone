@@ -14,6 +14,7 @@ export interface PaymentOrderDto {
   status: PaymentOrderStatus;
   expiresAt: string;
   bookingId: string | null;
+  failureReason?: string | null;
 }
 
 export interface CheckoutSessionDto {
@@ -49,9 +50,7 @@ export interface VerifyBookingPaymentResponse {
 }
 
 export interface GetPaymentOrderResponse {
-  paymentOrder: PaymentOrderDto & {
-    failureReason?: string;
-  };
+  paymentOrder: PaymentOrderDto;
 }
 
 export interface RazorpayCheckoutResult {

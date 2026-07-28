@@ -213,14 +213,15 @@ export default function HomeScreen() {
             shop={item}
             index={index}
             onPress={() => router.push({
-              pathname: `/salon/${item._id}`,
+              pathname: '/salon/[id]',
               params: {
+                id: item._id,
                 name: item.name,
                 address: item.address,
                 image: item.image,
-                rating: item.rating,
-                reviewCount: item.reviewCount || 0
-              }
+                rating: String(item.rating ?? 0),
+                reviewCount: String(item.reviewCount || 0),
+              },
             })}
             isFavorite={user?.favorites?.includes(item._id)}
             onToggleFavorite={toggleFavorite}

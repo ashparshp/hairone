@@ -838,7 +838,7 @@ export default function ManageServicesScreen() {
                     <Text
                       style={[styles.helperText, { color: colors.textMuted }]}
                     >
-                      If off, bookings are 'pending'
+                      If off, bookings are pending
                     </Text>
                   </View>
                   <Switch
