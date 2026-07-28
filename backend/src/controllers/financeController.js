@@ -25,6 +25,52 @@ const roundMoney = (amount) => {
     return Math.round((amount + Number.EPSILON) * 100) / 100;
 };
 
+const pendingSettlementMatch = (cutoffDateStr) => ({
+    status: 'completed',
+    date: { $lt: cutoffDateStr },
+    $and: [
+        {
+            $or: [
+                { settlementStatus: 'PENDING' },
+                { settlementStatus: { $exists: false } },
+            ],
+        },
+        {
+            $or: [
+                { settlementId: { $exists: false } },
+                { settlementId: null },
+            ],
+        },
+    ],
+});
+
+const settlementGroupStage = {
+    $group: {
+        _id: '$shopId',
+        bookings: { $push: '$_id' },
+        minDate: { $min: '$date' },
+        maxDate: { $max: '$date' },
+        totalAdminNet: {
+            $sum: {
+                $cond: [
+                    { $eq: ['$amountCollectedBy', 'BARBER'] },
+                    '$adminNetRevenue',
+                    0,
+                ],
+            },
+        },
+        totalBarberNet: {
+            $sum: {
+                $cond: [
+                    { $eq: ['$amountCollectedBy', 'ADMIN'] },
+                    '$barberNetRevenue',
+                    0,
+                ],
+            },
+        },
+    },
+};
+
 // Helper to calculate net balance for a list of bookings
 // Used by both Admin and Shop dashboards to see "Live" pending stats.
 const calculateNet = (bookings) => {
@@ -224,42 +270,8 @@ exports.previewSettlementJob = async (req, res) => {
 
         // 2. Aggregate (Same as job, but without updating anything)
         const settlementGroups = await Booking.aggregate([
-            {
-                $match: {
-                    status: 'completed',
-                    $or: [
-                        { settlementStatus: 'PENDING' },
-                        { settlementStatus: { $exists: false } }
-                    ],
-                    date: { $lt: cutoffDateStr }
-                }
-            },
-            {
-                $group: {
-                    _id: '$shopId',
-                    count: { $sum: 1 },
-                    // Calculate what Shop Owes Admin (Commission from Cash)
-                    totalAdminNet: {
-                        $sum: {
-                            $cond: [
-                                { $or: [{ $eq: ['$paymentMethod', 'CASH'] }, { $eq: ['$paymentMethod', 'cash'] }] },
-                                '$adminNetRevenue',
-                                0
-                            ]
-                        }
-                    },
-                    // Calculate what Admin Owes Shop (Revenue from Online)
-                    totalBarberNet: {
-                        $sum: {
-                            $cond: [
-                                { $not: { $or: [{ $eq: ['$paymentMethod', 'CASH'] }, { $eq: ['$paymentMethod', 'cash'] }] } },
-                                '$barberNetRevenue',
-                                0
-                            ]
-                        }
-                    }
-                }
-            },
+            { $match: pendingSettlementMatch(cutoffDateStr) },
+            settlementGroupStage,
             {
                 $lookup: {
                     from: 'shops',
