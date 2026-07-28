@@ -33,6 +33,7 @@ export default function LoginScreen() {
   const [canResend, setCanResend] = useState(false);
 
   const otpInputRef = useRef<TextInput>(null);
+  const verifyingRef = useRef(false);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -45,10 +46,10 @@ export default function LoginScreen() {
   }, [step, timer]);
 
   useEffect(() => {
-    if (step === 2 && otp.length === 4) {
+    if (step === 2 && otp.length === 4 && !loading && !verifyingRef.current) {
       handleLogin();
     }
-  }, [otp]);
+  }, [otp, step]);
 
   const handleSendOtp = async (isResend = false) => {
     const phoneRegex = /^[0-9]{10}$/;
@@ -84,14 +85,15 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (otp.length !== 4) return;
+    if (otp.length !== 4 || verifyingRef.current) return;
 
+    verifyingRef.current = true;
     setLoading(true);
     try {
       const res = await api.post("/auth/verify", { phone, otp });
       const { token, user } = res.data;
 
-      login(token, user);
+      await login(token, user);
 
       if (user.role === "admin") router.replace("/admin/(tabs)" as any);
       else if (user.role === "owner")
@@ -103,6 +105,7 @@ export default function LoginScreen() {
       showToast(e.response?.data?.message || "Invalid OTP", "error");
     } finally {
       setLoading(false);
+      verifyingRef.current = false;
     }
   };
 
