@@ -1,16 +1,12 @@
 import { Platform } from "react-native";
-
-export interface RazorpayCheckoutResult {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
-}
+import { RazorpayCheckoutResult } from "../types/payment";
 
 interface CheckoutOptions {
   keyId: string;
   orderId: string;
-  amount: number;
+  amountPaise: number;
   currency: string;
+  referenceId: string;
   name: string;
   description: string;
   prefill?: {
@@ -48,14 +44,25 @@ const openRazorpayWebCheckout = async (
     const Razorpay = (window as any).Razorpay;
     const checkout = new Razorpay({
       key: options.keyId,
-      amount: options.amount,
+      amount: options.amountPaise,
       currency: options.currency,
       name: options.name,
       description: options.description,
       order_id: options.orderId,
+      notes: { referenceId: options.referenceId },
       prefill: options.prefill,
       theme: { color: "#f59e0b" },
-      handler: (response: RazorpayCheckoutResult) => resolve(response),
+      handler: (response: RazorpayCheckoutResult) => {
+        if (
+          !response?.razorpay_payment_id ||
+          !response?.razorpay_order_id ||
+          !response?.razorpay_signature
+        ) {
+          reject(new Error("Incomplete payment response"));
+          return;
+        }
+        resolve(response);
+      },
       modal: {
         ondismiss: () => reject(new Error("Payment cancelled")),
       },
@@ -73,15 +80,25 @@ export const openRazorpayCheckout = async (
   }
 
   const RazorpayCheckout = require("react-native-razorpay").default;
-
-  return RazorpayCheckout.open({
+  const result = await RazorpayCheckout.open({
     key: options.keyId,
-    amount: options.amount,
+    amount: options.amountPaise,
     currency: options.currency,
     name: options.name,
     description: options.description,
     order_id: options.orderId,
+    notes: { referenceId: options.referenceId },
     prefill: options.prefill,
     theme: { color: "#f59e0b" },
   });
+
+  if (
+    !result?.razorpay_payment_id ||
+    !result?.razorpay_order_id ||
+    !result?.razorpay_signature
+  ) {
+    throw new Error("Incomplete payment response");
+  }
+
+  return result;
 };

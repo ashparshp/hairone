@@ -30,7 +30,12 @@ export default function BookingsScreen() {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   
-  const [cancelData, setCancelData] = useState({ title: '', message: '', refundAmount: 0, isLate: false });
+  const [cancelData, setCancelData] = useState({
+    title: '',
+    message: '',
+    creditAmount: 0,
+    isLate: false,
+  });
 
   // --- FIX: SAFE CHECK (myBookings || []) ---
   const safeBookings = myBookings || [];
@@ -104,28 +109,32 @@ export default function BookingsScreen() {
     }
   };
 
+  const getCancelCreditPreview = (booking: any) => {
+    const paymentMethod = (booking.paymentMethod || 'CASH').toUpperCase();
+    const finalPrice = booking.finalPrice ?? booking.totalPrice ?? booking.price ?? 0;
+    const walletCreditApplied = booking.walletCreditApplied || 0;
+    const isOnlinePaid =
+      paymentMethod === 'ONLINE' ||
+      Boolean(booking.razorpayPaymentId || booking.paymentOrderId);
+
+    if (isOnlinePaid && finalPrice > 0) return finalPrice;
+    if (walletCreditApplied > 0) return walletCreditApplied;
+    return 0;
+  };
+
   // --- CANCELLATION LOGIC ---
   const initiateCancel = (booking: any) => {
-    const bookingDateTime = parseBookingDateTime(booking.date, booking.startTime || booking.time); 
-    const now = new Date();
-    const diffMs = bookingDateTime.getTime() - now.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    // 1. Check if past (Logic Removed: Users can cancel past bookings if they are still "upcoming",
-    // or they will be auto-moved to "missed" by the backend job. If it's here, let them cancel).
-
-    // 2. Prepare Data for Custom Modal
+    const creditAmount = getCancelCreditPreview(booking);
     setSelectedBooking(booking);
-    
-    // Simplified: Always show cancellation confirmation without fee logic for now
     setCancelData({
         title: "Cancel Booking",
-        message: "Are you sure you want to cancel this booking? Frequent cancellations may flag your account.",
-        refundAmount: booking.totalPrice || booking.price,
+        message: creditAmount > 0
+          ? "Are you sure you want to cancel? The amount will be credited to your HairOne account for future bookings."
+          : "Are you sure you want to cancel this booking? Frequent cancellations may flag your account.",
+        creditAmount,
         isLate: false
     });
 
-    // 3. Show Custom Modal
     setCancelModalVisible(true);
   };
 
@@ -403,10 +412,12 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     {cancelData.message}
                 </Text>
 
+                {cancelData.creditAmount > 0 && (
                 <View style={[styles.refundBox, {backgroundColor: theme === 'dark' ? '#020617' : '#f8fafc', borderColor: colors.border}]}>
-                    <Text style={{color: colors.textMuted, fontSize: 12, textTransform: 'uppercase'}}>Refund Amount</Text>
-                    <Text style={{color: colors.text, fontSize: 24, fontWeight: 'bold'}}>₹{cancelData.refundAmount}</Text>
+                    <Text style={{color: colors.textMuted, fontSize: 12, textTransform: 'uppercase'}}>Account credit</Text>
+                    <Text style={{color: colors.text, fontSize: 24, fontWeight: 'bold'}}>₹{cancelData.creditAmount.toFixed(2)}</Text>
                 </View>
+                )}
 
                 <View style={{flexDirection: 'row', gap: 12, width: '100%'}}>
                     <TouchableOpacity style={[styles.alertBtnSecondary, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setCancelModalVisible(false)}>

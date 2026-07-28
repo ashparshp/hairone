@@ -42,6 +42,9 @@ function AppContent() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="salon" />
+        <Stack.Screen name="wallet" />
+        <Stack.Screen name="support" />
+        <Stack.Screen name="admin" />
       </Stack>
       <StatusBar style="auto" />
     </>

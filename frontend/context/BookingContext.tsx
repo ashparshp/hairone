@@ -13,7 +13,7 @@ interface BookingContextType {
 const BookingContext = createContext<BookingContextType | null>(null);
 
 export function BookingProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
 
   const fetchBookings = async () => {
@@ -39,7 +39,7 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
 
   const cancelBooking = async (id: string) => {
     try {
-      await api.put(`/bookings/${id}/cancel`);
+      const res = await api.put(`/bookings/${id}/cancel`);
 
       const updated = myBookings.map(b => 
         // @ts-ignore
@@ -48,12 +48,22 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
       // @ts-ignore
       setMyBookings(updated);
 
-      Alert.alert("Success", "Booking has been cancelled");
+      if (res.data?.walletCreditIssued > 0) {
+        await refreshUser();
+        Alert.alert(
+          "Booking cancelled",
+          res.data.walletCreditMessage ||
+            `₹${res.data.walletCreditIssued} credited to your account`,
+        );
+      } else {
+        Alert.alert("Success", "Booking has been cancelled");
+      }
       fetchBookings();
       
-    } catch (e) {
+    } catch (e: any) {
       console.log("Cancellation Error:", e);
-      Alert.alert("Error", "Could not cancel booking. Please try again.");
+      const msg = e.response?.data?.message || "Could not cancel booking. Please try again.";
+      Alert.alert("Error", msg);
     }
   };
 

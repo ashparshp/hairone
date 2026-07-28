@@ -1,0 +1,11 @@
+#!/bin/sh
+# Strip Cursor agent attribution from commit messages.
+# Install: ./scripts/install-git-hooks.sh
+
+if [ -z "$1" ] || [ ! -f "$1" ]; then
+  exit 0
+fi
+
+tmp="${1}.tmp"
+grep -v '^Co-authored-by: Cursor <cursoragent@cursor.com>$' "$1" > "$tmp" || true
+mv "$tmp" "$1"

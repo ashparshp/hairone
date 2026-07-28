@@ -141,6 +141,7 @@ app.use("/api/support", require("./routes/supportRoutes"));
 app.use("/api/reviews", require("./routes/reviewRoutes"));
 app.use("/api/finance", require("./routes/financeRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
+app.use("/api/wallet", require("./routes/walletRoutes"));
 
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;
