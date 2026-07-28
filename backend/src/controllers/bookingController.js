@@ -111,7 +111,7 @@ const checkAvailability = async (
   const conflictsToday = await Booking.find({
     barberId: barber._id,
     date: date,
-    status: { $ne: "cancelled" },
+    activeBooking: true,
   });
 
   for (const b of conflictsToday) {
@@ -126,7 +126,7 @@ const checkAvailability = async (
   const conflictsYesterday = await Booking.find({
     barberId: barber._id,
     date: prevDate,
-    status: { $ne: "cancelled" },
+    activeBooking: true,
   });
 
   for (const b of conflictsYesterday) {
