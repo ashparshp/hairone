@@ -80,25 +80,35 @@ export const openRazorpayCheckout = async (
   }
 
   const RazorpayCheckout = require("react-native-razorpay").default;
-  const result = await RazorpayCheckout.open({
-    key: options.keyId,
-    amount: options.amountPaise,
-    currency: options.currency,
-    name: options.name,
-    description: options.description,
-    order_id: options.orderId,
-    notes: { referenceId: options.referenceId },
-    prefill: options.prefill,
-    theme: { color: "#f59e0b" },
-  });
+  try {
+    const result = await RazorpayCheckout.open({
+      key: options.keyId,
+      amount: options.amountPaise,
+      currency: options.currency,
+      name: options.name,
+      description: options.description,
+      order_id: options.orderId,
+      notes: { referenceId: options.referenceId },
+      prefill: options.prefill,
+      theme: { color: "#f59e0b" },
+    });
 
-  if (
-    !result?.razorpay_payment_id ||
-    !result?.razorpay_order_id ||
-    !result?.razorpay_signature
-  ) {
-    throw new Error("Incomplete payment response");
+    if (
+      !result?.razorpay_payment_id ||
+      !result?.razorpay_order_id ||
+      !result?.razorpay_signature
+    ) {
+      throw new Error("Incomplete payment response");
+    }
+
+    return result;
+  } catch (error: any) {
+    if (error?.code === 0 || error?.code === 2) {
+      throw new Error("Payment cancelled");
+    }
+    if (typeof error?.description === "string" && /cancel/i.test(error.description)) {
+      throw new Error("Payment cancelled");
+    }
+    throw error;
   }
-
-  return result;
 };

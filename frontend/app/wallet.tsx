@@ -43,7 +43,7 @@ const formatTime = (iso: string) => {
 export default function WalletScreen() {
   const router = useRouter();
   const { colors, theme } = useTheme();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const isDark = theme === "dark";
 
   const [balance, setBalance] = useState(0);
@@ -53,6 +53,7 @@ export default function WalletScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadWallet = async (pageNum = 1, append = false) => {
     try {
@@ -63,9 +64,13 @@ export default function WalletScreen() {
       setTransactions((prev) =>
         append ? [...prev, ...data.transactions] : data.transactions,
       );
+      setLoadError(null);
       await refreshUser();
     } catch (e) {
       console.log("Wallet fetch error", e);
+      if (!append) {
+        setLoadError("Could not load wallet. Pull to refresh.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -155,6 +160,21 @@ export default function WalletScreen() {
     );
   };
 
+  if (user && user.role !== "user") {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={["top"]}>
+        <View style={styles.center}>
+          <Text style={{ color: colors.text, textAlign: "center", paddingHorizontal: 24 }}>
+            Wallet is only available for customer accounts.
+          </Text>
+          <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
+            <Text style={{ color: colors.tint }}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -200,6 +220,12 @@ export default function WalletScreen() {
           Transaction history
         </Text>
       </View>
+
+      {loadError && !loading && (
+        <Text style={{ color: "#ef4444", textAlign: "center", marginBottom: 12, paddingHorizontal: 20 }}>
+          {loadError}
+        </Text>
+      )}
 
       {loading ? (
         <View style={styles.center}>

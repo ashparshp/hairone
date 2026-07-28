@@ -18,6 +18,7 @@ import {
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -54,6 +55,7 @@ export default function DashboardScreen() {
       setBarbers(res.data.barbers);
     } catch (e) {
       console.log(e);
+      Alert.alert("Error", "Could not load shop data. Pull to refresh.");
     } finally {
       setLoading(false);
       setRefreshing(false);

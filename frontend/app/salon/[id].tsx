@@ -10,7 +10,7 @@ import api, { getShopReviews } from '../../services/api';
 import { openRazorpayCheckout } from '../../services/razorpay';
 import {
   createBookingPaymentOrder,
-  verifyBookingPayment,
+  verifyBookingPaymentWithRecovery,
 } from '../../services/payments';
 import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
@@ -61,6 +61,7 @@ export default function ShopDetailsScreen() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [cashLimits, setCashLimits] = useState({ limit: 5, used: 0, remaining: 5 });
+  const [cashLimitsError, setCashLimitsError] = useState(false);
   const [useWalletCredit, setUseWalletCredit] = useState(true);
 
   const isDark = theme === 'dark';
@@ -123,12 +124,15 @@ export default function ShopDetailsScreen() {
   useEffect(() => {
     if (step === 3 && user) {
       const dateStr = formatLocalDate(selectedDate);
+      setCashLimitsError(false);
       api.get(`/bookings/limits?date=${dateStr}`).then((res) => {
         setCashLimits(res.data);
         if (res.data.remaining <= 0 && paymentMethod === 'cash') {
           setPaymentMethod('online');
         }
-      }).catch(() => {});
+      }).catch(() => {
+        setCashLimitsError(true);
+      });
     }
   }, [step, user, selectedDate]);
 
@@ -235,8 +239,13 @@ export default function ShopDetailsScreen() {
   };
 
   const handleBook = async () => {
+    if (!user) return showToast("Please log in to book", "error");
+    if (user.isFlagged) {
+      return showToast("Your account is restricted from making bookings.", "error");
+    }
     if (!selectedTime) return showToast("Please select a time slot", "error");
     if (selectedServices.length === 0) return showToast("Please select at least one service", "error");
+    if (loading) return;
 
     const dateStr = formatLocalDate(selectedDate);
     const serviceNames = selectedServices.map(s => {
@@ -248,7 +257,6 @@ export default function ShopDetailsScreen() {
     });
 
     const bookingPayload = {
-        userId: user?._id,
         shopId: shop._id,
         barberId: selectedBarberId,
         serviceNames,
@@ -266,6 +274,9 @@ export default function ShopDetailsScreen() {
         if (paymentMethod === 'online') {
             if (!config.onlinePaymentsEnabled || !config.razorpayKeyId) {
                 return showToast("Online payments are not available right now", "error");
+            }
+            if (amountDuePreview > 0 && amountDuePreview < 1) {
+                return showToast("Remaining amount is below ₹1. Use more account credit or pay fully online.", "error");
             }
 
             const orderResponse = await createBookingPaymentOrder(bookingPayload);
@@ -300,7 +311,7 @@ export default function ShopDetailsScreen() {
                     throw new Error('Payment order mismatch');
                 }
 
-                await verifyBookingPayment({
+                await verifyBookingPaymentWithRecovery({
                     paymentOrderId: paymentOrder!.id,
                     razorpayOrderId: paymentResult.razorpay_order_id,
                     razorpayPaymentId: paymentResult.razorpay_payment_id,
@@ -332,7 +343,13 @@ export default function ShopDetailsScreen() {
         }
 
         if (fetchBookings) fetchBookings();
-        router.replace('/(tabs)/bookings' as any);
+        const homeRoute =
+          user?.role === 'owner'
+            ? '/(tabs)/dashboard'
+            : user?.role === 'admin'
+              ? '/admin/(tabs)'
+              : '/(tabs)/bookings';
+        router.replace(homeRoute as any);
     } catch (e: any) {
         console.log("Booking Error:", e);
         const serverMsg = e.response?.data?.message || e.message || "Booking failed";
@@ -736,7 +753,8 @@ export default function ShopDetailsScreen() {
                 {[0,1,2,3,4,5,6].map(days => {
                     const d = new Date();
                     d.setDate(d.getDate() + days);
-                    const isSelected = d.getDate() === selectedDate.getDate();
+                    const dateKey = formatLocalDate(d);
+                    const isSelected = dateKey === formatLocalDate(selectedDate);
                     return (
                         <TouchableOpacity 
                             key={days} 
@@ -946,11 +964,17 @@ export default function ShopDetailsScreen() {
                 </View>
                 <View style={{flex: 1}}>
                     <Text style={[styles.payTitle, {color: colors.text}]}>Pay at Salon</Text>
-                    <Text style={[styles.paySub, {color: colors.textMuted}]}>
+                    {cashLimitsError ? (
+                      <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>
+                        Could not verify cash booking limits. Online payment recommended.
+                      </Text>
+                    ) : (
+                      <Text style={[styles.paySub, {color: colors.textMuted}]}>
                       {cashLimits.remaining > 0
                         ? `Pay at the salon after service (${cashLimits.remaining}/${cashLimits.limit} cash bookings left this month)`
                         : `Monthly cash booking limit reached (${cashLimits.limit}/${cashLimits.limit})`}
-                    </Text>
+                      </Text>
+                    )}
                 </View>
                 <View style={[styles.radioCircle, {borderColor: paymentMethod === 'cash' ? '#10b981' : colors.textMuted}]}>
                     {paymentMethod === 'cash' && <View style={styles.radioDot} />}
@@ -1021,7 +1045,11 @@ export default function ShopDetailsScreen() {
                     <ChevronLeft size={16} color="#ffffff" style={{transform: [{rotate: '180deg'}]}} />
                     </TouchableOpacity>
                 ) : (
-                    <TouchableOpacity style={[styles.nextBtn, {backgroundColor: '#f59e0b'}]} onPress={handleBook}>
+                    <TouchableOpacity
+                      style={[styles.nextBtn, {backgroundColor: '#f59e0b', opacity: loading ? 0.7 : 1}]}
+                      onPress={handleBook}
+                      disabled={loading}
+                    >
                         {loading ? <ActivityIndicator color="white"/> : <Text style={styles.nextBtnText}>Confirm Booking</Text>}
                     </TouchableOpacity>
                 )}

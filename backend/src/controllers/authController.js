@@ -1,25 +1,18 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { getJwtSecret } = require('../config/jwt');
+const { checkRateLimit } = require('../utils/rateLimitUtils');
 
-const otpAttempts = new Map();
 const OTP_WINDOW_MS = 15 * 60 * 1000;
 const OTP_MAX_PER_PHONE = 5;
+
+const otpRateLimitKey = (phone) => `otp:${phone}`;
 
 const isMockOtpAllowed = () =>
   process.env.NODE_ENV !== 'production' && process.env.MOCK_OTP === 'true';
 
-const checkOtpRateLimit = (phone) => {
-  const now = Date.now();
-  const entry = otpAttempts.get(phone) || { count: 0, windowStart: now };
-  if (now - entry.windowStart > OTP_WINDOW_MS) {
-    entry.count = 0;
-    entry.windowStart = now;
-  }
-  entry.count += 1;
-  otpAttempts.set(phone, entry);
-  return entry.count <= OTP_MAX_PER_PHONE;
-};
+const checkOtpRateLimit = async (phone) =>
+  checkRateLimit(otpRateLimitKey(phone), OTP_MAX_PER_PHONE, OTP_WINDOW_MS);
 
 exports.sendOTP = async (req, res) => {
   const { phone } = req.body;
@@ -27,7 +20,7 @@ exports.sendOTP = async (req, res) => {
     return res.status(400).json({ message: 'Phone number is required' });
   }
 
-  if (!checkOtpRateLimit(phone)) {
+  if (!(await checkOtpRateLimit(phone))) {
     return res.status(429).json({ message: 'Too many OTP requests. Try again later.' });
   }
 

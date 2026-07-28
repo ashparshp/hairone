@@ -139,7 +139,7 @@ export default function ShopScheduleScreen() {
           if (pin) payload.bookingKey = pin;
 
           await api.patch(`/bookings/${bookingId}/status`, payload);
-          fetchSchedule(); // Refresh
+          fetchSchedule();
           showToast(`Status updated to ${newStatus}`, "success");
 
           if (newStatus === 'checked-in') {
@@ -155,6 +155,31 @@ export default function ShopScheduleScreen() {
               showToast(e.response?.data?.message || "Failed to update status", "error");
           }
       }
+  };
+
+  const confirmStatusUpdate = (bookingId: string, newStatus: string, pin?: string) => {
+      const destructive = ['cancelled', 'no-show', 'completed'].includes(newStatus);
+      const labels: Record<string, string> = {
+          upcoming: 'approve',
+          cancelled: 'cancel',
+          'no-show': 'mark as no-show',
+          completed: 'mark as completed',
+      };
+
+      const run = () => handleStatusUpdate(bookingId, newStatus, pin);
+      if (!destructive) {
+          run();
+          return;
+      }
+
+      Alert.alert(
+          'Confirm action',
+          `Are you sure you want to ${labels[newStatus] || newStatus} this booking?`,
+          [
+              { text: 'No', style: 'cancel' },
+              { text: 'Yes', onPress: run },
+          ],
+      );
   };
 
   const promptCheckIn = (bookingId: string) => {
@@ -228,11 +253,11 @@ export default function ShopScheduleScreen() {
           {/* Actions based on status */}
           {item.status === 'pending' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'upcoming')}>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => confirmStatusUpdate(item._id, 'upcoming')}>
                       <Check size={14} color="white" />
                       <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Approve</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.rejectBtn} onPress={() => handleStatusUpdate(item._id, 'cancelled')}>
+                  <TouchableOpacity style={styles.rejectBtn} onPress={() => confirmStatusUpdate(item._id, 'cancelled')}>
                       <X size={14} color="white" />
                       <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Reject</Text>
                   </TouchableOpacity>
@@ -245,7 +270,7 @@ export default function ShopScheduleScreen() {
                       <Check size={14} color="white" />
                       <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Check In</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.rejectBtn, {backgroundColor: '#64748b', borderColor: '#475569'}]} onPress={() => handleStatusUpdate(item._id, 'no-show')}>
+                  <TouchableOpacity style={[styles.rejectBtn, {backgroundColor: '#64748b', borderColor: '#475569'}]} onPress={() => confirmStatusUpdate(item._id, 'no-show')}>
                       <X size={14} color="white" />
                       <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>No Show</Text>
                   </TouchableOpacity>
@@ -254,7 +279,7 @@ export default function ShopScheduleScreen() {
 
           {item.status === 'checked-in' && (
               <View style={{flexDirection:'row', gap: 10, marginTop: 12}}>
-                  <TouchableOpacity style={styles.approveBtn} onPress={() => handleStatusUpdate(item._id, 'completed')}>
+                  <TouchableOpacity style={styles.approveBtn} onPress={() => confirmStatusUpdate(item._id, 'completed')}>
                       <Check size={14} color="white" />
                       <Text style={{color:'white', fontWeight:'bold', fontSize: 12}}>Complete</Text>
                   </TouchableOpacity>

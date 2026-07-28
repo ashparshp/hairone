@@ -1,7 +1,6 @@
 const cron = require("node-cron");
 const Booking = require("../models/Booking");
-const { getISTTime } = require("../utils/dateUtils");
-const { buildBookingWindowUTC } = require("../utils/dateUtils");
+const { getISTTime, buildBookingWindowUTC } = require("../utils/dateUtils");
 const { incrementNoShowCount } = require("../utils/incidentUtils");
 
 /**
@@ -10,7 +9,6 @@ const { incrementNoShowCount } = require("../utils/incidentUtils");
  * without being completed.
  */
 const runAutoCancelJob = () => {
-  // Schedule: Every 30 minutes
   cron.schedule("*/30 * * * *", async () => {
     console.log("--- RUNNING AUTO-MISSED BOOKING JOB ---");
     try {
@@ -22,39 +20,43 @@ const runAutoCancelJob = () => {
       });
 
       let count = 0;
-      for (const b of bookings) {
-        let isMissed = false;
-
-        let bookingEndAt = b.endAt;
-        if (!bookingEndAt && b.date && b.startTime && b.endTime) {
+      for (const booking of bookings) {
+        let bookingEndAt = booking.endAt;
+        if (!bookingEndAt && booking.date && booking.startTime && booking.endTime) {
           const { endAt } = buildBookingWindowUTC(
-            b.date,
-            b.startTime,
-            b.endTime,
+            booking.date,
+            booking.startTime,
+            booking.endTime,
           );
           bookingEndAt = endAt;
         }
 
-        if (bookingEndAt) {
-          isMissed = new Date() > bookingEndAt;
-        } else if (b.date < istDate) {
-          isMissed = true;
-        }
+        const isMissed =
+          (bookingEndAt && new Date() > bookingEndAt) ||
+          (!bookingEndAt && booking.date < istDate);
 
-        if (isMissed) {
-          b.status = "missed";
-          b.activeBooking = false;
-          await b.save();
-          count++;
+        if (!isMissed) continue;
 
-          if (b.userId) {
-            await incrementNoShowCount(b.userId);
-          }
+        const claimed = await Booking.findOneAndUpdate(
+          {
+            _id: booking._id,
+            status: { $in: ["upcoming", "pending"] },
+            activeBooking: true,
+          },
+          { $set: { status: "no-show", activeBooking: false } },
+          { new: true },
+        );
+
+        if (!claimed) continue;
+
+        count += 1;
+        if (claimed.userId) {
+          await incrementNoShowCount(claimed.userId);
         }
       }
 
       if (count > 0) {
-        console.log(`Auto-Missed Job: Marked ${count} bookings as missed.`);
+        console.log(`Auto-Missed Job: Marked ${count} bookings as no-show.`);
       }
     } catch (error) {
       console.error("Error in Auto-Missed Job:", error);

@@ -6,7 +6,8 @@ import { useAuth } from './AuthContext';
 
 interface BookingContextType {
   myBookings: Booking[];
-  fetchBookings: () => void;
+  bookingsError: string | null;
+  fetchBookings: () => Promise<void>;
   cancelBooking: (id: string) => Promise<void>;
 }
 
@@ -15,6 +16,7 @@ const BookingContext = createContext<BookingContextType | null>(null);
 export function BookingProvider({ children }: { children: React.ReactNode }) {
   const { user, refreshUser } = useAuth();
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
 
   const fetchBookings = async () => {
     // @ts-ignore
@@ -22,16 +24,18 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
     try {
       // @ts-ignore
       const res = await api.get(`/bookings/user/${user._id}`);
-      setMyBookings(res.data || []); 
+      setMyBookings(res.data || []);
+      setBookingsError(null);
     } catch (e) {
       console.log("Error fetching bookings", e);
-      setMyBookings([]);
+      setBookingsError("Could not load bookings. Pull to refresh.");
     }
   };
 
   useEffect(() => {
     if (!user) {
       setMyBookings([]);
+      setBookingsError(null);
       return;
     }
     fetchBookings();
@@ -64,12 +68,13 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
       console.log("Cancellation Error:", e);
       const msg = e.response?.data?.message || "Could not cancel booking. Please try again.";
       Alert.alert("Error", msg);
+      throw e;
     }
   };
 
   return (
     <BookingContext.Provider value={{
-      myBookings, fetchBookings, cancelBooking
+      myBookings, bookingsError, fetchBookings, cancelBooking
     }}>
       {children}
     </BookingContext.Provider>

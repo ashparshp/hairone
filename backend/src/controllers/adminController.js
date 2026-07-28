@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const Shop = require("../models/Shop");
 const Booking = require("../models/Booking");
+const mongoose = require("mongoose");
+const { cancelBookingRecord } = require("../services/bookingCancellationService");
 
 const trimText = (value, max = 120) => {
   if (typeof value !== "string") return undefined;
@@ -232,45 +234,63 @@ exports.processApplication = async (req, res) => {
 exports.suspendShop = async (req, res) => {
   const { shopId } = req.params;
   const { reason } = req.body;
+  const session = await mongoose.startSession();
 
   try {
-    if (!reason)
+    if (!reason) {
       return res
         .status(400)
         .json({ message: "Suspension reason is required." });
+    }
 
-    // 1. Disable Shop
+    session.startTransaction();
+
     const shop = await Shop.findByIdAndUpdate(
       shopId,
       { isDisabled: true },
-      { new: true },
+      { new: true, session },
     );
-    if (!shop) return res.status(404).json({ message: "Shop not found" });
+    if (!shop) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Shop not found" });
+    }
 
-    // 2. Suspend Owner
-    await User.findByIdAndUpdate(shop.ownerId, {
-      applicationStatus: "suspended",
-      suspensionReason: reason,
-      $inc: { tokenVersion: 1 },
-    });
-
-    // 3. Cancel Upcoming Bookings
-    const cancelled = await Booking.updateMany(
-      { shopId: shop._id, status: { $in: ["upcoming", "pending"] } },
+    await User.findByIdAndUpdate(
+      shop.ownerId,
       {
-        status: "cancelled",
-        activeBooking: false,
-        notes: `Cancelled due to shop suspension: ${reason}`,
+        applicationStatus: "suspended",
+        suspensionReason: reason,
+        $inc: { tokenVersion: 1 },
       },
+      { session },
     );
+
+    const bookings = await Booking.find({
+      shopId: shop._id,
+      status: { $in: ["upcoming", "pending", "checked-in"] },
+    }).session(session);
+
+    let cancelledCount = 0;
+    for (const booking of bookings) {
+      await cancelBookingRecord(booking, {
+        session,
+        reasonNote: `Cancelled due to shop suspension: ${reason}`,
+      });
+      cancelledCount += 1;
+    }
+
+    await session.commitTransaction();
 
     res.json({
       message: "Shop suspended",
-      cancelledBookings: cancelled.modifiedCount,
+      cancelledBookings: cancelledCount,
     });
   } catch (e) {
+    if (session.inTransaction()) await session.abortTransaction();
     console.error(e);
     res.status(500).json({ message: "Failed to suspend shop" });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -528,14 +548,26 @@ exports.updateSystemConfig = async (req, res) => {
       isPaymentTestMode,
       maxCashBookingsPerMonth,
     } = req.body;
+
+    const updates = {};
+    const commission = toNumberInRange(adminCommissionRate, 0, 100);
+    if (commission !== undefined) updates.adminCommissionRate = commission;
+
+    const discount = toNumberInRange(userDiscountRate, 0, 100);
+    if (discount !== undefined) updates.userDiscountRate = discount;
+
+    const maxCash = toNumberInRange(maxCashBookingsPerMonth, 0, 100);
+    if (maxCash !== undefined) {
+      updates.maxCashBookingsPerMonth = Math.round(maxCash);
+    }
+
+    if (typeof isPaymentTestMode === "boolean") {
+      updates.isPaymentTestMode = isPaymentTestMode;
+    }
+
     const config = await SystemConfig.findOneAndUpdate(
       { key: "global" },
-      {
-        adminCommissionRate,
-        userDiscountRate,
-        isPaymentTestMode,
-        maxCashBookingsPerMonth,
-      },
+      updates,
       { new: true, upsert: true },
     );
     res.json(config);

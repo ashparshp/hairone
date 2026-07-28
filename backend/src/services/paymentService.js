@@ -61,6 +61,25 @@ const creditCapturedPaymentToWallet = async (paymentOrder, note) => {
   const creditAmount = paymentOrder.amountPaise / 100;
   if (creditAmount <= 0) return 0;
 
+  const PaymentOrder = require("../models/PaymentOrder");
+  const claimed = await PaymentOrder.findOneAndUpdate(
+    {
+      _id: paymentOrder._id,
+      walletCreditedAt: { $exists: false },
+    },
+    {
+      $set: {
+        walletCreditedAt: new Date(),
+        walletCreditedAmount: creditAmount,
+      },
+    },
+    { new: true },
+  );
+
+  if (!claimed) {
+    return paymentOrder.walletCreditedAmount || 0;
+  }
+
   await creditWallet(paymentOrder.userId, creditAmount, {
     reason: "unfulfilled_payment",
     referenceType: "payment_order",
@@ -68,7 +87,7 @@ const creditCapturedPaymentToWallet = async (paymentOrder, note) => {
     note,
   });
 
-  paymentOrder.walletCreditedAt = new Date();
+  paymentOrder.walletCreditedAt = claimed.walletCreditedAt;
   paymentOrder.walletCreditedAmount = creditAmount;
   return creditAmount;
 };
@@ -436,43 +455,23 @@ const handleFulfillmentError = async (paymentOrder, error) => {
     paymentOrder.status = PAYMENT_ORDER_STATUS.CREATED;
     paymentOrder.processingAt = undefined;
     paymentOrder.failureReason = undefined;
-  } else if (
-    paymentCaptured &&
-    ((error instanceof BookingServiceError && error.status === 409) ||
-      error instanceof WalletServiceError)
-  ) {
+  } else if (paymentCaptured) {
     const credited = await creditCapturedPaymentToWallet(
       paymentOrder,
-      error.message,
+      error?.message || "Booking could not be completed.",
     );
     paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
     paymentOrder.failedAt = new Date();
     paymentOrder.failureReason =
       credited > 0
         ? `booking_failed: ₹${credited} credited to your account`
-        : `booking_failed: ${error.message}`;
-    paymentOrder.processingAt = undefined;
-  } else if (error instanceof PaymentServiceError && paymentCaptured) {
-    const credited = await creditCapturedPaymentToWallet(
-      paymentOrder,
-      error.message,
-    );
-    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
-    paymentOrder.failedAt = new Date();
-    paymentOrder.failureReason =
-      credited > 0
-        ? `${error.message} ₹${credited} credited to your account`
-        : error.message;
-    paymentOrder.processingAt = undefined;
-  } else if (error instanceof PaymentServiceError) {
-    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
-    paymentOrder.failedAt = new Date();
-    paymentOrder.failureReason = error.message;
+        : `booking_failed: ${error?.message || "Booking could not be completed."}`;
     paymentOrder.processingAt = undefined;
   } else {
-    paymentOrder.status = PAYMENT_ORDER_STATUS.PROCESSING;
-    paymentOrder.failureReason = error.message;
-    paymentOrder.processingAt = new Date();
+    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
+    paymentOrder.failedAt = new Date();
+    paymentOrder.failureReason = error?.message || "Payment failed.";
+    paymentOrder.processingAt = undefined;
   }
 
   await paymentOrder.save();

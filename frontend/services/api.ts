@@ -3,6 +3,8 @@ import * as SecureStore from "expo-secure-store";
 import { Alert, Platform } from "react-native";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const DEFAULT_TIMEOUT_MS = 10000;
+const PAYMENT_TIMEOUT_MS = 45000;
 
 if (!API_URL) {
   throw new Error(
@@ -12,21 +14,22 @@ if (!API_URL) {
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Auth Logout Callback Mechanism
 let logoutCallback: (() => void) | null = null;
 export const setupAuthInterceptor = (callback: () => void) => {
   logoutCallback = callback;
 };
 
-// Request Interceptor: Attach Token
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    const url = config.url || "";
+    config.timeout = url.includes("/payments/") ? PAYMENT_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+
     let token: string | null = null;
     if (Platform.OS === 'web') {
         token = localStorage.getItem("token");
@@ -42,20 +45,24 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Handle Global Errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
       if (logoutCallback) {
-        Alert.alert("Session Expired", "Please log in again.", [
-          { text: "OK", onPress: () => logoutCallback && logoutCallback() }
-        ]);
+        logoutCallback();
+        if (Platform.OS === 'web') {
+          window.alert("Session expired. Please log in again.");
+        } else {
+          Alert.alert("Session Expired", "Please log in again.");
+        }
       } else {
         if (Platform.OS === 'web') {
             localStorage.removeItem("token");
+            localStorage.removeItem("user");
         } else {
             await SecureStore.deleteItemAsync("token");
+            await SecureStore.deleteItemAsync("user");
         }
         Alert.alert("Session Expired", "Please log in again.");
       }

@@ -1,7 +1,7 @@
 import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X, CheckCircle } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useBooking } from '../../context/BookingContext';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
@@ -9,9 +9,11 @@ import { formatLocalDate } from '../../utils/date';
 import { createReview } from '../../services/api';
 
 export default function BookingsScreen() {
-  const { myBookings, cancelBooking, fetchBookings } = useBooking();
+  const { myBookings, bookingsError, cancelBooking, fetchBookings } = useBooking();
   const { colors, theme } = useTheme();
-  const [activeTab, setActiveTab] = useState('upcoming'); 
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState('upcoming');
+  const [cancelling, setCancelling] = useState(false);
   
   // Refresh when focused
   useFocusEffect(
@@ -80,12 +82,18 @@ export default function BookingsScreen() {
   const parseBookingDateTime = (dateStr: string, timeStr: string) => {
     try {
         const dateParts = dateStr.split('-');
-        const year = parseInt(dateParts[0]);
-        const month = parseInt(dateParts[1]) - 1; 
-        const day = parseInt(dateParts[2]);
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1;
+        const day = parseInt(dateParts[2], 10);
         const bookingDate = new Date(year, month, day);
 
         const cleanTimeStr = timeStr.replace(/Next Slot|Today,|In \d+ mins/gi, '').trim();
+        const twentyFourHour = cleanTimeStr.match(/^(\d{1,2}):(\d{2})$/);
+        if (twentyFourHour) {
+          bookingDate.setHours(parseInt(twentyFourHour[1], 10), parseInt(twentyFourHour[2], 10), 0, 0);
+          return bookingDate;
+        }
+
         const timeMatch = cleanTimeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
         
         if (timeMatch) {
@@ -122,27 +130,46 @@ export default function BookingsScreen() {
     return 0;
   };
 
+  const getDisplayPrice = (booking: any) =>
+    booking.finalPrice ?? booking.totalPrice ?? booking.price ?? 0;
+
   // --- CANCELLATION LOGIC ---
   const initiateCancel = (booking: any) => {
     const creditAmount = getCancelCreditPreview(booking);
+    const bookingDateTime = parseBookingDateTime(booking.date, booking.startTime);
+    const hoursUntil = (bookingDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    const isLate = hoursUntil < 2;
+
     setSelectedBooking(booking);
     setCancelData({
-        title: "Cancel Booking",
-        message: creditAmount > 0
-          ? "Are you sure you want to cancel? The amount will be credited to your HairOne account for future bookings."
-          : "Are you sure you want to cancel this booking? Frequent cancellations may flag your account.",
+        title: isLate ? "Late Cancellation" : "Cancel Booking",
+        message: isLate
+          ? "This booking starts in less than 2 hours. Are you sure you want to cancel?"
+          : creditAmount > 0
+            ? "Are you sure you want to cancel? The amount will be credited to your HairOne account for future bookings."
+            : "Are you sure you want to cancel this booking? Frequent cancellations may flag your account.",
         creditAmount,
-        isLate: false
+        isLate,
     });
 
     setCancelModalVisible(true);
   };
 
-  const confirmCancel = () => {
-      if (selectedBooking) {
-          cancelBooking(selectedBooking._id || selectedBooking.id);
-          setCancelModalVisible(false);
+  const confirmCancel = async () => {
+      if (!selectedBooking || cancelling) return;
+      setCancelling(true);
+      try {
+        await cancelBooking(selectedBooking._id || selectedBooking.id);
+        setCancelModalVisible(false);
+      } finally {
+        setCancelling(false);
       }
+  };
+
+  const handleRebook = (booking: any) => {
+    const shopId = booking.shopId?._id || booking.shopId;
+    if (!shopId) return;
+    router.push(`/salon/${shopId}` as any);
   };
 
 // Dynamic Call Function
@@ -229,6 +256,11 @@ const handleMap = (lat: number, lng: number, label: string) => {
 
         {/* Added paddingBottom: 120 to allow scrolling past bottom nav */}
         <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 120}}>
+            {bookingsError && (
+              <Text style={{ color: '#ef4444', marginBottom: 12, textAlign: 'center' }}>
+                {bookingsError}
+              </Text>
+            )}
             {displayList.length === 0 && (
                <View style={styles.emptyState}>
                    <Calendar size={48} color={colors.textMuted} />
@@ -310,7 +342,7 @@ const handleMap = (lat: number, lng: number, label: string) => {
                             <Text style={[styles.infoText, {color: colors.tint}]}>{booking.startTime}</Text>
                         </View>
                         <View style={[styles.iconText, {marginLeft: 'auto'}]}>
-                             <Text style={{color: colors.text, fontWeight: 'bold'}}>₹{booking.totalPrice}</Text>
+                             <Text style={{color: colors.text, fontWeight: 'bold'}}>₹{getDisplayPrice(booking)}</Text>
                         </View>
                     </View>
 
@@ -347,7 +379,10 @@ const handleMap = (lat: number, lng: number, label: string) => {
                                <>
                                  {booking.status !== 'cancelled' && (
                                      <>
-                                        <TouchableOpacity style={[styles.secondaryBtnSmall, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}>
+                                        <TouchableOpacity
+                                          style={[styles.secondaryBtnSmall, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]}
+                                          onPress={() => handleRebook(booking)}
+                                        >
                                             <RefreshCw size={14} color={colors.text} style={{marginRight: 4}}/>
                                             <Text style={{color: colors.text, fontSize: 12, fontWeight: 'bold'}}>Rebook</Text>
                                         </TouchableOpacity>
@@ -423,8 +458,16 @@ const handleMap = (lat: number, lng: number, label: string) => {
                     <TouchableOpacity style={[styles.alertBtnSecondary, {backgroundColor: theme === 'dark' ? '#334155' : '#e2e8f0'}]} onPress={() => setCancelModalVisible(false)}>
                         <Text style={{color: colors.text, fontWeight: '600'}}>Keep</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.alertBtnDestructive} onPress={confirmCancel}>
-                        <Text style={{color: '#ffffff', fontWeight: 'bold'}}>Yes, Cancel</Text>
+                    <TouchableOpacity
+                      style={[styles.alertBtnDestructive, { opacity: cancelling ? 0.6 : 1 }]}
+                      onPress={confirmCancel}
+                      disabled={cancelling}
+                    >
+                        {cancelling ? (
+                          <ActivityIndicator color="#ffffff" />
+                        ) : (
+                          <Text style={{color: '#ffffff', fontWeight: 'bold'}}>Yes, Cancel</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>

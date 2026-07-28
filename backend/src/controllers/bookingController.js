@@ -23,9 +23,12 @@ const {
   incrementCancellationCount,
   incrementNoShowCount,
 } = require("../utils/incidentUtils");
+const { cancelBookingRecord } = require("../services/bookingCancellationService");
 const {
-  creditBookingCancellation,
-} = require("../services/walletService");
+  getTransitionError,
+  isInactiveBookingStatus,
+} = require("../utils/bookingStatusUtils");
+const { checkRateLimit } = require("../utils/rateLimitUtils");
 const {
   BookingServiceError,
   createBookingForUser,
@@ -129,22 +132,18 @@ const isOwnerOfShop = (user, shopId) => {
   return user.myShopId.toString() === shopId.toString();
 };
 
-const checkInAttempts = new Map();
 const CHECKIN_MAX_ATTEMPTS = 5;
 const CHECKIN_WINDOW_MS = 15 * 60 * 1000;
 
-const isCheckInRateLimited = (bookingId) => {
-  const now = Date.now();
-  const key = bookingId.toString();
-  const entry = checkInAttempts.get(key);
+const checkInRateLimitKey = (bookingId) => `checkin:${bookingId}`;
 
-  if (!entry || now > entry.resetAt) {
-    checkInAttempts.set(key, { count: 1, resetAt: now + CHECKIN_WINDOW_MS });
-    return false;
-  }
-
-  entry.count += 1;
-  return entry.count > CHECKIN_MAX_ATTEMPTS;
+const isCheckInRateLimited = async (bookingId) => {
+  const allowed = await checkRateLimit(
+    checkInRateLimitKey(bookingId),
+    CHECKIN_MAX_ATTEMPTS,
+    CHECKIN_WINDOW_MS,
+  );
+  return !allowed;
 };
 
 const generateUniqueBookingKey = async (session) => {
@@ -366,18 +365,9 @@ exports.cancelBooking = async (req, res) => {
       });
     }
 
-    if (!["upcoming", "pending"].includes(booking.status)) {
-      await session.abortTransaction();
-      return res.status(400).json({
-        message: "Only upcoming or pending bookings can be cancelled.",
-      });
-    }
-
-    const walletCreditIssued = await creditBookingCancellation(booking, session);
-
-    booking.status = "cancelled";
-    booking.activeBooking = false;
-    await booking.save({ session });
+    const { walletCreditIssued } = await cancelBookingRecord(booking, {
+      session,
+    });
 
     const isCustomerSelfCancel =
       booking.userId &&
@@ -400,6 +390,9 @@ exports.cancelBooking = async (req, res) => {
   } catch (e) {
     if (session.inTransaction()) await session.abortTransaction();
     console.error(e);
+    if (e.status) {
+      return res.status(e.status).json({ message: e.message });
+    }
     res.status(500).json({ message: "Failed to cancel booking" });
   } finally {
     session.endSession();
@@ -443,7 +436,10 @@ exports.getShopBookings = async (req, res) => {
 
 // --- 5. Update Booking Status (Approve/Reject/Complete/No-Show) ---
 exports.updateBookingStatus = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
+    session.startTransaction();
+
     const { id } = req.params;
     const { status, bookingKey } = req.body;
 
@@ -455,13 +451,18 @@ exports.updateBookingStatus = async (req, res) => {
       "checked-in",
     ];
     if (!validStatuses.includes(status)) {
+      await session.abortTransaction();
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const booking = await Booking.findById(id);
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    const booking = await Booking.findById(id).session(session);
+    if (!booking) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Booking not found" });
+    }
 
     if (!isAdmin(req.user) && !isOwnerOfShop(req.user, booking.shopId)) {
+      await session.abortTransaction();
       return res
         .status(403)
         .json({ message: "Not authorized to update this booking" });
@@ -469,42 +470,64 @@ exports.updateBookingStatus = async (req, res) => {
 
     const previousStatus = booking.status;
     if (previousStatus === status) {
+      await session.abortTransaction();
       return res.json(booking);
+    }
+
+    if (booking.settlementStatus === "SETTLED") {
+      await session.abortTransaction();
+      return res.status(400).json({
+        message: "Settled bookings cannot be modified.",
+      });
     }
 
     if (
       status === "cancelled" &&
       NON_CANCELLABLE_STATUSES.includes(previousStatus)
     ) {
+      await session.abortTransaction();
       return res.status(400).json({
         message: "Completed bookings cannot be cancelled.",
       });
     }
 
+    const transitionError = getTransitionError(previousStatus, status);
+    if (transitionError) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: transitionError });
+    }
+
     if (status === "checked-in") {
-      if (isCheckInRateLimited(booking._id)) {
+      if (await isCheckInRateLimited(booking._id)) {
+        await session.abortTransaction();
         return res.status(429).json({
           message: "Too many check-in attempts. Please try again later.",
         });
       }
       if (!bookingKey) {
+        await session.abortTransaction();
         return res
           .status(400)
           .json({ message: "Customer PIN required for check-in." });
       }
       if (bookingKey !== booking.bookingKey) {
+        await session.abortTransaction();
         return res.status(403).json({ message: "Invalid PIN." });
       }
     }
 
+    if (status === "cancelled") {
+      const { booking: cancelledBooking, walletCreditIssued } =
+        await cancelBookingRecord(booking, { session });
+      await session.commitTransaction();
+      const response = cancelledBooking.toObject();
+      response.walletCreditIssued = walletCreditIssued;
+      return res.json(response);
+    }
+
     booking.status = status;
-    booking.activeBooking = ![
-      "cancelled",
-      "completed",
-      "no-show",
-      "missed",
-    ].includes(status);
-    await booking.save();
+    booking.activeBooking = !isInactiveBookingStatus(status);
+    await booking.save({ session });
 
     if (
       status === "no-show" &&
@@ -512,13 +535,20 @@ exports.updateBookingStatus = async (req, res) => {
       previousStatus !== "no-show" &&
       previousStatus !== "missed"
     ) {
-      await incrementNoShowCount(booking.userId);
+      await incrementNoShowCount(booking.userId, session);
     }
 
+    await session.commitTransaction();
     res.json(booking);
   } catch (e) {
+    if (session.inTransaction()) await session.abortTransaction();
     console.error(e);
+    if (e.status) {
+      return res.status(e.status).json({ message: e.message });
+    }
     res.status(500).json({ message: "Failed to update booking status" });
+  } finally {
+    session.endSession();
   }
 };
 

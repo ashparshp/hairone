@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Booking = require("../models/Booking");
 const WalletTransaction = require("../models/WalletTransaction");
 
 const roundMoney = (amount) =>
@@ -131,7 +132,7 @@ const resolveWalletCredit = async (userId, finalPrice, options = {}) => {
 
 const getCancelCreditAmount = (booking) => {
   if (booking.cancelWalletCreditedAt) return 0;
-  if (!["upcoming", "pending"].includes(booking.status)) return 0;
+  if (!["upcoming", "pending", "checked-in"].includes(booking.status)) return 0;
 
   const paymentMethod = (booking.paymentMethod || "CASH").toUpperCase();
   const finalPrice = roundMoney(booking.finalPrice ?? booking.totalPrice ?? 0);
@@ -152,12 +153,34 @@ const getCancelCreditAmount = (booking) => {
 };
 
 const creditBookingCancellation = async (booking, session = null) => {
-  if (!booking.userId || booking.cancelWalletCreditedAt) {
-    return 0;
+  if (!booking.userId) {
+    return booking.cancelWalletCreditAmount || 0;
   }
 
   const creditAmount = getCancelCreditAmount(booking);
-  if (creditAmount <= 0) return 0;
+  if (creditAmount <= 0) {
+    return booking.cancelWalletCreditAmount || 0;
+  }
+
+  const claimed = await Booking.findOneAndUpdate(
+    {
+      _id: booking._id,
+      userId: { $ne: null },
+      cancelWalletCreditedAt: { $exists: false },
+      status: { $in: ["upcoming", "pending", "checked-in"] },
+    },
+    {
+      $set: {
+        cancelWalletCreditedAt: new Date(),
+        cancelWalletCreditAmount: creditAmount,
+      },
+    },
+    { session, new: true },
+  );
+
+  if (!claimed) {
+    return booking.cancelWalletCreditAmount || 0;
+  }
 
   await creditWallet(
     booking.userId,
@@ -171,7 +194,7 @@ const creditBookingCancellation = async (booking, session = null) => {
     session,
   );
 
-  booking.cancelWalletCreditedAt = new Date();
+  booking.cancelWalletCreditedAt = claimed.cancelWalletCreditedAt;
   booking.cancelWalletCreditAmount = creditAmount;
   return creditAmount;
 };

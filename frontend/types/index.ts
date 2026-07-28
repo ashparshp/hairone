@@ -29,6 +29,7 @@ export interface User {
   gender?: string;
   avatar?: string;
   walletBalance?: number;
+  isFlagged?: boolean;
 }
 
 export interface Service {
