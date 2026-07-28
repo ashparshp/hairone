@@ -42,6 +42,54 @@ const roundMoney = (amount) => {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 };
 
+const matchComboByName = (shop, rawName) => {
+  for (const combo of shop.combos || []) {
+    if (combo.isAvailable === false) continue;
+    if (rawName === combo.name || rawName.startsWith(`${combo.name} (`)) {
+      return combo;
+    }
+  }
+  return null;
+};
+
+const resolveBookingServices = (shop, serviceNames) => {
+  if (!Array.isArray(serviceNames) || serviceNames.length === 0) {
+    return { error: "At least one service is required." };
+  }
+
+  let totalPrice = 0;
+  let totalDuration = 0;
+  const resolved = [];
+
+  for (const rawName of serviceNames) {
+    const combo = matchComboByName(shop, rawName);
+    if (combo) {
+      totalPrice += combo.price;
+      totalDuration += combo.duration;
+      resolved.push(rawName);
+      continue;
+    }
+
+    const service = (shop.services || []).find(
+      (s) => s.name === rawName && s.isAvailable !== false,
+    );
+    if (service) {
+      totalPrice += service.price;
+      totalDuration += service.duration;
+      resolved.push(rawName);
+      continue;
+    }
+
+    return { error: `Invalid or unavailable service: ${rawName}` };
+  }
+
+  return {
+    serviceNames: resolved,
+    totalPrice: roundMoney(totalPrice),
+    totalDuration,
+  };
+};
+
 const isAdmin = (user) => user && user.role === "admin";
 
 const isOwnerOfShop = (user, shopId) => {
@@ -166,16 +214,10 @@ exports.createBooking = async (req, res) => {
   } = req.body;
 
   try {
-    if (!startTime || !totalDuration || !date) {
+    if (!startTime || !date) {
       return res
         .status(400)
         .json({ message: "Missing required booking details." });
-    }
-
-    // Validate totalPrice
-    const parsedPrice = parseFloat(totalPrice);
-    if (isNaN(parsedPrice) || parsedPrice < 0) {
-      return res.status(400).json({ message: "Invalid total price." });
     }
 
     const shop = await Shop.findById(shopId);
@@ -186,14 +228,40 @@ exports.createBooking = async (req, res) => {
         .json({ message: "This shop is currently unavailable for booking." });
     }
 
-    const bufferTime = shop.bufferTime || 0;
-    const minNotice = shop.minBookingNotice || 0; // minutes
-    const maxNotice = shop.maxBookingNotice || 30; // days
-    const autoApprove = shop.autoApproveBookings !== false;
-
-    // Validate Past Time & Notice
-    const { date: istDate, minutes: istMinutes } = getISTTime();
     const isSpecialType = type === "walk-in" || type === "blocked";
+    let resolvedServiceNames = serviceNames;
+    let durationInt;
+    let serverPrice;
+
+    if (isSpecialType) {
+      durationInt = parseInt(totalDuration, 10);
+      serverPrice = parseFloat(totalPrice);
+      if (isNaN(serverPrice) || serverPrice < 0) {
+        return res.status(400).json({ message: "Invalid total price." });
+      }
+    } else {
+      const resolved = resolveBookingServices(shop, serviceNames);
+      if (resolved.error) {
+        return res.status(400).json({ message: resolved.error });
+      }
+      resolvedServiceNames = resolved.serviceNames;
+      durationInt = resolved.totalDuration;
+      serverPrice = resolved.totalPrice;
+    }
+
+    if (
+      !Number.isInteger(durationInt) ||
+      durationInt <= 0 ||
+      durationInt > 8 * 60
+    ) {
+      return res.status(400).json({ message: "Invalid total duration." });
+    }
+
+    const bufferTime = shop.bufferTime || 0;
+    const minNotice = shop.minBookingNotice || 0;
+    const maxNotice = shop.maxBookingNotice || 30;
+    const autoApprove = shop.autoApproveBookings !== false;
+    const { date: istDate, minutes: istMinutes } = getISTTime();
 
     if (
       isSpecialType &&
@@ -256,14 +324,6 @@ exports.createBooking = async (req, res) => {
     }
 
     let assignedBarberId = barberId;
-    const durationInt = parseInt(totalDuration, 10);
-    if (
-      !Number.isInteger(durationInt) ||
-      durationInt <= 0 ||
-      durationInt > 8 * 60
-    ) {
-      return res.status(400).json({ message: "Invalid total duration." });
-    }
 
     // Auto-Assign ("Any")
     if (!barberId || barberId === "any") {
@@ -369,7 +429,7 @@ exports.createBooking = async (req, res) => {
         ? config.userDiscountRate
         : 0;
 
-    const originalPrice = parsedPrice;
+    const originalPrice = serverPrice;
 
     // 2. Calculate Discount (Subsidized by Admin usually, but here it reduces the final price)
     const discountAmount = roundMoney(originalPrice * (discountRate / 100));
@@ -397,7 +457,7 @@ exports.createBooking = async (req, res) => {
       userId: resolvedUserId,
       shopId,
       barberId: assignedBarberId,
-      serviceNames,
+      serviceNames: resolvedServiceNames,
       totalPrice: finalPrice,
 
       originalPrice,
