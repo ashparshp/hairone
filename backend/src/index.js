@@ -16,6 +16,13 @@ const hpp = require("hpp");
 // Load environment variables
 dotenv.config();
 
+const { getJwtSecret } = require("./config/jwt");
+
+// Fail fast in production if JWT is not configured
+if (process.env.NODE_ENV === "production") {
+  getJwtSecret();
+}
+
 // Connect to MongoDB
 connectDB().then(() => {
   initConfig();
