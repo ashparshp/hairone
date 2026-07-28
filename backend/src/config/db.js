@@ -1,27 +1,28 @@
 const mongoose = require('mongoose');
 const { syncBookingSlotIndexes } = require('../services/bookingSlotMigration');
+const { warn, info, error } = require('../utils/logger');
 
 const connectDB = async () => {
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hairone');
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    await syncBookingSlotIndexes();
-  } catch (error) {
-    console.error('Database connection failed:', error.message);
-    process.exit(1);
-  }
-
   mongoose.connection.on('disconnected', () => {
-    console.warn('MongoDB disconnected. Attempting to reconnect...');
+    warn('MongoDB disconnected — attempting to reconnect');
   });
 
   mongoose.connection.on('reconnected', () => {
-    console.log('MongoDB reconnected.');
+    info('MongoDB reconnected');
   });
 
   mongoose.connection.on('error', (err) => {
-    console.error('MongoDB connection error:', err);
+    error('MongoDB connection error', err);
   });
+
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hairone');
+    await syncBookingSlotIndexes();
+    return conn.connection.host;
+  } catch (err) {
+    error('Database connection failed', err.message);
+    process.exit(1);
+  }
 };
 
 module.exports = connectDB;

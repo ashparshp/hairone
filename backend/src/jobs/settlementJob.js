@@ -100,8 +100,6 @@ const initializeCron = () => {
       console.error("Scheduled settlement job failed:", error);
     }
   });
-
-  console.log("📅 Settlement Cron Job Scheduled (Daily at Midnight)");
 };
 
 module.exports = {
