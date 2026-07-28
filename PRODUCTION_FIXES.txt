@@ -413,8 +413,8 @@ PROMOTING STAGING → PRODUCTION (manual, when ready)
 NOTES / DECISIONS NEEDED
 ================================================================================
 
-  1. Cancelled cash bookings counting toward monthly limit — currently intentional
-     per code comment in bookingController.js. Confirm before changing.
+  1. Cancelled cash bookings no longer count toward monthly cash limit
+     (excluded in createBooking + getBookingLimits).
 
   2. Real SMS OTP (Twilio/Msg91) — FIX 5 adds gating; full provider is separate task.
 

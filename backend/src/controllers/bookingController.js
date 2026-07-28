@@ -52,6 +52,13 @@ const roundMoney = (amount) => {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 };
 
+const buildCashBookingCountQuery = (userId, monthStart, monthEnd) => ({
+  userId,
+  $or: [{ paymentMethod: "cash" }, { paymentMethod: "CASH" }],
+  status: { $ne: "cancelled" },
+  date: { $gte: monthStart, $lte: monthEnd },
+});
+
 const matchComboByName = (shop, rawName) => {
   for (const combo of shop.combos || []) {
     if (combo.isAvailable === false) continue;
@@ -417,15 +424,13 @@ exports.createBooking = async (req, res) => {
 
       const { monthStart, monthEnd } = getMonthBoundsFromDateStr(date);
 
-      const cashCount = await Booking.countDocuments({
-        userId: resolvedUserId,
-        $or: [{ paymentMethod: "cash" }, { paymentMethod: "CASH" }],
-        date: { $gte: monthStart, $lte: monthEnd },
-      });
+      const cashCount = await Booking.countDocuments(
+        buildCashBookingCountQuery(resolvedUserId, monthStart, monthEnd),
+      );
 
       if (cashCount >= maxCash) {
         return res.status(400).json({
-          message: `You have reached the limit of ${maxCash} cash bookings per month (including cancellations). Please pay online.`,
+          message: `You have reached the limit of ${maxCash} cash bookings per month. Please pay online.`,
         });
       }
     }
@@ -766,12 +771,9 @@ exports.getBookingLimits = async (req, res) => {
         : istDate;
     const { monthStart, monthEnd } = getMonthBoundsFromDateStr(refDate);
 
-    const cashCount = await Booking.countDocuments({
-      userId,
-      // Include cancelled bookings
-      $or: [{ paymentMethod: "cash" }, { paymentMethod: "CASH" }],
-      date: { $gte: monthStart, $lte: monthEnd },
-    });
+    const cashCount = await Booking.countDocuments(
+      buildCashBookingCountQuery(userId, monthStart, monthEnd),
+    );
 
     res.json({
       limit: maxCash,
