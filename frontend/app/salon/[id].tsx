@@ -55,6 +55,7 @@ export default function ShopDetailsScreen() {
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [cashLimits, setCashLimits] = useState({ limit: 5, used: 0, remaining: 5 });
 
   const isDark = theme === 'dark';
 
@@ -102,6 +103,27 @@ export default function ShopDetailsScreen() {
         fetchSlots();
     }
   }, [step, selectedDate, selectedBarberId]);
+
+  useEffect(() => {
+    setBookingType('earliest');
+  }, [id]);
+
+  useEffect(() => {
+    if (shop?.blockCustomBookings) {
+      setBookingType('earliest');
+    }
+  }, [shop?.blockCustomBookings, id]);
+
+  useEffect(() => {
+    if (step === 3 && user) {
+      api.get('/bookings/limits').then((res) => {
+        setCashLimits(res.data);
+        if (res.data.remaining <= 0 && paymentMethod === 'cash') {
+          setPaymentMethod('online');
+        }
+      }).catch(() => {});
+    }
+  }, [step, user]);
 
   useEffect(() => {
     if (bookingType === 'earliest' && slots.length > 0) {
@@ -222,7 +244,8 @@ export default function ShopDetailsScreen() {
             totalDuration: calculateDuration(),
             date: dateStr,
             startTime: selectedTime,
-            paymentMethod: paymentMethod === 'online' ? 'ONLINE' : 'CASH'
+            paymentMethod: paymentMethod === 'online' ? 'ONLINE' : 'CASH',
+            bookingMode: bookingType === 'earliest' ? 'earliest' : 'schedule',
         });
 
         showToast("Booking Confirmed!", "success");
@@ -782,23 +805,31 @@ export default function ShopDetailsScreen() {
             <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 24}]}>Payment Method</Text>
 
             <TouchableOpacity 
-                activeOpacity={0.9}
+                activeOpacity={cashLimits.remaining > 0 ? 0.9 : 1}
                 style={[
                     styles.payOption, 
                     {
                         backgroundColor: isDark ? '#18181b' : '#ffffff', 
                         borderColor: paymentMethod === 'cash' ? '#10b981' : (isDark ? '#27272a' : '#e2e8f0'),
-                        borderWidth: paymentMethod === 'cash' ? 2 : 1
+                        borderWidth: paymentMethod === 'cash' ? 2 : 1,
+                        opacity: cashLimits.remaining > 0 ? 1 : 0.5,
                     }
                 ]} 
-                onPress={() => setPaymentMethod('cash')}
+                onPress={() => {
+                  if (cashLimits.remaining > 0) setPaymentMethod('cash');
+                }}
+                disabled={cashLimits.remaining <= 0}
             >
                 <View style={styles.payIconBg}>
                     <Banknote size={20} color={isDark ? '#eab308' : '#ca8a04'} />
                 </View>
                 <View style={{flex: 1}}>
                     <Text style={[styles.payTitle, {color: colors.text}]}>Pay at Salon</Text>
-                    <Text style={[styles.paySub, {color: colors.textMuted}]}>Pay at the salon after service</Text>
+                    <Text style={[styles.paySub, {color: colors.textMuted}]}>
+                      {cashLimits.remaining > 0
+                        ? `Pay at the salon after service (${cashLimits.remaining}/${cashLimits.limit} cash bookings left this month)`
+                        : `Monthly cash booking limit reached (${cashLimits.limit}/${cashLimits.limit})`}
+                    </Text>
                 </View>
                 <View style={[styles.radioCircle, {borderColor: paymentMethod === 'cash' ? '#10b981' : colors.textMuted}]}>
                     {paymentMethod === 'cash' && <View style={styles.radioDot} />}

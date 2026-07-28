@@ -10,8 +10,6 @@ export default function SalonLayout() {
       contentStyle: { backgroundColor: colors.background }
     }}>
       <Stack.Screen name="[id]" />
-      <Stack.Screen name="booking" />
-      <Stack.Screen name="payment" />
       <Stack.Screen name="success" options={{ gestureEnabled: false }} />
     </Stack>
   );

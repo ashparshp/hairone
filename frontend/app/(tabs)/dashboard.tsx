@@ -202,7 +202,8 @@ export default function DashboardScreen() {
         // we might need to alert the user.
         // Ideally: update user context.
         alert("Re-application submitted. Please wait for admin approval.");
-        fetchShopData(); // This might not refresh context user role immediately
+        await refreshUser();
+        fetchShopData();
       } catch (e) {
         alert("Failed to reapply");
       } finally {
