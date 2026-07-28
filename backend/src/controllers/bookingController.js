@@ -20,6 +20,10 @@ const {
   getMonthBoundsFromDateStr,
 } = require("../utils/dateUtils");
 const {
+  incrementCancellationCount,
+  incrementNoShowCount,
+} = require("../utils/incidentUtils");
+const {
   timeToMinutes,
   getBarberScheduleForDate,
 } = require("../utils/scheduleUtils");
@@ -506,6 +510,22 @@ exports.createBooking = async (req, res) => {
         }
       }
 
+      const finalBarber = await Barber.findById(assignedBarberId).session(session);
+      if (
+        !finalBarber ||
+        !(await checkAvailability(
+          finalBarber,
+          date,
+          startTime,
+          durationInt,
+          bufferTime,
+          session,
+        ))
+      ) {
+        await session.abortTransaction();
+        return res.status(409).json({ message: "Slot no longer available." });
+      }
+
       const bookingData = {
         userId: resolvedUserId,
         shopId,
@@ -613,27 +633,7 @@ exports.cancelBooking = async (req, res) => {
 
     // Increment cancellation count for User
     if (booking.userId) {
-      // Fetch Limit dynamically
-      const config = await SystemConfig.findOne({ key: "global" });
-      const limit =
-        config && config.yearlyCancellationLimit
-          ? config.yearlyCancellationLimit
-          : 12;
-
-      const user = await User.findByIdAndUpdate(
-        booking.userId,
-        { $inc: { cancellationCount: 1 } },
-        { new: true },
-      );
-
-      if (user) {
-        // Check limits
-        const totalIncidents = user.cancellationCount + (user.noShowCount || 0);
-        if (totalIncidents > limit && !user.isFlagged) {
-          await User.findByIdAndUpdate(user._id, { isFlagged: true });
-          // We could return a warning here, but we'll just flag silently for now as per plan
-        }
-      }
+      await incrementCancellationCount(booking.userId);
     }
 
     res.json(booking);
@@ -703,6 +703,11 @@ exports.updateBookingStatus = async (req, res) => {
         .json({ message: "Not authorized to update this booking" });
     }
 
+    const previousStatus = booking.status;
+    if (previousStatus === status) {
+      return res.json(booking);
+    }
+
     if (status === "checked-in") {
       if (isCheckInRateLimited(booking._id)) {
         return res.status(429).json({
@@ -728,25 +733,13 @@ exports.updateBookingStatus = async (req, res) => {
     ].includes(status);
     await booking.save();
 
-    if (status === "no-show" && booking.userId) {
-      const config = await SystemConfig.findOne({ key: "global" });
-      const limit =
-        config && config.yearlyCancellationLimit
-          ? config.yearlyCancellationLimit
-          : 12;
-
-      const user = await User.findByIdAndUpdate(
-        booking.userId,
-        { $inc: { noShowCount: 1 } },
-        { new: true },
-      );
-
-      if (user) {
-        const totalIncidents = user.cancellationCount + (user.noShowCount || 0);
-        if (totalIncidents > limit && !user.isFlagged) {
-          await User.findByIdAndUpdate(user._id, { isFlagged: true });
-        }
-      }
+    if (
+      status === "no-show" &&
+      booking.userId &&
+      previousStatus !== "no-show" &&
+      previousStatus !== "missed"
+    ) {
+      await incrementNoShowCount(booking.userId);
     }
 
     res.json(booking);

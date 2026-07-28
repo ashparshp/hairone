@@ -21,6 +21,9 @@ const { getJwtSecret } = require("./config/jwt");
 // Fail fast in production if JWT is not configured
 if (process.env.NODE_ENV === "production") {
   getJwtSecret();
+  if (!process.env.CORS_ORIGINS) {
+    throw new Error("CORS_ORIGINS is required in production");
+  }
 }
 
 // Connect to MongoDB
@@ -37,7 +40,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 // Middleware
-if (process.env.NODE_ENV === "production" && process.env.CORS_ORIGINS) {
+if (process.env.NODE_ENV === "production") {
   const allowedOrigins = process.env.CORS_ORIGINS.split(",").map((s) =>
     s.trim(),
   );

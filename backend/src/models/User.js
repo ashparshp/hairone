@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema({
 
   cancellationCount: { type: Number, default: 0 },
   noShowCount: { type: Number, default: 0 },
+  incidentCountsYear: { type: Number },
   isFlagged: { type: Boolean, default: false },
 
   createdAt: { type: Date, default: Date.now },
