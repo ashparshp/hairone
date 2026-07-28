@@ -70,7 +70,11 @@ export default function ManageServicesScreen() {
 
   const fetchShop = async () => {
     // @ts-ignore
-    if (!user?.myShopId) return;
+    if (!user?.myShopId) {
+      setLoading(false);
+      router.replace('/(tabs)/dashboard');
+      return;
+    }
     try {
       // @ts-ignore
       const res = await api.get(`/shops/${user.myShopId}`);
