@@ -1126,14 +1126,23 @@ exports.getShopRevenue = async (req, res) => {
 exports.getPublicConfig = async (req, res) => {
   try {
     const SystemConfig = require("../models/SystemConfig");
+    const {
+      isRazorpayConfigured,
+      getRazorpayKeyId,
+    } = require("../config/razorpay");
     const config = await SystemConfig.findOne({ key: "global" });
     if (config) {
       res.json({
         userDiscountRate: config.userDiscountRate,
-        isPaymentTestMode: config.isPaymentTestMode,
+        onlinePaymentsEnabled: isRazorpayConfigured(),
+        razorpayKeyId: isRazorpayConfigured() ? getRazorpayKeyId() : null,
       });
     } else {
-      res.json({ userDiscountRate: 0, isPaymentTestMode: false });
+      res.json({
+        userDiscountRate: 0,
+        onlinePaymentsEnabled: false,
+        razorpayKeyId: null,
+      });
     }
   } catch (e) {
     res.status(500).json({ message: "Config fetch failed" });

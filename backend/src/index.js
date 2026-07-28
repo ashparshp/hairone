@@ -58,6 +58,14 @@ if (process.env.NODE_ENV === "production") {
 } else {
   app.use(cors());
 }
+// Webhook must use raw body for signature verification
+const { handleWebhook } = require("./controllers/paymentController");
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  handleWebhook,
+);
+
 app.use(express.json());
 
 // Security Middleware
@@ -132,6 +140,7 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/support", require("./routes/supportRoutes"));
 app.use("/api/reviews", require("./routes/reviewRoutes"));
 app.use("/api/finance", require("./routes/financeRoutes"));
+app.use("/api/payments", require("./routes/paymentRoutes"));
 
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;

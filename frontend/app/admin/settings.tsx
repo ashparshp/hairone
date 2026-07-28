@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Switch,
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -33,7 +32,6 @@ export default function AdminSettings() {
   const [adminCommission, setAdminCommission] = useState("");
   const [userDiscount, setUserDiscount] = useState("");
   const [maxCashBookings, setMaxCashBookings] = useState("");
-  const [testMode, setTestMode] = useState(false);
 
   useEffect(() => {
     fetchConfig();
@@ -46,7 +44,6 @@ export default function AdminSettings() {
         setAdminCommission(String(res.data.adminCommissionRate));
         setUserDiscount(String(res.data.userDiscountRate));
         setMaxCashBookings(String(res.data.maxCashBookingsPerMonth || 5));
-        setTestMode(res.data.isPaymentTestMode);
       }
     } catch (e) {
       Alert.alert("Error", "Failed to fetch settings");
@@ -62,7 +59,6 @@ export default function AdminSettings() {
         adminCommissionRate: parseFloat(adminCommission),
         userDiscountRate: parseFloat(userDiscount),
         maxCashBookingsPerMonth: parseInt(maxCashBookings),
-        isPaymentTestMode: testMode,
       });
       Alert.alert("Success", "Settings updated successfully");
     } catch (e) {
@@ -252,22 +248,10 @@ export default function AdminSettings() {
             </Text>
           </View>
 
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowLabel, { color: colors.text }]}>
-                Test Mode
-              </Text>
-              <Text style={[styles.rowSub, { color: colors.textMuted }]}>
-                Enable "Simulate Payment" in user app.
-              </Text>
-            </View>
-            <Switch
-              value={testMode}
-              onValueChange={setTestMode}
-              trackColor={{ false: colors.surfaceStrong, true: colors.tint }}
-              thumbColor={"#fff"}
-            />
-          </View>
+          <Text style={[styles.hint, { color: colors.textMuted }]}>
+            Online payments use Razorpay. Set RAZORPAY_KEY_ID and
+            RAZORPAY_KEY_SECRET in the backend environment to enable checkout.
+          </Text>
         </View>
 
         <TouchableOpacity
