@@ -3,7 +3,7 @@ const router = express.Router();
 const { runSettlementJob } = require('../jobs/settlementJob');
 const Settlement = require('../models/Settlement');
 const User = require('../models/User');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, blockSuspendedOwner } = require('../middleware/authMiddleware');
 
 /**
  * =================================================================================================
@@ -50,7 +50,7 @@ router.post('/generate-settlements', protect, verifyAdmin, async (req, res) => {
 router.post('/preview-settlements', protect, verifyAdmin, require('../controllers/financeController').previewSettlementJob);
 
 // --- 2. Get Settlements (Admin: All, Shop: Own) ---
-router.get('/settlements', protect, async (req, res) => {
+router.get('/settlements', protect, blockSuspendedOwner, async (req, res) => {
     try {
         const query = {};
 
@@ -74,7 +74,7 @@ router.get('/settlements', protect, async (req, res) => {
 });
 
 // --- 2.5 Get Settlement Details (Populated) ---
-router.get('/settlements/:id', protect, async (req, res) => {
+router.get('/settlements/:id', protect, blockSuspendedOwner, async (req, res) => {
     try {
         const settlement = await Settlement.findById(req.params.id)
             .populate('shopId', 'name address')
@@ -100,7 +100,7 @@ router.get('/settlements/:id', protect, async (req, res) => {
 
 // --- 3. Pay Settlement (Shop -> Admin) ---
 // Generates a mock payment link
-router.post('/settlements/:id/pay', protect, async (req, res) => {
+router.post('/settlements/:id/pay', protect, blockSuspendedOwner, async (req, res) => {
     try {
         const settlement = await Settlement.findById(req.params.id);
         if (!settlement) return res.status(404).json({ message: "Settlement not found" });

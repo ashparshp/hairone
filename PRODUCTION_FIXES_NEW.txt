@@ -12,31 +12,45 @@ CORRECTION — FIX 1 getShopBookings
     - bookingController.checkAvailability
     - shopController.getShopSlots
     - shopController.findEarliestSlotForShop
+  STATUS: Applied correctly in fix/active-booking-slot-queries.
 
 ------------------------------------------------------------------------------
 NEW — getTicket returns 200 with null body for bad ID
 ------------------------------------------------------------------------------
-  supportController.getTicket does not 404 when ticket missing; returns null JSON.
-  Priority: MEDIUM | Branch: fix/support-ticket-ownership (bundle with FIX 6)
+  STATUS: Fixed in fix/support-ticket-ownership (returns 404).
 
 ------------------------------------------------------------------------------
 NEW — createBooking does not validate serviceNames exist on shop
 ------------------------------------------------------------------------------
-  Even after FIX 2 (price), empty or fake service names can be stored.
-  Priority: MEDIUM | Branch: fix/server-side-booking-pricing (bundle with FIX 2)
+  STATUS: Fixed in fix/server-side-booking-pricing via resolveBookingServices().
 
 ------------------------------------------------------------------------------
 NEW — bookingKey is 4-digit Math.random with no uniqueness check
 ------------------------------------------------------------------------------
-  Collision possible; no rate limit on check-in PIN attempts (also in FIX 11F).
-  Priority: MEDIUM
+  STATUS: Fixed in fix/dead-code-cleanup (generateUniqueBookingKey).
+  Check-in PIN rate limit added in fix/edge-cases-and-config.
 
 ------------------------------------------------------------------------------
 NEW — authController JWT sign uses JWT_SECRET without fallback but verify uses fallback
 ------------------------------------------------------------------------------
-  Inconsistent: sign can throw if missing, verify falls back to 'secret'.
-  Covered by FIX 5.
+  STATUS: Fixed in fix/auth-hardening (centralized getJwtSecret()).
 
 ------------------------------------------------------------------------------
-ALL FIXES 1–12 IN PRODUCTION_FIXES.txt: VALID (with FIX 1 getShopBookings excluded)
+REMAINING GAPS — fixed in fix/remaining-gaps
+------------------------------------------------------------------------------
+  - blockSuspendedOwner on all booking routes (owner APIs when suspended)
+  - yearly incident count reset via incidentCountsYear on User
+  - no-show/missed count idempotency in updateBookingStatus
+  - production CORS fail-fast when CORS_ORIGINS missing
+  - final overlap re-check before booking insert inside transaction
+
+------------------------------------------------------------------------------
+OPEN (product / infra — not code bugs)
+------------------------------------------------------------------------------
+  - Real SMS OTP provider for production login (Twilio/Msg91)
+  - Cancelled cash bookings counting toward monthly limit (intentional — confirm)
+  - Promote main → prod when staging is tested
+
+==============================================================================
+ALL FIXES 1–12 IN PRODUCTION_FIXES.txt: COMPLETE
 ==============================================================================
