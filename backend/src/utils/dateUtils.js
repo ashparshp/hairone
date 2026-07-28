@@ -61,8 +61,31 @@ const buildBookingWindowUTC = (dateStr, startTime, endTime) => {
   return { startAt, endAt };
 };
 
+/**
+ * Calendar-day difference between two YYYY-MM-DD strings (timezone-safe).
+ */
+const daysBetweenDateStrings = (laterDateStr, earlierDateStr) => {
+  const toUtcMs = (dateStr) => {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.floor(
+    (toUtcMs(laterDateStr) - toUtcMs(earlierDateStr)) / (24 * 60 * 60 * 1000),
+  );
+};
+
+const getMonthBoundsFromDateStr = (dateStr) => {
+  const [year, month] = dateStr.split("-").map(Number);
+  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { monthStart, monthEnd };
+};
+
 module.exports = {
   getISTTime,
   parseISTDateTimeToUTC,
   buildBookingWindowUTC,
+  daysBetweenDateStrings,
+  getMonthBoundsFromDateStr,
 };
