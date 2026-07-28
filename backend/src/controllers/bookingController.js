@@ -219,6 +219,7 @@ exports.createBooking = async (req, res) => {
     paymentMethod,
     type,
     notes,
+    bookingMode,
   } = req.body;
 
   try {
@@ -237,6 +238,14 @@ exports.createBooking = async (req, res) => {
     }
 
     const isSpecialType = type === "walk-in" || type === "blocked";
+    const mode = bookingMode || "schedule";
+
+    if (shop.blockCustomBookings && !isSpecialType && mode !== "earliest") {
+      return res.status(403).json({
+        message: "This shop only accepts earliest-available bookings.",
+      });
+    }
+
     let resolvedServiceNames = serviceNames;
     let durationInt;
     let serverPrice;
