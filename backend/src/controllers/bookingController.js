@@ -24,6 +24,10 @@ const {
   incrementNoShowCount,
 } = require("../utils/incidentUtils");
 const {
+  BookingServiceError,
+  createBookingForUser,
+} = require("../services/bookingService");
+const {
   timeToMinutes,
   getBarberScheduleForDate,
 } = require("../utils/scheduleUtils");
@@ -250,325 +254,27 @@ const checkAvailability = async (
  * 4. Calculating the Money Split (Commission vs Revenue).
  */
 exports.createBooking = async (req, res) => {
-  const {
-    userId: requestedUserId,
-    shopId,
-    barberId,
-    serviceNames,
-    totalPrice,
-    totalDuration,
-    date,
-    startTime,
-    paymentMethod,
-    type,
-    notes,
-    bookingMode,
-  } = req.body;
+  const { paymentMethod, type } = req.body;
+  const normalizedPayment = (paymentMethod || "cash").toUpperCase();
+  const isSpecialType = type === "walk-in" || type === "blocked";
+
+  if (
+    !isSpecialType &&
+    (normalizedPayment === "ONLINE" || normalizedPayment === "UPI")
+  ) {
+    return res.status(400).json({
+      message:
+        "Online bookings require payment. Use the Razorpay checkout flow.",
+    });
+  }
 
   try {
-    if (!startTime || !date) {
-      return res
-        .status(400)
-        .json({ message: "Missing required booking details." });
-    }
-
-    const shop = await Shop.findById(shopId);
-    if (!shop) return res.status(404).json({ message: "Shop not found" });
-    if (shop.isDisabled) {
-      return res
-        .status(403)
-        .json({ message: "This shop is currently unavailable for booking." });
-    }
-
-    const isSpecialType = type === "walk-in" || type === "blocked";
-    const mode = bookingMode || "schedule";
-
-    if (shop.blockCustomBookings && !isSpecialType && mode !== "earliest") {
-      return res.status(403).json({
-        message: "This shop only accepts earliest-available bookings.",
-      });
-    }
-
-    if (!isSpecialType && requesterId) {
-      const bookingUser = await User.findById(requesterId);
-      if (bookingUser?.isFlagged) {
-        return res.status(403).json({
-          message: "Your account is restricted from making new bookings.",
-        });
-      }
-    }
-
-    let resolvedServiceNames = serviceNames;
-    let durationInt;
-    let serverPrice;
-
-    if (isSpecialType) {
-      durationInt = parseInt(totalDuration, 10);
-      serverPrice = parseFloat(totalPrice);
-      if (isNaN(serverPrice) || serverPrice < 0) {
-        return res.status(400).json({ message: "Invalid total price." });
-      }
-    } else {
-      const resolved = resolveBookingServices(shop, serviceNames);
-      if (resolved.error) {
-        return res.status(400).json({ message: resolved.error });
-      }
-      resolvedServiceNames = resolved.serviceNames;
-      durationInt = resolved.totalDuration;
-      serverPrice = resolved.totalPrice;
-    }
-
-    if (
-      !Number.isInteger(durationInt) ||
-      durationInt <= 0 ||
-      durationInt > 8 * 60
-    ) {
-      return res.status(400).json({ message: "Invalid total duration." });
-    }
-
-    const bufferTime = shop.bufferTime || 0;
-    const minNotice = shop.minBookingNotice || 0;
-    const maxNotice = shop.maxBookingNotice || 30;
-    const autoApprove = shop.autoApproveBookings !== false;
-    const { date: istDate, minutes: istMinutes } = getISTTime();
-
-    if (
-      isSpecialType &&
-      !isAdmin(req.user) &&
-      !isOwnerOfShop(req.user, shop._id)
-    ) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to create this booking type." });
-    }
-
-    const requesterId =
-      req.user && req.user._id ? req.user._id.toString() : null;
-    const resolvedUserId = isSpecialType
-      ? isAdmin(req.user) && requestedUserId
-        ? requestedUserId
-        : undefined
-      : requesterId;
-
-    if (
-      !isSpecialType &&
-      requestedUserId &&
-      requestedUserId.toString() !== requesterId &&
-      !isAdmin(req.user)
-    ) {
-      return res
-        .status(403)
-        .json({ message: "Cannot create booking for another user." });
-    }
-
-    if (!isSpecialType) {
-      const daysDiff = daysBetweenDateStrings(date, istDate);
-      if (daysDiff > maxNotice) {
-        return res.status(400).json({
-          message: `Cannot book more than ${maxNotice} days in advance.`,
-        });
-      }
-
-      const bookingStartMinutes = timeToMinutes(startTime);
-      if (date < istDate) {
-        return res
-          .status(400)
-          .json({ message: "Cannot book for a past date." });
-      }
-      if (date === istDate) {
-        // Relax validation slightly to account for time taken to fill the form (Grace Period)
-        const GRACE_PERIOD = 2;
-
-        if (bookingStartMinutes < istMinutes - GRACE_PERIOD) {
-          return res
-            .status(400)
-            .json({ message: "Cannot book for a past time." });
-        }
-        if (bookingStartMinutes < istMinutes + minNotice - GRACE_PERIOD) {
-          return res.status(400).json({
-            message: `Must book at least ${minNotice} minutes in advance.`,
-          });
-        }
-      }
-    }
-
-    const startObj = parse(startTime, "HH:mm", new Date());
-    const endObj = addMinutes(startObj, durationInt);
-    const endTime = format(endObj, "HH:mm");
-    const { startAt, endAt } = buildBookingWindowUTC(date, startTime, endTime);
-
-    let status = "upcoming";
-    if (type === "blocked") {
-      status = "blocked";
-    } else if (!autoApprove && type !== "walk-in") {
-      status = "pending";
-    }
-
-    if (!resolvedUserId && type !== "blocked" && type !== "walk-in") {
-      return res
-        .status(400)
-        .json({ message: "User ID required for online bookings." });
-    }
-
-    const config = await SystemConfig.findOne({ key: "global" });
-
-    // Check Max Cash Bookings Limit
-    if (
-      resolvedUserId &&
-      (paymentMethod === "cash" || paymentMethod === "CASH")
-    ) {
-      const maxCash =
-        config && config.maxCashBookingsPerMonth
-          ? config.maxCashBookingsPerMonth
-          : 5;
-
-      const { monthStart, monthEnd } = getMonthBoundsFromDateStr(date);
-
-      const cashCount = await Booking.countDocuments(
-        buildCashBookingCountQuery(resolvedUserId, monthStart, monthEnd),
-      );
-
-      if (cashCount >= maxCash) {
-        return res.status(400).json({
-          message: `You have reached the limit of ${maxCash} cash bookings per month. Please pay online.`,
-        });
-      }
-    }
-
-    const adminRate =
-      config && typeof config.adminCommissionRate === "number"
-        ? config.adminCommissionRate
-        : 10;
-    const discountRate =
-      config && typeof config.userDiscountRate === "number"
-        ? config.userDiscountRate
-        : 0;
-
-    const originalPrice = serverPrice;
-    const discountAmount = roundMoney(originalPrice * (discountRate / 100));
-    const finalPrice = roundMoney(originalPrice - discountAmount);
-    const adminCommission = roundMoney(originalPrice * (adminRate / 100));
-    const adminNetRevenue = roundMoney(adminCommission - discountAmount);
-    const barberNetRevenue = roundMoney(originalPrice - adminCommission);
-    const collectedBy =
-      paymentMethod === "UPI" || paymentMethod === "ONLINE"
-        ? "ADMIN"
-        : "BARBER";
-
-    const session = await mongoose.startSession();
-    try {
-      session.startTransaction();
-
-      let assignedBarberId = barberId;
-
-      if (!barberId || barberId === "any") {
-        const allBarbers = await Barber.find({ shopId, isAvailable: true });
-        const availableBarbers = [];
-        for (const barber of allBarbers) {
-          if (
-            await checkAvailability(
-              barber,
-              date,
-              startTime,
-              durationInt,
-              bufferTime,
-              session,
-            )
-          ) {
-            availableBarbers.push(barber);
-          }
-        }
-
-        if (availableBarbers.length === 0) {
-          await session.abortTransaction();
-          return res.status(409).json({ message: "Slot no longer available." });
-        }
-
-        const randomIndex = Math.floor(
-          Math.random() * availableBarbers.length,
-        );
-        assignedBarberId = availableBarbers[randomIndex]._id;
-      } else {
-        const barber = await Barber.findById(barberId).session(session);
-        if (!barber) {
-          await session.abortTransaction();
-          return res.status(404).json({ message: "Barber not found" });
-        }
-        if (barber.shopId.toString() !== shop._id.toString()) {
-          await session.abortTransaction();
-          return res
-            .status(400)
-            .json({ message: "Selected barber does not belong to this shop." });
-        }
-        if (
-          !(await checkAvailability(
-            barber,
-            date,
-            startTime,
-            durationInt,
-            bufferTime,
-            session,
-          ))
-        ) {
-          await session.abortTransaction();
-          return res.status(409).json({ message: "Barber unavailable." });
-        }
-      }
-
-      const finalBarber = await Barber.findById(assignedBarberId).session(session);
-      if (
-        !finalBarber ||
-        !(await checkAvailability(
-          finalBarber,
-          date,
-          startTime,
-          durationInt,
-          bufferTime,
-          session,
-        ))
-      ) {
-        await session.abortTransaction();
-        return res.status(409).json({ message: "Slot no longer available." });
-      }
-
-      const bookingData = {
-        userId: resolvedUserId,
-        shopId,
-        barberId: assignedBarberId,
-        serviceNames: resolvedServiceNames,
-        totalPrice: finalPrice,
-        originalPrice,
-        discountAmount,
-        finalPrice,
-        adminCommission,
-        adminNetRevenue,
-        barberNetRevenue,
-        amountCollectedBy: collectedBy,
-        settlementStatus: "PENDING",
-        activeBooking: true,
-        startAt,
-        endAt,
-        totalDuration: durationInt,
-        date,
-        startTime,
-        endTime,
-        paymentMethod: paymentMethod || "cash",
-        status,
-        type: type || "online",
-        notes,
-        bookingKey: await generateUniqueBookingKey(session),
-      };
-
-      const [booking] = await Booking.create([bookingData], { session });
-      await session.commitTransaction();
-      res.status(201).json(booking);
-    } catch (txError) {
-      if (session.inTransaction()) await session.abortTransaction();
-      throw txError;
-    } finally {
-      session.endSession();
-    }
+    const booking = await createBookingForUser(req.user, req.body);
+    res.status(201).json(booking);
   } catch (error) {
+    if (error instanceof BookingServiceError) {
+      return res.status(error.status).json({ message: error.message });
+    }
     console.error(error);
     if (error && error.code === 11000) {
       return res
@@ -671,6 +377,7 @@ exports.getShopBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
+      .select("-bookingKey")
       .populate("userId", "name phone")
       .populate("barberId", "name")
       .sort({ date: 1, startTime: 1 });
