@@ -51,6 +51,12 @@ export function BookingProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (!user) {
+      setMyBookings([]);
+      setSelectedServices([]);
+      setSelectedShop(null);
+      return;
+    }
     fetchBookings();
   }, [user]);
 

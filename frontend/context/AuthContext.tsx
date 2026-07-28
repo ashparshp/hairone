@@ -37,14 +37,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            storedUser = await SecureStore.getItemAsync('user');
         }
 
-        if (storedToken && storedUser) {
+        if (storedToken) {
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          try {
+            const res = await api.get('/auth/me');
+            setUser(res.data);
+            const serialized = JSON.stringify(res.data);
+            if (Platform.OS === 'web') {
+              localStorage.setItem('user', serialized);
+            } else {
+              await SecureStore.setItemAsync('user', serialized);
+            }
+          } catch {
+            if (Platform.OS === 'web') {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            } else {
+              await SecureStore.deleteItemAsync('token');
+              await SecureStore.deleteItemAsync('user');
+            }
+            setToken(null);
+            setUser(null);
+          }
+        } else if (storedUser) {
+          if (Platform.OS === 'web') {
+            localStorage.removeItem('user');
+          } else {
+            await SecureStore.deleteItemAsync('user');
+          }
         }
       } catch (e) {
         console.error("Failed to load user session", e);
       } finally {
-        setIsLoading(false); // Done loading
+        setIsLoading(false);
       }
     };
 
