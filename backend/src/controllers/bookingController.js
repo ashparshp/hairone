@@ -246,6 +246,15 @@ exports.createBooking = async (req, res) => {
       });
     }
 
+    if (!isSpecialType && requesterId) {
+      const bookingUser = await User.findById(requesterId);
+      if (bookingUser?.isFlagged) {
+        return res.status(403).json({
+          message: "Your account is restricted from making new bookings.",
+        });
+      }
+    }
+
     let resolvedServiceNames = serviceNames;
     let durationInt;
     let serverPrice;
@@ -563,6 +572,10 @@ exports.cancelBooking = async (req, res) => {
         .json({ message: "Not authorized to cancel this booking" });
     }
 
+    if (booking.status === "cancelled") {
+      return res.json(booking);
+    }
+
     // Cancel the booking
     booking.status = "cancelled";
     booking.activeBooking = false;
@@ -679,6 +692,27 @@ exports.updateBookingStatus = async (req, res) => {
       "missed",
     ].includes(status);
     await booking.save();
+
+    if (status === "no-show" && booking.userId) {
+      const config = await SystemConfig.findOne({ key: "global" });
+      const limit =
+        config && config.yearlyCancellationLimit
+          ? config.yearlyCancellationLimit
+          : 12;
+
+      const user = await User.findByIdAndUpdate(
+        booking.userId,
+        { $inc: { noShowCount: 1 } },
+        { new: true },
+      );
+
+      if (user) {
+        const totalIncidents = user.cancellationCount + (user.noShowCount || 0);
+        if (totalIncidents > limit && !user.isFlagged) {
+          await User.findByIdAndUpdate(user._id, { isFlagged: true });
+        }
+      }
+    }
 
     res.json(booking);
   } catch (e) {
