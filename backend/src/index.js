@@ -37,7 +37,24 @@ const app = express();
 app.set("trust proxy", 1);
 
 // Middleware
-app.use(cors());
+if (process.env.NODE_ENV === "production" && process.env.CORS_ORIGINS) {
+  const allowedOrigins = process.env.CORS_ORIGINS.split(",").map((s) =>
+    s.trim(),
+  );
+  app.use(
+    cors({
+      origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Not allowed by CORS"));
+        }
+      },
+    }),
+  );
+} else {
+  app.use(cors());
+}
 app.use(express.json());
 
 // Security Middleware

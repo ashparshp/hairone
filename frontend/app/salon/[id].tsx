@@ -116,14 +116,15 @@ export default function ShopDetailsScreen() {
 
   useEffect(() => {
     if (step === 3 && user) {
-      api.get('/bookings/limits').then((res) => {
+      const dateStr = formatLocalDate(selectedDate);
+      api.get(`/bookings/limits?date=${dateStr}`).then((res) => {
         setCashLimits(res.data);
         if (res.data.remaining <= 0 && paymentMethod === 'cash') {
           setPaymentMethod('online');
         }
       }).catch(() => {});
     }
-  }, [step, user]);
+  }, [step, user, selectedDate]);
 
   useEffect(() => {
     if (bookingType === 'earliest' && slots.length > 0) {
