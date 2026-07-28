@@ -3,6 +3,7 @@ const Barber = require("../models/Barber");
 const Shop = require("../models/Shop");
 const User = require("../models/User");
 const SystemConfig = require("../models/SystemConfig");
+const mongoose = require("mongoose");
 const {
   addMinutes,
   parse,
@@ -104,6 +105,7 @@ const checkAvailability = async (
   startStr,
   duration,
   bufferTime = 0,
+  session = null,
 ) => {
   const start = timeToMinutes(startStr);
   const end = start + duration + bufferTime;
@@ -155,8 +157,14 @@ const checkAvailability = async (
 
   if (!fitsToday && !fitsYesterday) return false;
 
+  const conflictQuery = (filter) => {
+    let q = Booking.find(filter);
+    if (session) q = q.session(session);
+    return q;
+  };
+
   // 3. Check Conflicts with Existing Bookings
-  const conflictsToday = await Booking.find({
+  const conflictsToday = await conflictQuery({
     barberId: barber._id,
     date: date,
     activeBooking: true,
@@ -171,7 +179,7 @@ const checkAvailability = async (
   const prevDateObj = subDays(new Date(date), 1);
   const prevDate = format(prevDateObj, "yyyy-MM-dd");
 
-  const conflictsYesterday = await Booking.find({
+  const conflictsYesterday = await conflictQuery({
     barberId: barber._id,
     date: prevDate,
     activeBooking: true,
@@ -323,52 +331,6 @@ exports.createBooking = async (req, res) => {
       }
     }
 
-    let assignedBarberId = barberId;
-
-    // Auto-Assign ("Any")
-    if (!barberId || barberId === "any") {
-      const allBarbers = await Barber.find({ shopId, isAvailable: true });
-      const availableBarbers = [];
-      for (const barber of allBarbers) {
-        if (
-          await checkAvailability(
-            barber,
-            date,
-            startTime,
-            durationInt,
-            bufferTime,
-          )
-        ) {
-          availableBarbers.push(barber);
-        }
-      }
-
-      if (availableBarbers.length === 0)
-        return res.status(409).json({ message: "Slot no longer available." });
-
-      const randomIndex = Math.floor(Math.random() * availableBarbers.length);
-      assignedBarberId = availableBarbers[randomIndex]._id;
-    } else {
-      const barber = await Barber.findById(barberId);
-      if (!barber) return res.status(404).json({ message: "Barber not found" });
-      if (barber.shopId.toString() !== shop._id.toString()) {
-        return res
-          .status(400)
-          .json({ message: "Selected barber does not belong to this shop." });
-      }
-      if (
-        !(await checkAvailability(
-          barber,
-          date,
-          startTime,
-          durationInt,
-          bufferTime,
-        ))
-      ) {
-        return res.status(409).json({ message: "Barber unavailable." });
-      }
-    }
-
     const startObj = parse(startTime, "HH:mm", new Date());
     const endObj = addMinutes(startObj, durationInt);
     const endTime = format(endObj, "HH:mm");
@@ -399,14 +361,12 @@ exports.createBooking = async (req, res) => {
           ? config.maxCashBookingsPerMonth
           : 5;
 
-      // Use the booking date, not the current server date
       const bookingDateObj = new Date(date);
       const monthStart = format(startOfMonth(bookingDateObj), "yyyy-MM-dd");
       const monthEnd = format(endOfMonth(bookingDateObj), "yyyy-MM-dd");
 
       const cashCount = await Booking.countDocuments({
         userId: resolvedUserId,
-        // Removed status exclusion so cancelled bookings are also counted
         $or: [{ paymentMethod: "cash" }, { paymentMethod: "CASH" }],
         date: { $gte: monthStart, $lte: monthEnd },
       });
@@ -418,8 +378,6 @@ exports.createBooking = async (req, res) => {
       }
     }
 
-    // --- FINANCIAL CALCULATIONS ------------------------------------------------------------------
-    // 1. Get Global Rates (or defaults)
     const adminRate =
       config && typeof config.adminCommissionRate === "number"
         ? config.adminCommissionRate
@@ -430,64 +388,113 @@ exports.createBooking = async (req, res) => {
         : 0;
 
     const originalPrice = serverPrice;
-
-    // 2. Calculate Discount (Subsidized by Admin usually, but here it reduces the final price)
     const discountAmount = roundMoney(originalPrice * (discountRate / 100));
     const finalPrice = roundMoney(originalPrice - discountAmount);
-
-    // 3. Admin Commission (Gross) - Calculated on the ORIGINAL price
     const adminCommission = roundMoney(originalPrice * (adminRate / 100));
-
-    // 4. Net Revenues
-    // Admin Net = Commission - Discount (Admin absorbs the discount cost)
     const adminNetRevenue = roundMoney(adminCommission - discountAmount);
-
-    // Barber Net = Original - Commission (Barber gets the rest)
     const barberNetRevenue = roundMoney(originalPrice - adminCommission);
-
-    // 5. Determine who holds the cash right now?
-    // - If Online/UPI: Admin has it.
-    // - If Cash: Barber/Shop has it.
     const collectedBy =
       paymentMethod === "UPI" || paymentMethod === "ONLINE"
         ? "ADMIN"
         : "BARBER";
 
-    const bookingData = {
-      userId: resolvedUserId,
-      shopId,
-      barberId: assignedBarberId,
-      serviceNames: resolvedServiceNames,
-      totalPrice: finalPrice,
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
 
-      originalPrice,
-      discountAmount,
-      finalPrice,
+      let assignedBarberId = barberId;
 
-      adminCommission,
-      adminNetRevenue,
-      barberNetRevenue,
+      if (!barberId || barberId === "any") {
+        const allBarbers = await Barber.find({ shopId, isAvailable: true });
+        const availableBarbers = [];
+        for (const barber of allBarbers) {
+          if (
+            await checkAvailability(
+              barber,
+              date,
+              startTime,
+              durationInt,
+              bufferTime,
+              session,
+            )
+          ) {
+            availableBarbers.push(barber);
+          }
+        }
 
-      amountCollectedBy: collectedBy,
-      settlementStatus: "PENDING",
-      activeBooking: true,
-      startAt,
-      endAt,
+        if (availableBarbers.length === 0) {
+          await session.abortTransaction();
+          return res.status(409).json({ message: "Slot no longer available." });
+        }
 
-      totalDuration: durationInt,
-      date,
-      startTime,
-      endTime,
-      paymentMethod: paymentMethod || "cash",
-      status,
-      type: type || "online",
-      notes,
-      bookingKey: Math.floor(1000 + Math.random() * 9000).toString(),
-    };
+        const randomIndex = Math.floor(
+          Math.random() * availableBarbers.length,
+        );
+        assignedBarberId = availableBarbers[randomIndex]._id;
+      } else {
+        const barber = await Barber.findById(barberId).session(session);
+        if (!barber) {
+          await session.abortTransaction();
+          return res.status(404).json({ message: "Barber not found" });
+        }
+        if (barber.shopId.toString() !== shop._id.toString()) {
+          await session.abortTransaction();
+          return res
+            .status(400)
+            .json({ message: "Selected barber does not belong to this shop." });
+        }
+        if (
+          !(await checkAvailability(
+            barber,
+            date,
+            startTime,
+            durationInt,
+            bufferTime,
+            session,
+          ))
+        ) {
+          await session.abortTransaction();
+          return res.status(409).json({ message: "Barber unavailable." });
+        }
+      }
 
-    const booking = await Booking.create(bookingData);
+      const bookingData = {
+        userId: resolvedUserId,
+        shopId,
+        barberId: assignedBarberId,
+        serviceNames: resolvedServiceNames,
+        totalPrice: finalPrice,
+        originalPrice,
+        discountAmount,
+        finalPrice,
+        adminCommission,
+        adminNetRevenue,
+        barberNetRevenue,
+        amountCollectedBy: collectedBy,
+        settlementStatus: "PENDING",
+        activeBooking: true,
+        startAt,
+        endAt,
+        totalDuration: durationInt,
+        date,
+        startTime,
+        endTime,
+        paymentMethod: paymentMethod || "cash",
+        status,
+        type: type || "online",
+        notes,
+        bookingKey: Math.floor(1000 + Math.random() * 9000).toString(),
+      };
 
-    res.status(201).json(booking);
+      const [booking] = await Booking.create([bookingData], { session });
+      await session.commitTransaction();
+      res.status(201).json(booking);
+    } catch (txError) {
+      if (session.inTransaction()) await session.abortTransaction();
+      throw txError;
+    } finally {
+      session.endSession();
+    }
   } catch (error) {
     console.error(error);
     if (error && error.code === 11000) {
