@@ -31,6 +31,49 @@ const { startOfWeek, format } = require('date-fns');
 // --- Helper: Round to 2 decimals ---
 const roundMoney = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+const pendingSettlementMatch = (cutoffDateStr) => ({
+  status: "completed",
+  date: { $lt: cutoffDateStr },
+  $and: [
+    {
+      $or: [
+        { settlementStatus: "PENDING" },
+        { settlementStatus: { $exists: false } },
+      ],
+    },
+    {
+      $or: [{ settlementId: { $exists: false } }, { settlementId: null }],
+    },
+  ],
+});
+
+const settlementGroupStage = {
+  $group: {
+    _id: "$shopId",
+    bookings: { $push: "$_id" },
+    minDate: { $min: "$date" },
+    maxDate: { $max: "$date" },
+    totalAdminNet: {
+      $sum: {
+        $cond: [
+          { $eq: ["$amountCollectedBy", "BARBER"] },
+          "$adminNetRevenue",
+          0,
+        ],
+      },
+    },
+    totalBarberNet: {
+      $sum: {
+        $cond: [
+          { $eq: ["$amountCollectedBy", "ADMIN"] },
+          "$barberNetRevenue",
+          0,
+        ],
+      },
+    },
+  },
+};
+
 // --- The Core Logic ---
 const runSettlementJob = async (manualAdminId = null) => {
   console.log('--- STARTING SETTLEMENT JOB ---');
@@ -54,44 +97,8 @@ const runSettlementJob = async (manualAdminId = null) => {
     // Instead of fetching all bookings into memory (slow), we use MongoDB Aggregation.
     // This efficiently sums up the 'adminNetRevenue' and 'barberNetRevenue' fields.
     const settlementGroups = await Booking.aggregate([
-      {
-        $match: {
-          status: 'completed', // Only settled completed jobs
-          $or: [
-              { settlementStatus: 'PENDING' }, // Explicitly pending
-              { settlementStatus: { $exists: false } } // Or legacy records missing the status
-          ],
-          date: { $lt: cutoffDateStr } // Strict date cutoff
-        }
-      },
-      {
-        $group: {
-          _id: '$shopId',
-          bookings: { $push: '$_id' }, // Keep track of which booking IDs are included
-          minDate: { $min: '$date' },
-          maxDate: { $max: '$date' },
-          // Calculate what Shop Owes Admin (Commission from Cash)
-          totalAdminNet: {
-            $sum: {
-              $cond: [
-                { $or: [{ $eq: ['$paymentMethod', 'CASH'] }, { $eq: ['$paymentMethod', 'cash'] }] },
-                '$adminNetRevenue',
-                0
-              ]
-            }
-          },
-          // Calculate what Admin Owes Shop (Revenue from Online)
-          totalBarberNet: {
-            $sum: {
-              $cond: [
-                { $not: { $or: [{ $eq: ['$paymentMethod', 'CASH'] }, { $eq: ['$paymentMethod', 'cash'] }] } },
-                '$barberNetRevenue',
-                0
-              ]
-            }
-          }
-        }
-      }
+      { $match: pendingSettlementMatch(cutoffDateStr) },
+      settlementGroupStage,
     ]).session(session);
 
     if (settlementGroups.length === 0) {
