@@ -45,6 +45,13 @@ export interface VerifyBookingPaymentResponse {
   paymentOrder: PaymentOrderDto;
   booking?: unknown;
   bookingId?: string;
+  duplicate?: boolean;
+}
+
+export interface GetPaymentOrderResponse {
+  paymentOrder: PaymentOrderDto & {
+    failureReason?: string;
+  };
 }
 
 export interface RazorpayCheckoutResult {

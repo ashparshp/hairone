@@ -1,6 +1,7 @@
 import api from "./api";
 import {
   BookingPaymentOrderResponse,
+  GetPaymentOrderResponse,
   RazorpayCheckoutResult,
   VerifyBookingPaymentResponse,
 } from "../types/payment";
@@ -29,8 +30,12 @@ export const createBookingPaymentOrder = async (
   return response.data;
 };
 
-export const getPaymentOrder = async (paymentOrderId: string) => {
-  const response = await api.get(`/payments/orders/${paymentOrderId}`);
+export const getPaymentOrder = async (
+  paymentOrderId: string,
+): Promise<GetPaymentOrderResponse> => {
+  const response = await api.get<GetPaymentOrderResponse>(
+    `/payments/orders/${paymentOrderId}`,
+  );
   return response.data;
 };
 
@@ -72,16 +77,20 @@ export const verifyBookingPaymentWithRecovery = async (
   for (let poll = 0; poll < 5; poll += 1) {
     await sleep(2000);
     try {
-      const order = await getPaymentOrder(input.paymentOrderId);
-      if (order?.status === "PAID" && order?.bookingId) {
+      const { paymentOrder } = await getPaymentOrder(input.paymentOrderId);
+      if (paymentOrder?.status === "paid" && paymentOrder?.bookingId) {
         return {
-          paymentOrder: order,
-          booking: null,
+          message: "Payment already confirmed",
+          paymentOrder,
+          bookingId: paymentOrder.bookingId,
           duplicate: true,
-        } as VerifyBookingPaymentResponse;
+        };
       }
-      if (order?.status === "FAILED" && order?.failureReason?.includes("credited")) {
-        throw new Error(order.failureReason);
+      if (
+        paymentOrder?.status === "failed" &&
+        paymentOrder?.failureReason?.includes("credited")
+      ) {
+        throw new Error(paymentOrder.failureReason);
       }
     } catch (pollError) {
       lastError = pollError;
