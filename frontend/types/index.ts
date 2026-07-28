@@ -28,6 +28,7 @@ export interface User {
   favorites?: string[];
   gender?: string;
   avatar?: string;
+  walletBalance?: number;
 }
 
 export interface Service {
@@ -77,7 +78,13 @@ export interface Booking {
   date: string;
   startTime: string;
   endTime: string;
-  status: "upcoming" | "completed" | "cancelled";
+  finalPrice?: number;
+  walletCreditApplied?: number;
+  amountDue?: number;
+  paymentMethod?: string;
+  razorpayPaymentId?: string;
+  paymentOrderId?: string;
+  status: "upcoming" | "completed" | "cancelled" | "pending";
   bookingKey?: string;
   createdAt?: string;
 }

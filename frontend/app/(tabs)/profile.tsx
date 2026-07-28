@@ -35,6 +35,7 @@ import {
   Sun,
   Camera,
   Trash2,
+  Wallet,
 } from "lucide-react-native";
 import api from "../../services/api";
 import * as ImagePicker from "expo-image-picker";
@@ -367,6 +368,13 @@ export default function ProfileScreen() {
             <View
               style={[styles.statDivider, { backgroundColor: colors.border }]}
             />
+            <StatBox
+              value={`₹${(user?.walletBalance || 0).toFixed(0)}`}
+              label="Credit"
+            />
+            <View
+              style={[styles.statDivider, { backgroundColor: colors.border }]}
+            />
           </>
         )}
         <StatBox
@@ -581,6 +589,15 @@ export default function ProfileScreen() {
             setEditModalVisible(true);
           }}
         />
+
+        {user?.role === "user" && (
+          <MenuItem
+            icon={Wallet}
+            label="Account Credit"
+            subLabel={`₹${(user?.walletBalance || 0).toFixed(2)} available`}
+            onPress={() => router.push("/wallet" as any)}
+          />
+        )}
 
         {user?.role === "user" && (
           <MenuItem

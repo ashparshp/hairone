@@ -31,8 +31,25 @@ exports.getPaymentConfig = (req, res) => {
 
 exports.createBookingOrder = async (req, res) => {
   try {
-    const { paymentOrder, prepared, reused } =
-      await createBookingPaymentOrder(req.user, req.body);
+    const result = await createBookingPaymentOrder(req.user, req.body);
+
+    if (result.walletOnly) {
+      const { booking, prepared } = result;
+      return res.status(201).json({
+        walletOnly: true,
+        booking,
+        summary: {
+          shopName: prepared.shop.name,
+          finalPrice: prepared.pricing.finalPrice,
+          originalPrice: prepared.pricing.originalPrice,
+          discountAmount: prepared.pricing.discountAmount,
+          walletCreditApplied: prepared.pricing.walletCreditApplied,
+          amountDue: prepared.pricing.amountDue,
+        },
+      });
+    }
+
+    const { paymentOrder, prepared, reused } = result;
 
     res.status(reused ? 200 : 201).json({
       paymentOrder: serializePaymentOrder(paymentOrder),
@@ -48,18 +65,28 @@ exports.createBookingOrder = async (req, res) => {
         finalPrice: prepared.pricing.finalPrice,
         originalPrice: prepared.pricing.originalPrice,
         discountAmount: prepared.pricing.discountAmount,
+        walletCreditApplied: prepared.pricing.walletCreditApplied || 0,
+        amountDue: prepared.pricing.amountDue ?? prepared.pricing.finalPrice,
       },
       reused,
+      walletOnly: false,
     });
   } catch (error) {
     return handleServiceError(res, error);
   }
 };
 
+const normalizeVerifyPayload = (body) => ({
+  paymentOrderId: body.paymentOrderId,
+  razorpayOrderId: body.razorpayOrderId || body.razorpay_order_id,
+  razorpayPaymentId: body.razorpayPaymentId || body.razorpay_payment_id,
+  razorpaySignature: body.razorpaySignature || body.razorpay_signature,
+});
+
 exports.verifyBookingPayment = async (req, res) => {
   try {
     const { paymentOrder, booking, duplicate } =
-      await verifyAndFulfillBookingPayment(req.user, req.body);
+      await verifyAndFulfillBookingPayment(req.user, normalizeVerifyPayload(req.body));
 
     if (duplicate) {
       return res.json({

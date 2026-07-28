@@ -6,6 +6,8 @@ const pricingSnapshotSchema = new mongoose.Schema(
     originalPrice: Number,
     discountAmount: Number,
     finalPrice: Number,
+    walletCreditApplied: Number,
+    amountDue: Number,
     adminCommission: Number,
     adminNetRevenue: Number,
     barberNetRevenue: Number,
@@ -60,6 +62,8 @@ const paymentOrderSchema = new mongoose.Schema(
     paidAt: Date,
     failedAt: Date,
     failureReason: String,
+    walletCreditedAt: Date,
+    walletCreditedAmount: Number,
     fulfilledVia: {
       type: String,
       enum: ["client_verify", "webhook"],

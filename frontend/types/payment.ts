@@ -32,8 +32,12 @@ export interface BookingPaymentOrderResponse {
     finalPrice: number;
     originalPrice: number;
     discountAmount: number;
+    walletCreditApplied?: number;
+    amountDue?: number;
   };
-  reused: boolean;
+  reused?: boolean;
+  walletOnly?: boolean;
+  booking?: unknown;
 }
 
 export interface VerifyBookingPaymentResponse {

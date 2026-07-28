@@ -20,6 +20,7 @@ const {
   createOrder,
   assertPaymentCapturedForOrder,
 } = require("./razorpayService");
+const { creditWallet, WalletServiceError } = require("./walletService");
 
 class PaymentServiceError extends Error {
   constructor(status, message) {
@@ -43,8 +44,33 @@ const buildBookingFingerprint = (userId, draft) => {
     startTime: draft.startTime,
     serviceNames: [...(draft.serviceNames || [])].sort(),
     bookingMode: draft.bookingMode || "schedule",
+    applyWalletCredit: Boolean(draft.applyWalletCredit),
+    walletCreditToUse: draft.walletCreditToUse ?? null,
   };
   return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+};
+
+const getAmountDuePaise = (pricing) =>
+  Math.round((pricing.amountDue ?? pricing.finalPrice) * 100);
+
+const creditCapturedPaymentToWallet = async (paymentOrder, note) => {
+  if (paymentOrder.walletCreditedAt) {
+    return paymentOrder.walletCreditedAmount || 0;
+  }
+
+  const creditAmount = paymentOrder.amountPaise / 100;
+  if (creditAmount <= 0) return 0;
+
+  await creditWallet(paymentOrder.userId, creditAmount, {
+    reason: "unfulfilled_payment",
+    referenceType: "payment_order",
+    referenceId: paymentOrder._id,
+    note,
+  });
+
+  paymentOrder.walletCreditedAt = new Date();
+  paymentOrder.walletCreditedAmount = creditAmount;
+  return creditAmount;
 };
 
 const isOrderExpired = (paymentOrder) =>
@@ -81,9 +107,33 @@ const createBookingPaymentOrder = async (user, body) => {
 
   const bookingDraft = { ...body, paymentMethod: "ONLINE" };
   const prepared = await prepareBooking(user, bookingDraft);
-  const amountPaise = Math.round(prepared.pricing.finalPrice * 100);
+  const amountDuePaise = getAmountDuePaise(prepared.pricing);
 
-  if (amountPaise < MIN_AMOUNT_PAISE) {
+  if (
+    amountDuePaise === 0 &&
+    (prepared.pricing.walletCreditApplied || 0) > 0
+  ) {
+    const balance = await require("./walletService").getWalletBalance(user._id);
+    if (balance < prepared.pricing.walletCreditApplied) {
+      throw new PaymentServiceError(400, "Insufficient account credit.");
+    }
+    const booking = await createBookingFromPrepared(prepared, {});
+    return {
+      walletOnly: true,
+      booking,
+      prepared,
+      paymentOrder: null,
+      reused: false,
+    };
+  }
+
+  if (amountDuePaise < MIN_AMOUNT_PAISE) {
+    if (amountDuePaise > 0) {
+      throw new PaymentServiceError(
+        400,
+        "Remaining amount is below ₹1 minimum for online payment. Use more account credit or pay the full amount online.",
+      );
+    }
     throw new PaymentServiceError(400, "Minimum online payment is ₹1.");
   }
 
@@ -97,17 +147,23 @@ const createBookingPaymentOrder = async (user, body) => {
   });
 
   if (existing) {
-    return {
-      paymentOrder: existing,
-      prepared,
-      reused: true,
-    };
+    if (getAmountDuePaise(prepared.pricing) !== existing.amountPaise) {
+      existing.status = PAYMENT_ORDER_STATUS.EXPIRED;
+      await existing.save();
+    } else {
+      return {
+        paymentOrder: existing,
+        prepared,
+        reused: true,
+        walletOnly: false,
+      };
+    }
   }
 
   try {
     const referenceId = generateReferenceId();
     const razorpayOrder = await createOrder({
-      amountPaise,
+      amountPaise: amountDuePaise,
       currency: "INR",
       receipt: referenceId,
       notes: {
@@ -130,15 +186,19 @@ const createBookingPaymentOrder = async (user, body) => {
         userId: user._id,
         shopId: prepared.shopId,
         razorpayOrderId: razorpayOrder.id,
-        amountPaise,
+        amountPaise: amountDuePaise,
         currency: razorpayOrder.currency || "INR",
         status: PAYMENT_ORDER_STATUS.CREATED,
-        bookingDraft,
+        bookingDraft: {
+          ...bookingDraft,
+          applyWalletCredit: false,
+          walletCreditToUse: prepared.pricing.walletCreditApplied || 0,
+        },
         pricing: prepared.pricing,
         expiresAt,
       });
 
-      return { paymentOrder, prepared, reused: false };
+      return { paymentOrder, prepared, reused: false, walletOnly: false };
     } catch (createError) {
       if (createError?.code === 11000) {
         const raced = await PaymentOrder.findOne({
@@ -148,7 +208,7 @@ const createBookingPaymentOrder = async (user, body) => {
           expiresAt: { $gt: new Date() },
         });
         if (raced) {
-          return { paymentOrder: raced, prepared, reused: true };
+          return { paymentOrder: raced, prepared, reused: true, walletOnly: false };
         }
       }
       throw createError;
@@ -176,29 +236,23 @@ const getPaymentOrderForUser = async (paymentOrderId, userId) => {
   return paymentOrder;
 };
 
-const claimPaymentOrderForProcessing = async (
-  paymentOrderId,
-  userId,
-  razorpayOrderId,
-) => {
-  const paymentOrder = await PaymentOrder.findById(paymentOrderId);
-  if (!paymentOrder) {
-    throw new PaymentServiceError(404, "Payment order not found.");
+const isProcessingLockStale = (paymentOrder) =>
+  !paymentOrder.processingAt ||
+  Date.now() - paymentOrder.processingAt.getTime() >
+    PAYMENT_PROCESSING_STALE_MS;
+
+const tryClaimPaymentOrderForFulfillment = async (paymentOrder) => {
+  if (
+    paymentOrder.status === PAYMENT_ORDER_STATUS.PAID &&
+    paymentOrder.bookingId
+  ) {
+    return { paymentOrder, alreadyPaid: true, locked: false };
   }
 
-  if (paymentOrder.userId.toString() !== userId.toString()) {
-    throw new PaymentServiceError(403, "Not authorized for this payment.");
-  }
-
-  if (paymentOrder.razorpayOrderId !== razorpayOrderId) {
-    throw new PaymentServiceError(400, "Order ID mismatch.");
-  }
-
-  if (paymentOrder.status === PAYMENT_ORDER_STATUS.PAID && paymentOrder.bookingId) {
-    return { paymentOrder, alreadyPaid: true };
-  }
-
-  if (isOrderExpired(paymentOrder)) {
+  if (
+    paymentOrder.status === PAYMENT_ORDER_STATUS.CREATED &&
+    isOrderExpired(paymentOrder)
+  ) {
     await markOrderExpired(paymentOrder);
     throw new PaymentServiceError(
       400,
@@ -207,16 +261,8 @@ const claimPaymentOrderForProcessing = async (
   }
 
   if (paymentOrder.status === PAYMENT_ORDER_STATUS.PROCESSING) {
-    const stale =
-      paymentOrder.processingAt &&
-      Date.now() - paymentOrder.processingAt.getTime() >
-        PAYMENT_PROCESSING_STALE_MS;
-
-    if (!stale) {
-      throw new PaymentServiceError(
-        409,
-        "Payment verification already in progress.",
-      );
+    if (!isProcessingLockStale(paymentOrder)) {
+      return { paymentOrder, alreadyPaid: false, locked: true };
     }
   }
 
@@ -236,6 +282,7 @@ const claimPaymentOrderForProcessing = async (
           PAYMENT_ORDER_STATUS.PROCESSING,
         ],
       },
+      bookingId: { $exists: false },
     },
     {
       $set: {
@@ -247,13 +294,59 @@ const claimPaymentOrderForProcessing = async (
   );
 
   if (!claimed) {
-    throw new PaymentServiceError(
-      409,
-      "Could not lock payment order. Please retry.",
-    );
+    const refreshed = await PaymentOrder.findById(paymentOrder._id);
+    if (
+      refreshed?.status === PAYMENT_ORDER_STATUS.PAID &&
+      refreshed.bookingId
+    ) {
+      return { paymentOrder: refreshed, alreadyPaid: true, locked: false };
+    }
+    return {
+      paymentOrder: refreshed || paymentOrder,
+      alreadyPaid: false,
+      locked: true,
+    };
   }
 
-  return { paymentOrder: claimed, alreadyPaid: false };
+  return { paymentOrder: claimed, alreadyPaid: false, locked: false };
+};
+
+const claimPaymentOrderForProcessing = async (
+  paymentOrderId,
+  userId,
+  razorpayOrderId,
+) => {
+  const paymentOrder = await PaymentOrder.findById(paymentOrderId);
+  if (!paymentOrder) {
+    throw new PaymentServiceError(404, "Payment order not found.");
+  }
+
+  if (paymentOrder.userId.toString() !== userId.toString()) {
+    throw new PaymentServiceError(403, "Not authorized for this payment.");
+  }
+
+  if (paymentOrder.razorpayOrderId !== razorpayOrderId) {
+    throw new PaymentServiceError(400, "Order ID mismatch.");
+  }
+
+  const claim = await tryClaimPaymentOrderForFulfillment(paymentOrder);
+  if (claim.locked) {
+    throw new PaymentServiceError(
+      409,
+      "Payment verification already in progress.",
+    );
+  }
+  return claim;
+};
+
+const applyPricingSnapshot = (prepared, snapshot) => {
+  if (!snapshot) return prepared;
+
+  prepared.pricing.walletCreditApplied = snapshot.walletCreditApplied || 0;
+  prepared.pricing.amountDue =
+    snapshot.amountDue ?? snapshot.finalPrice ?? prepared.pricing.finalPrice;
+
+  return prepared;
 };
 
 const fulfillPaymentOrder = async (
@@ -262,21 +355,67 @@ const fulfillPaymentOrder = async (
   user,
   fulfilledVia,
 ) => {
+  if (paymentOrder.bookingId) {
+    const existingBooking = await require("../models/Booking").findById(
+      paymentOrder.bookingId,
+    );
+    if (existingBooking) return existingBooking;
+  }
+
   await assertPaymentCapturedForOrder(paymentOrder, razorpayPaymentId);
 
+  if (!paymentOrder.razorpayPaymentId) {
+    paymentOrder.razorpayPaymentId = razorpayPaymentId;
+    await paymentOrder.save();
+  } else if (paymentOrder.razorpayPaymentId !== razorpayPaymentId) {
+    throw new PaymentServiceError(400, "Payment ID mismatch.");
+  }
+
+  const {
+    applyWalletCredit: _applyWalletCredit,
+    walletCreditToUse: _walletCreditToUse,
+    ...bookingDraftForPrepare
+  } = paymentOrder.bookingDraft;
+
   const prepared = await prepareBooking(user, {
-    ...paymentOrder.bookingDraft,
+    ...bookingDraftForPrepare,
     paymentMethod: "ONLINE",
   });
 
-  if (Math.round(prepared.pricing.finalPrice * 100) !== paymentOrder.amountPaise) {
+  applyPricingSnapshot(prepared, paymentOrder.pricing);
+
+  if (
+    Math.round(
+      (prepared.pricing.amountDue ?? prepared.pricing.finalPrice) * 100,
+    ) !== paymentOrder.amountPaise
+  ) {
     throw new PaymentServiceError(400, "Booking price changed. Please retry checkout.");
+  }
+
+  if ((prepared.pricing.walletCreditApplied || 0) > 0) {
+    const balance = await require("./walletService").getWalletBalance(
+      paymentOrder.userId,
+    );
+    if (balance < prepared.pricing.walletCreditApplied) {
+      throw new PaymentServiceError(
+        400,
+        "Insufficient account credit for this payment order. Please start checkout again.",
+      );
+    }
   }
 
   const booking = await createBookingFromPrepared(prepared, {
     razorpayOrderId: paymentOrder.razorpayOrderId,
     razorpayPaymentId,
     paymentOrderId: paymentOrder._id,
+  }).catch(async (error) => {
+    if (error?.code === 11000) {
+      const existingBooking = await require("../models/Booking").findOne({
+        paymentOrderId: paymentOrder._id,
+      });
+      if (existingBooking) return existingBooking;
+    }
+    throw error;
   });
 
   paymentOrder.status = PAYMENT_ORDER_STATUS.PAID;
@@ -284,9 +423,59 @@ const fulfillPaymentOrder = async (
   paymentOrder.bookingId = booking._id;
   paymentOrder.paidAt = new Date();
   paymentOrder.fulfilledVia = fulfilledVia;
+  paymentOrder.failureReason = undefined;
   await paymentOrder.save();
 
   return booking;
+};
+
+const handleFulfillmentError = async (paymentOrder, error) => {
+  const paymentCaptured = Boolean(paymentOrder.razorpayPaymentId);
+
+  if (error instanceof RazorpayServiceError || !paymentCaptured) {
+    paymentOrder.status = PAYMENT_ORDER_STATUS.CREATED;
+    paymentOrder.processingAt = undefined;
+    paymentOrder.failureReason = undefined;
+  } else if (
+    paymentCaptured &&
+    ((error instanceof BookingServiceError && error.status === 409) ||
+      error instanceof WalletServiceError)
+  ) {
+    const credited = await creditCapturedPaymentToWallet(
+      paymentOrder,
+      error.message,
+    );
+    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
+    paymentOrder.failedAt = new Date();
+    paymentOrder.failureReason =
+      credited > 0
+        ? `booking_failed: ₹${credited} credited to your account`
+        : `booking_failed: ${error.message}`;
+    paymentOrder.processingAt = undefined;
+  } else if (error instanceof PaymentServiceError && paymentCaptured) {
+    const credited = await creditCapturedPaymentToWallet(
+      paymentOrder,
+      error.message,
+    );
+    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
+    paymentOrder.failedAt = new Date();
+    paymentOrder.failureReason =
+      credited > 0
+        ? `${error.message} ₹${credited} credited to your account`
+        : error.message;
+    paymentOrder.processingAt = undefined;
+  } else if (error instanceof PaymentServiceError) {
+    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
+    paymentOrder.failedAt = new Date();
+    paymentOrder.failureReason = error.message;
+    paymentOrder.processingAt = undefined;
+  } else {
+    paymentOrder.status = PAYMENT_ORDER_STATUS.PROCESSING;
+    paymentOrder.failureReason = error.message;
+    paymentOrder.processingAt = new Date();
+  }
+
+  await paymentOrder.save();
 };
 
 const verifyAndFulfillBookingPayment = async (
@@ -336,27 +525,12 @@ const verifyAndFulfillBookingPayment = async (
     );
     return { paymentOrder, booking, duplicate: false };
   } catch (error) {
+    await handleFulfillmentError(paymentOrder, error);
+
     if (error instanceof RazorpayServiceError) {
-      paymentOrder.status = PAYMENT_ORDER_STATUS.CREATED;
-      paymentOrder.processingAt = undefined;
-      await paymentOrder.save();
       throw new PaymentServiceError(error.status, error.message);
     }
 
-    if (
-      error instanceof PaymentServiceError ||
-      error instanceof BookingServiceError
-    ) {
-      paymentOrder.status = PAYMENT_ORDER_STATUS.CREATED;
-      paymentOrder.processingAt = undefined;
-      await paymentOrder.save();
-      throw error;
-    }
-
-    paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
-    paymentOrder.failedAt = new Date();
-    paymentOrder.failureReason = error.message;
-    await paymentOrder.save();
     throw error;
   }
 };
@@ -419,15 +593,26 @@ const processWebhookEvent = async (event) => {
     throw new PaymentServiceError(404, "Payment order user not found.");
   }
 
-  try {
-    if (paymentOrder.status === PAYMENT_ORDER_STATUS.CREATED) {
-      paymentOrder.status = PAYMENT_ORDER_STATUS.PROCESSING;
-      paymentOrder.processingAt = new Date();
-      await paymentOrder.save();
-    }
+  const claim = await tryClaimPaymentOrderForFulfillment(paymentOrder);
+  if (claim.alreadyPaid) {
+    await WebhookEvent.findOneAndUpdate(
+      { eventId },
+      { processed: true, processedAt: new Date() },
+    );
+    return { duplicate: true, bookingId: claim.paymentOrder.bookingId };
+  }
 
+  if (claim.locked) {
+    await WebhookEvent.findOneAndUpdate(
+      { eventId },
+      { processed: false, error: "fulfillment_in_progress" },
+    );
+    return { handled: false, reason: "fulfillment_in_progress" };
+  }
+
+  try {
     const booking = await fulfillPaymentOrder(
-      paymentOrder,
+      claim.paymentOrder,
       payment.id,
       user,
       "webhook",
@@ -440,6 +625,7 @@ const processWebhookEvent = async (event) => {
 
     return { handled: true, bookingId: booking._id };
   } catch (error) {
+    await handleFulfillmentError(claim.paymentOrder, error);
     await WebhookEvent.findOneAndUpdate(
       { eventId },
       { processed: false, error: error.message },

@@ -20,6 +20,11 @@ const {
   timeToMinutes,
   getBarberScheduleForDate,
 } = require("../utils/scheduleUtils");
+const {
+  WalletServiceError,
+  resolveWalletCredit,
+  debitWallet,
+} = require("./walletService");
 
 const roundMoney = (amount) =>
   Math.round((amount + Number.EPSILON) * 100) / 100;
@@ -211,6 +216,8 @@ const prepareBooking = async (user, body) => {
     type,
     notes,
     bookingMode,
+    applyWalletCredit,
+    walletCreditToUse,
   } = body;
 
   if (!startTime || !date) {
@@ -389,6 +396,28 @@ const prepareBooking = async (user, body) => {
   const originalPrice = serverPrice;
   const discountAmount = roundMoney(originalPrice * (discountRate / 100));
   const finalPrice = roundMoney(originalPrice - discountAmount);
+
+  let walletCreditApplied = 0;
+  let amountDue = finalPrice;
+  if (resolvedUserId && !isSpecialType) {
+    try {
+      const wallet = await resolveWalletCredit(resolvedUserId, finalPrice, {
+        applyWalletCredit: Boolean(applyWalletCredit),
+        walletCreditToUse:
+          walletCreditToUse !== undefined && walletCreditToUse !== null
+            ? Number(walletCreditToUse)
+            : undefined,
+      });
+      walletCreditApplied = wallet.walletCreditApplied;
+      amountDue = wallet.amountDue;
+    } catch (error) {
+      if (error instanceof WalletServiceError) {
+        throw new BookingServiceError(error.status, error.message);
+      }
+      throw error;
+    }
+  }
+
   const adminCommission = roundMoney(originalPrice * (adminRate / 100));
   const adminNetRevenue = roundMoney(adminCommission - discountAmount);
   const barberNetRevenue = roundMoney(originalPrice - adminCommission);
@@ -415,6 +444,8 @@ const prepareBooking = async (user, body) => {
       originalPrice,
       discountAmount,
       finalPrice,
+      walletCreditApplied,
+      amountDue,
       adminCommission,
       adminNetRevenue,
       barberNetRevenue,
@@ -506,6 +537,8 @@ const createBookingFromPrepared = async (prepared, paymentMeta = {}) => {
       originalPrice: prepared.pricing.originalPrice,
       discountAmount: prepared.pricing.discountAmount,
       finalPrice: prepared.pricing.finalPrice,
+      walletCreditApplied: prepared.pricing.walletCreditApplied || 0,
+      amountDue: prepared.pricing.amountDue ?? prepared.pricing.finalPrice,
       adminCommission: prepared.pricing.adminCommission,
       adminNetRevenue: prepared.pricing.adminNetRevenue,
       barberNetRevenue: prepared.pricing.barberNetRevenue,
@@ -529,6 +562,21 @@ const createBookingFromPrepared = async (prepared, paymentMeta = {}) => {
     };
 
     const [booking] = await Booking.create([bookingData], { session });
+
+    if (prepared.pricing.walletCreditApplied > 0) {
+      await debitWallet(
+        prepared.resolvedUserId,
+        prepared.pricing.walletCreditApplied,
+        {
+          reason: "booking_payment",
+          referenceType: "booking",
+          referenceId: booking._id,
+          note: "Applied at booking confirmation",
+        },
+        session,
+      );
+    }
+
     await session.commitTransaction();
     return booking;
   } catch (error) {

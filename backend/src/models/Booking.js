@@ -58,6 +58,10 @@ const bookingSchema = new mongoose.Schema(
     originalPrice: Number, // Base Price (Sum of services)
     discountAmount: Number, // Discount given to user
     finalPrice: Number, // What user actually pays
+    walletCreditApplied: { type: Number, default: 0 },
+    amountDue: Number,
+    cancelWalletCreditedAt: Date,
+    cancelWalletCreditAmount: Number,
 
     adminCommission: Number, // Gross commission (e.g. 10% of original)
     adminNetRevenue: Number, // Commission - Discount
@@ -85,6 +89,11 @@ bookingSchema.index(
     unique: true,
     partialFilterExpression: { activeBooking: true },
   },
+);
+
+bookingSchema.index(
+  { paymentOrderId: 1 },
+  { unique: true, sparse: true },
 );
 
 module.exports = mongoose.model("Booking", bookingSchema);

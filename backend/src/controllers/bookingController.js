@@ -24,6 +24,9 @@ const {
   incrementNoShowCount,
 } = require("../utils/incidentUtils");
 const {
+  creditBookingCancellation,
+} = require("../services/walletService");
+const {
   BookingServiceError,
   createBookingForUser,
 } = require("../services/bookingService");
@@ -316,10 +319,16 @@ exports.getMyBookings = async (req, res) => {
 
 // --- 3. Cancel Booking ---
 exports.cancelBooking = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
+    session.startTransaction();
+
     const { id } = req.params;
-    const booking = await Booking.findById(id);
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    const booking = await Booking.findById(id).session(session);
+    if (!booking) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Booking not found" });
+    }
 
     const canCancel =
       isAdmin(req.user) ||
@@ -328,29 +337,57 @@ exports.cancelBooking = async (req, res) => {
       isOwnerOfShop(req.user, booking.shopId);
 
     if (!canCancel) {
+      await session.abortTransaction();
       return res
         .status(403)
         .json({ message: "Not authorized to cancel this booking" });
     }
 
     if (booking.status === "cancelled") {
-      return res.json(booking);
+      await session.abortTransaction();
+      return res.json({
+        ...booking.toObject(),
+        walletCreditIssued: booking.cancelWalletCreditAmount || 0,
+      });
     }
 
-    // Cancel the booking
+    if (!["upcoming", "pending"].includes(booking.status)) {
+      await session.abortTransaction();
+      return res.status(400).json({
+        message: "Only upcoming or pending bookings can be cancelled.",
+      });
+    }
+
+    const walletCreditIssued = await creditBookingCancellation(booking, session);
+
     booking.status = "cancelled";
     booking.activeBooking = false;
-    await booking.save();
+    await booking.save({ session });
 
-    // Increment cancellation count for User
-    if (booking.userId) {
-      await incrementCancellationCount(booking.userId);
+    const isCustomerSelfCancel =
+      booking.userId &&
+      req.user._id.toString() === booking.userId.toString() &&
+      !isAdmin(req.user);
+
+    if (isCustomerSelfCancel) {
+      await incrementCancellationCount(booking.userId, session);
     }
 
-    res.json(booking);
+    await session.commitTransaction();
+
+    const response = booking.toObject();
+    response.walletCreditIssued = walletCreditIssued;
+    if (walletCreditIssued > 0) {
+      response.walletCreditMessage = `₹${walletCreditIssued} credited to your account`;
+    }
+
+    res.json(response);
   } catch (e) {
+    if (session.inTransaction()) await session.abortTransaction();
     console.error(e);
     res.status(500).json({ message: "Failed to cancel booking" });
+  } finally {
+    session.endSession();
   }
 };
 

@@ -15,6 +15,7 @@ export interface BookingPaymentDraft {
   date: string;
   startTime: string;
   bookingMode: string;
+  applyWalletCredit?: boolean;
 }
 
 export const createBookingPaymentOrder = async (
@@ -29,9 +30,9 @@ export const createBookingPaymentOrder = async (
 
 export const verifyBookingPayment = async (input: {
   paymentOrderId: string;
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
 }): Promise<VerifyBookingPaymentResponse> => {
   const response = await api.post<VerifyBookingPaymentResponse>(
     "/payments/verify-booking",

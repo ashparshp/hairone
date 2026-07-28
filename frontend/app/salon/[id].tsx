@@ -19,7 +19,7 @@ export default function ShopDetailsScreen() {
   const params = useLocalSearchParams();
   const { id, name, address, image, rating, reviewCount } = params;
   const router = useRouter();
-  const { user, login, token } = useAuth();
+  const { user, login, token, refreshUser } = useAuth();
   const { showToast } = useToast();
   const { colors, theme } = useTheme(); 
   
@@ -61,6 +61,7 @@ export default function ShopDetailsScreen() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [cashLimits, setCashLimits] = useState({ limit: 5, used: 0, remaining: 5 });
+  const [useWalletCredit, setUseWalletCredit] = useState(true);
 
   const isDark = theme === 'dark';
 
@@ -183,6 +184,13 @@ export default function ShopDetailsScreen() {
     return sum + (isNaN(val) ? 0 : val);
   }, 0);
 
+  const walletBalance = user?.walletBalance || 0;
+  const discountedTotal = calculateTotal() * (1 - config.userDiscountRate / 100);
+  const walletCreditPreview = useWalletCredit
+    ? Math.min(walletBalance, discountedTotal)
+    : 0;
+  const amountDuePreview = Math.max(0, discountedTotal - walletCreditPreview);
+
   const fetchSlots = async () => {
     setLoadingSlots(true);
     setSelectedTime(null); 
@@ -249,6 +257,7 @@ export default function ShopDetailsScreen() {
         date: dateStr,
         startTime: selectedTime,
         bookingMode: bookingType === 'earliest' ? 'earliest' : 'schedule',
+        applyWalletCredit: useWalletCredit && walletBalance > 0,
     };
 
     try {
@@ -260,50 +269,81 @@ export default function ShopDetailsScreen() {
             }
 
             const orderResponse = await createBookingPaymentOrder(bookingPayload);
-            const { paymentOrder, checkout, summary } = orderResponse;
 
-            const paymentResult = await openRazorpayCheckout({
-                keyId: checkout.keyId || config.razorpayKeyId,
-                orderId: checkout.orderId,
-                amountPaise: checkout.amountPaise,
-                currency: checkout.currency,
-                referenceId: checkout.referenceId,
-                name: 'HairOne',
-                description: `${summary.shopName} · ${checkout.referenceId}`,
-                prefill: {
-                    name: user?.name || undefined,
-                    contact: user?.phone || undefined,
-                    email: user?.email || undefined,
-                },
-            });
+            if (orderResponse.walletOnly) {
+                await refreshUser();
+                showToast(
+                  orderResponse.summary.walletCreditApplied
+                    ? `Booking confirmed — ₹${orderResponse.summary.walletCreditApplied.toFixed(2)} account credit used`
+                    : "Booking confirmed!",
+                  "success",
+                );
+            } else {
+                const { paymentOrder, checkout, summary } = orderResponse;
 
-            if (paymentResult.razorpay_order_id !== checkout.orderId) {
-                throw new Error('Payment order mismatch');
+                const paymentResult = await openRazorpayCheckout({
+                    keyId: checkout!.keyId || config.razorpayKeyId,
+                    orderId: checkout!.orderId,
+                    amountPaise: checkout!.amountPaise,
+                    currency: checkout!.currency,
+                    referenceId: checkout!.referenceId,
+                    name: 'HairOne',
+                    description: `${summary!.shopName} · ${checkout!.referenceId}`,
+                    prefill: {
+                        name: user?.name || undefined,
+                        contact: user?.phone || undefined,
+                        email: user?.email || undefined,
+                    },
+                });
+
+                if (paymentResult.razorpay_order_id !== checkout!.orderId) {
+                    throw new Error('Payment order mismatch');
+                }
+
+                await verifyBookingPayment({
+                    paymentOrderId: paymentOrder!.id,
+                    razorpayOrderId: paymentResult.razorpay_order_id,
+                    razorpayPaymentId: paymentResult.razorpay_payment_id,
+                    razorpaySignature: paymentResult.razorpay_signature,
+                });
+
+                await refreshUser();
+                const paidViaRazorpay = summary!.amountDue ?? summary!.finalPrice;
+                showToast(
+                  summary!.walletCreditApplied
+                    ? `Paid ₹${paidViaRazorpay.toFixed(2)} online + ₹${summary!.walletCreditApplied.toFixed(2)} credit — booking confirmed!`
+                    : `Paid ₹${summary!.finalPrice.toFixed(2)} — booking confirmed!`,
+                  "success",
+                );
             }
-
-            await verifyBookingPayment({
-                paymentOrderId: paymentOrder.id,
-                razorpay_order_id: paymentResult.razorpay_order_id,
-                razorpay_payment_id: paymentResult.razorpay_payment_id,
-                razorpay_signature: paymentResult.razorpay_signature,
-            });
-
-            showToast(`Paid ₹${summary.finalPrice.toFixed(2)} — booking confirmed!`, "success");
         } else {
             await api.post('/bookings', {
                 ...bookingPayload,
                 paymentMethod: 'CASH',
             });
-            showToast("Booking Confirmed!", "success");
+            await refreshUser();
+            const cashDue = amountDuePreview;
+            showToast(
+              walletCreditPreview > 0
+                ? `Booking confirmed — pay ₹${cashDue.toFixed(2)} at salon (₹${walletCreditPreview.toFixed(2)} credit applied)`
+                : "Booking Confirmed!",
+              "success",
+            );
         }
 
         if (fetchBookings) fetchBookings();
         router.replace('/(tabs)/bookings' as any);
     } catch (e: any) {
         console.log("Booking Error:", e);
+        const serverMsg = e.response?.data?.message || e.message || "Booking failed";
+        if (serverMsg.includes('credited to your account')) {
+            await refreshUser();
+            showToast(serverMsg, "success");
+            return;
+        }
         const msg = e?.message === 'Payment cancelled'
             ? 'Payment cancelled'
-            : e.response?.data?.message || e.message || "Booking failed";
+            : serverMsg;
         showToast(msg, "error");
     } finally {
         setLoading(false);
@@ -843,10 +883,40 @@ export default function ShopDetailsScreen() {
                             <Text style={{color: '#10b981', fontSize: 13}}>- ₹{(calculateTotal() * (config.userDiscountRate / 100)).toFixed(2)}</Text>
                         </View>
                     )}
+                    {walletBalance > 0 && (
+                        <TouchableOpacity
+                          style={[styles.payOption, {
+                            backgroundColor: isDark ? '#18181b' : '#f8fafc',
+                            borderColor: useWalletCredit ? '#10b981' : (isDark ? '#27272a' : '#e2e8f0'),
+                            borderWidth: useWalletCredit ? 2 : 1,
+                            marginTop: 8,
+                            marginBottom: 4,
+                          }]}
+                          onPress={() => setUseWalletCredit(!useWalletCredit)}
+                        >
+                          <View style={{flex: 1}}>
+                            <Text style={{color: colors.text, fontWeight: '600'}}>Use account credit</Text>
+                            <Text style={{color: colors.textMuted, fontSize: 12, marginTop: 2}}>
+                              Available balance: ₹{walletBalance.toFixed(2)}
+                            </Text>
+                          </View>
+                          <View style={[styles.radioCircle, {borderColor: useWalletCredit ? '#10b981' : colors.textMuted}]}>
+                            {useWalletCredit && <View style={styles.radioDot} />}
+                          </View>
+                        </TouchableOpacity>
+                    )}
+                    {walletCreditPreview > 0 && (
+                        <View style={styles.receiptRowBetween}>
+                            <Text style={{color: '#10b981', fontSize: 13}}>Account credit</Text>
+                            <Text style={{color: '#10b981', fontSize: 13}}>- ₹{walletCreditPreview.toFixed(2)}</Text>
+                        </View>
+                    )}
                     <View style={[styles.receiptRowBetween, {marginTop: 8}]}>
-                        <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>Total Payable</Text>
+                        <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>
+                          {paymentMethod === 'cash' ? 'Pay at salon' : 'Pay now'}
+                        </Text>
                         <Text style={{color: isDark ? '#facc15' : '#0f172a', fontWeight: 'bold', fontSize: 20}}>
-                            ₹{(calculateTotal() * (1 - config.userDiscountRate / 100)).toFixed(2)}
+                            ₹{amountDuePreview.toFixed(2)}
                         </Text>
                     </View>
                 </View>
@@ -933,7 +1003,9 @@ export default function ShopDetailsScreen() {
                 <View>
                     <Text style={[styles.footerSub, {color: colors.textMuted}]}>{selectedServices.length} items</Text>
                     <Text style={[styles.footerPrice, {color: colors.text}]}>
-                        ₹{config.userDiscountRate > 0
+                        ₹{step === 3
+                           ? amountDuePreview.toFixed(2)
+                           : config.userDiscountRate > 0
                            ? (calculateTotal() * (1 - config.userDiscountRate / 100)).toFixed(2)
                            : calculateTotal().toFixed(2)}
                     </Text>

@@ -47,6 +47,9 @@ const userSchema = new mongoose.Schema({
   incidentCountsYear: { type: Number },
   isFlagged: { type: Boolean, default: false },
 
+  /** Rupee balance from failed bookings / credits — applied at checkout. */
+  walletBalance: { type: Number, default: 0, min: 0 },
+
   createdAt: { type: Date, default: Date.now },
 });
 
