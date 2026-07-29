@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Heart, Star, MapPin, Clock } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
@@ -6,6 +6,8 @@ import { ScalePress } from './ScalePress';
 import { Spacing } from '../constants/Spacing';
 
 const { width } = Dimensions.get('window');
+const FALLBACK_SHOP_IMAGE =
+  'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=800&q=80';
 
 interface ShopCardProps {
   shop: any;
@@ -17,6 +19,11 @@ interface ShopCardProps {
 
 export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavorite, onToggleFavorite }) => {
   const { colors } = useTheme();
+  const [imageUri, setImageUri] = useState(shop.image || FALLBACK_SHOP_IMAGE);
+
+  useEffect(() => {
+    setImageUri(shop.image || FALLBACK_SHOP_IMAGE);
+  }, [shop.image]);
 
   return (
     <ScalePress
@@ -32,9 +39,14 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
         {/* Compact Shop Image */}
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: shop.image || 'https://via.placeholder.com/400' }}
+            source={{ uri: imageUri }}
             style={styles.image}
             resizeMode="cover"
+            onError={() => {
+              if (imageUri !== FALLBACK_SHOP_IMAGE) {
+                setImageUri(FALLBACK_SHOP_IMAGE);
+              }
+            }}
           />
           <TouchableOpacity
             style={styles.heartButton}
