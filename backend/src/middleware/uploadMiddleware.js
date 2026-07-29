@@ -54,13 +54,12 @@ const compressAndUpload = (folder = 'shops') => async (req, res, next) => {
             .jpeg({ quality: 80, mozjpeg: true }) // Convert to JPEG, 80% quality
             .toBuffer();
 
-        // Upload to S3
+        // Upload to S3 (no ACL — bucket uses owner-enforced object ownership)
         const command = new PutObjectCommand({
             Bucket: process.env.DO_SPACES_BUCKET,
             Key: filename,
             Body: compressedBuffer,
-            ACL: 'public-read',
-            ContentType: 'image/jpeg' // We converted to jpeg
+            ContentType: 'image/jpeg',
         });
 
         await s3.send(command);

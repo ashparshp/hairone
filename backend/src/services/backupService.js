@@ -51,8 +51,7 @@ const performBackup = async () => {
             Bucket: targetBucket,
             Key: filename,
             Body: compressedData,
-            ACL: 'private', // Backups should be private
-            ContentType: 'application/gzip'
+            ContentType: 'application/gzip',
         });
 
         await s3.send(command);
