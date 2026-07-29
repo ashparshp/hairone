@@ -1,8 +1,14 @@
 {
+  "cli": {
+    "version": ">= 16.0.0"
+  },
   "build": {
     "release-apk": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://hairone.duckdns.org/api"
       }
     }
   }
