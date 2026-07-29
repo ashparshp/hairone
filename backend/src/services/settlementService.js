@@ -97,7 +97,7 @@ const claimBookingsForSettlement = async (bookingIds, session) => {
     const booking = await Booking.findOneAndUpdate(
       claimableBookingFilter(bookingId),
       { $set: { settlementStatus: "SETTLING" } },
-      { session, new: true },
+      { session, returnDocument: 'after' },
     );
 
     if (booking) claimed.push(booking);

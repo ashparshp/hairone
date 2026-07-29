@@ -192,7 +192,7 @@ exports.createShop = async (req, res) => {
               suspensionReason: 1,
             },
           },
-          { session, new: true },
+          { session, returnDocument: 'after' },
         );
 
         if (!updatedOwner) {
@@ -266,7 +266,7 @@ exports.updateShop = async (req, res) => {
       updates.image = req.file.location;
     }
 
-    const shop = await Shop.findByIdAndUpdate(id, updates, { new: true });
+    const shop = await Shop.findByIdAndUpdate(id, updates, { returnDocument: 'after' });
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
@@ -560,7 +560,7 @@ exports.updateBarber = async (req, res) => {
         weeklySchedule,
         specialHours,
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(barber);
   } catch (e) {
@@ -772,7 +772,7 @@ exports.addShopService = async (req, res) => {
           },
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -797,7 +797,7 @@ exports.deleteShopService = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $pull: { services: { _id: serviceId } } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -834,7 +834,7 @@ exports.updateShopService = async (req, res) => {
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "services._id": serviceId },
       { $set: updateQuery },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!shop)
@@ -876,7 +876,7 @@ exports.addShopCombo = async (req, res) => {
           },
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -902,7 +902,7 @@ exports.deleteShopCombo = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $pull: { combos: { _id: comboId } } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -942,7 +942,7 @@ exports.updateShopCombo = async (req, res) => {
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "combos._id": comboId },
       { $set: updateQuery },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -1175,7 +1175,7 @@ exports.addGalleryImage = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $push: { gallery: imageUrl } },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
@@ -1213,7 +1213,7 @@ exports.deleteGalleryImage = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $pull: { gallery: imageUrl } },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });

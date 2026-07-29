@@ -31,7 +31,7 @@ const creditWallet = async (
   const updated = await User.findByIdAndUpdate(
     userId,
     { $inc: { walletBalance: creditAmount } },
-    { new: true, session },
+    { returnDocument: 'after', session },
   );
 
   if (!updated) {
@@ -71,7 +71,7 @@ const debitWallet = async (
   const updated = await User.findOneAndUpdate(
     { _id: userId, walletBalance: { $gte: debitAmount } },
     { $inc: { walletBalance: -debitAmount } },
-    { new: true, session },
+    { returnDocument: 'after', session },
   );
 
   if (!updated) {
@@ -175,7 +175,7 @@ const creditBookingCancellation = async (booking, session = null) => {
         cancelWalletCreditAmount: creditAmount,
       },
     },
-    { session, new: true },
+    { session, returnDocument: 'after' },
   );
 
   if (!claimed) {
