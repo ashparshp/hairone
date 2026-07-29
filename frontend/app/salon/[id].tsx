@@ -6,6 +6,7 @@ import { useBooking } from '../../context/BookingContext';
 import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; 
 import { SlideInView } from '../../components/AnimatedViews'; 
+import { UserAvatar } from '../../components/UserAvatar';
 import api, { getShopReviews } from '../../services/api';
 import { openRazorpayCheckout } from '../../services/razorpay';
 import {
@@ -664,7 +665,12 @@ export default function ShopDetailsScreen() {
                     {reviews.map((rev, index) => (
                         <View key={index} style={[styles.reviewCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
                             <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
-                                <Image source={{uri: rev.userId?.avatar || `https://ui-avatars.com/api/?name=${rev.userId?.name || 'User'}`}} style={{width: 32, height: 32, borderRadius: 16, marginRight: 8}} />
+                                <UserAvatar
+                                  uri={rev.userId?.avatar}
+                                  name={rev.userId?.name || 'User'}
+                                  size={32}
+                                  style={{ marginRight: 8 }}
+                                />
                                 <View>
                                     <Text style={{color: colors.text, fontWeight: 'bold'}}>{rev.userId?.name || 'User'}</Text>
                                     <View style={{flexDirection: 'row'}}>

@@ -1,10 +1,11 @@
 import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X, CheckCircle } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
-import { Image, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useBooking } from '../../context/BookingContext';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
+import { UserAvatar } from '../../components/UserAvatar';
 import { formatLocalDate } from '../../utils/date';
 import { createReview } from '../../services/api';
 
@@ -359,7 +360,12 @@ const handleMap = (lat: number, lng: number, label: string) => {
 
                     <View style={styles.cardFooter}>
                         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <Image source={{uri: booking.barberId?.avatar || "https://ui-avatars.com/api/?name=Staff"}} style={{width: 24, height: 24, borderRadius: 12, marginRight: 8}} />
+                            <UserAvatar
+                              uri={booking.barberId?.avatar}
+                              name={booking.barberId?.name || 'Staff'}
+                              size={24}
+                              style={{ marginRight: 8 }}
+                            />
                             <Text style={{color: colors.text, fontSize: 12}}>{booking.barberId?.name}</Text>
                         </View>
                         

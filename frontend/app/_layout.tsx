@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { BookingProvider } from '../context/BookingContext';
 import { ToastProvider } from '../context/ToastContext';
-import { ThemeProvider } from '../context/ThemeContext';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { LocationProvider } from '../context/LocationContext';
 import { StatusBar } from 'expo-status-bar';
 import { useState, useEffect } from 'react';
@@ -14,6 +14,7 @@ SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const { isLoading } = useAuth();
+  const { theme } = useTheme();
   const [isSplashVisible, setIsSplashVisible] = useState(true);
 
   useEffect(() => {
@@ -33,7 +34,12 @@ function AppContent() {
   }, [isLoading]);
 
   if (isSplashVisible) {
-    return <SplashScreenComponent />;
+    return (
+      <>
+        <SplashScreenComponent />
+        <StatusBar style="light" />
+      </>
+    );
   }
 
   return (
@@ -46,7 +52,7 @@ function AppContent() {
         <Stack.Screen name="support" />
         <Stack.Screen name="admin" />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </>
   );
 }

@@ -4,7 +4,6 @@ import { Search, MapPin, Filter, Sun, Moon, AlertCircle } from "lucide-react-nat
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +23,7 @@ import { ShopCard } from "../../components/ShopCard";
 import { ShopCardSkeleton } from "../../components/ShopCardSkeleton";
 import { ScalePress } from "../../components/ScalePress";
 import Logo from "../../components/Logo";
+import { UserAvatar } from "../../components/UserAvatar";
 import api from "../../services/api";
 
 const { width } = Dimensions.get('window');
@@ -193,12 +193,15 @@ export default function HomeScreen() {
              </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.avatarContainer, { borderColor: isDark ? '#334155' : 'white' }]}
               onPress={() => router.push('/(tabs)/profile')}
             >
-              <Image
-                source={{ uri: user?.avatar || 'https://via.placeholder.com/100' }}
-                style={styles.avatar}
+              <UserAvatar
+                uri={user?.avatar}
+                name={user?.name}
+                size={40}
+                borderRadius={16}
+                borderWidth={2}
+                borderColor={isDark ? '#334155' : 'white'}
               />
             </TouchableOpacity>
         </View>
@@ -443,17 +446,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 1,
     elevation: 2,
-  },
-  avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    borderWidth: 2,
-    overflow: 'hidden',
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
   },
 
   // Search

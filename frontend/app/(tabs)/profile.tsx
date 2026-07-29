@@ -10,13 +10,13 @@ import {
   ScrollView,
   Modal,
   Platform,
-  Image,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/ToastContext";
 import { FadeInView } from "../../components/AnimatedViews";
+import { UserAvatar } from "../../components/UserAvatar";
 import {
   LogOut,
   User,
@@ -300,24 +300,13 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.card }]}>
         <View style={styles.avatarContainer}>
-          <View
-            style={[
-              styles.avatar,
-              {
-                backgroundColor: theme === "dark" ? "#334155" : "#e2e8f0",
-                borderColor: colors.background,
-              },
-            ]}
-          >
-            {user?.avatar ? (
-              <Image
-                source={{ uri: user.avatar }}
-                style={{ width: "100%", height: "100%", borderRadius: 44 }}
-              />
-            ) : (
-              <User size={40} color={colors.textMuted} />
-            )}
-          </View>
+          <UserAvatar
+            uri={user?.avatar}
+            name={user?.name}
+            size={88}
+            borderWidth={4}
+            borderColor={colors.background}
+          />
           <TouchableOpacity
             style={[
               styles.editAvatarBtn,
@@ -662,18 +651,14 @@ export default function ProfileScreen() {
 
             {/* Image Picker in Modal */}
             <View style={{ alignItems: "center", marginBottom: 20 }}>
-              <TouchableOpacity
-                onPress={pickImage}
-                style={[styles.avatarBig, { borderColor: colors.border }]}
-              >
-                {avatar ? (
-                  <Image
-                    source={{ uri: avatar }}
-                    style={{ width: "100%", height: "100%", borderRadius: 50 }}
-                  />
-                ) : (
-                  <User size={40} color={colors.textMuted} />
-                )}
+              <TouchableOpacity onPress={pickImage} style={styles.avatarPicker}>
+                <UserAvatar
+                  uri={avatar}
+                  name={editName || user?.name}
+                  size={100}
+                  borderWidth={1}
+                  borderColor={colors.border}
+                />
                 <View style={styles.camIcon}>
                   <Camera size={14} color="white" />
                 </View>
@@ -861,14 +846,6 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   avatarContainer: { position: "relative", marginBottom: 12 },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 4,
-  },
   editAvatarBtn: {
     position: "absolute",
     bottom: 0,
@@ -1032,13 +1009,7 @@ const styles = StyleSheet.create({
   statusSub: { fontSize: 12 },
 
   // Avatar Picker
-  avatarBig: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  avatarPicker: {
     position: "relative",
   },
   camIcon: {
