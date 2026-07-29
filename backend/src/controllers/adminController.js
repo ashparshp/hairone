@@ -3,6 +3,7 @@ const Shop = require("../models/Shop");
 const Booking = require("../models/Booking");
 const mongoose = require("mongoose");
 const { cancelBookingRecord } = require("../services/bookingCancellationService");
+const { withSignedShopImages } = require("../utils/imageUrl");
 
 const trimText = (value, max = 120) => {
   if (typeof value !== "string") return undefined;
@@ -451,7 +452,7 @@ exports.getAllShops = async (req, res) => {
       .find()
       .populate("ownerId", "name email phone")
       .sort({ createdAt: -1 });
-    res.json(shops);
+    res.json(await Promise.all(shops.map(withSignedShopImages)));
   } catch (e) {
     res.status(500).json({ message: "Failed to fetch shops" });
   }

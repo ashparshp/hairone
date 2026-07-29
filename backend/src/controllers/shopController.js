@@ -3,6 +3,7 @@ const Barber = require("../models/Barber");
 const User = require("../models/User");
 const Booking = require("../models/Booking");
 const mongoose = require("mongoose");
+const { withSignedShopImages } = require("../utils/imageUrl");
 const { getISTTime } = require("../utils/dateUtils");
 const {
   timeToMinutes,
@@ -211,7 +212,7 @@ exports.createShop = async (req, res) => {
       session.endSession();
     }
 
-    res.status(201).json(shop);
+    res.status(201).json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to create shop" });
@@ -270,7 +271,7 @@ exports.updateShop = async (req, res) => {
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    res.json(shop);
+    res.json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Update failed" });
@@ -368,7 +369,7 @@ exports.getAllShops = async (req, res) => {
       });
     }
 
-    res.json(filteredShops);
+    res.json(await Promise.all(filteredShops.map(withSignedShopImages)));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Server Error" });
@@ -483,7 +484,7 @@ exports.getShopDetails = async (req, res) => {
     if (shop.isDisabled)
       return res.status(404).json({ message: "Shop not found" });
     const barbers = await Barber.find({ shopId: shop._id });
-    res.json({ shop, barbers });
+    res.json({ shop: await withSignedShopImages(shop), barbers });
   } catch (e) {
     res.status(500).json({ message: "Server Error" });
   }
@@ -956,7 +957,8 @@ exports.getUserFavorites = async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId).populate("favorites");
-    res.json(user.favorites || []);
+    const favorites = user?.favorites || [];
+    res.json(await Promise.all(favorites.map(withSignedShopImages)));
   } catch (e) {
     res.status(500).json({ message: "Failed to fetch favorites" });
   }
@@ -1180,7 +1182,7 @@ exports.addGalleryImage = async (req, res) => {
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    res.json(shop);
+    res.json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to upload gallery image" });
@@ -1218,7 +1220,7 @@ exports.deleteGalleryImage = async (req, res) => {
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    res.json(shop);
+    res.json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to delete gallery image" });

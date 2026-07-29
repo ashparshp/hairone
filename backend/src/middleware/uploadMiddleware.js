@@ -1,18 +1,7 @@
 const multer = require('multer');
 const sharp = require('sharp');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const path = require('path');
-
-// 1. DigitalOcean Spaces Configuration from ENV (re-using existing env vars)
-// DigitalOcean Spaces requires us-east-1 with the AWS SDK (not the DO region slug).
-const s3 = new S3Client({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: process.env.DO_SPACES_REGION || 'us-east-1',
-    credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY,
-        secretAccessKey: process.env.DO_SPACES_SECRET,
-    }
-});
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { s3 } = require('../config/s3');
 
 // 2. Multer Configuration (Memory Storage)
 const upload = multer({

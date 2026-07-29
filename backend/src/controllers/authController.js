@@ -2,6 +2,7 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { getJwtSecret } = require('../config/jwt');
 const { checkRateLimit } = require('../utils/rateLimitUtils');
+const { withSignedUserAvatar } = require('../utils/imageUrl');
 
 const OTP_WINDOW_MS = 15 * 60 * 1000;
 const OTP_MAX_PER_PHONE = 5;
@@ -68,7 +69,7 @@ exports.verifyOTP = async (req, res) => {
     res.status(200).json({
       message: 'Login Successful',
       token,
-      user
+      user: await withSignedUserAvatar(user)
     });
 
   } catch (error) {
@@ -91,7 +92,7 @@ exports.updateProfile = async (req, res) => {
       updateData,
       { returnDocument: 'after' }
     );
-    res.json(user);
+    res.json(await withSignedUserAvatar(user));
   } catch (e) {
     res.status(500).json({ message: 'Update failed' });
   }
@@ -122,7 +123,7 @@ exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    res.json(await withSignedUserAvatar(user));
   } catch (e) {
     res.status(500).json({ message: 'Failed to fetch profile' });
   }
