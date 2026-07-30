@@ -4,8 +4,11 @@ const { s3, isStorageConfigured } = require('../config/s3');
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
 
+const isPlaceholderUrl = (url) =>
+  typeof url === 'string' && url.includes('placeholder.com');
+
 const extractS3Key = (url) => {
-  if (!url || typeof url !== 'string') return null;
+  if (!url || typeof url !== 'string' || isPlaceholderUrl(url)) return null;
 
   try {
     const parsed = new URL(url);
@@ -15,22 +18,25 @@ const extractS3Key = (url) => {
     const keyFromPath = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
     if (!keyFromPath) return null;
 
+    // Virtual-hosted style: https://bucket.region.digitaloceanspaces.com/key
     if (parsed.hostname.startsWith(`${bucket}.`)) {
       return keyFromPath;
     }
 
+    // Path-style: https://region.digitaloceanspaces.com/bucket/key
     if (keyFromPath.startsWith(`${bucket}/`)) {
       return keyFromPath.slice(bucket.length + 1);
     }
 
-    return keyFromPath;
+    return null;
   } catch {
     return null;
   }
 };
 
 const signImageUrl = async (url) => {
-  if (!url || !isStorageConfigured()) return url;
+  if (!url || isPlaceholderUrl(url)) return null;
+  if (!isStorageConfigured()) return url;
 
   const key = extractS3Key(url);
   if (!key) return url;
@@ -60,7 +66,7 @@ const withSignedShopImages = async (shop) => {
   }
 
   if (Array.isArray(data.gallery)) {
-    data.gallery = await Promise.all(data.gallery.map(signImageUrl));
+    data.gallery = (await Promise.all(data.gallery.map(signImageUrl))).filter(Boolean);
   }
 
   return data;

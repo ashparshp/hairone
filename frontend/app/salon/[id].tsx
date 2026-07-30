@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; 
 import { SlideInView } from '../../components/AnimatedViews'; 
 import { UserAvatar } from '../../components/UserAvatar';
+import { RemoteImage } from '../../components/RemoteImage';
 import api, { getShopReviews } from '../../services/api';
 import { openRazorpayCheckout } from '../../services/razorpay';
 import {
@@ -18,7 +19,7 @@ import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
   const params = useLocalSearchParams();
-  const { id, name, address, image, rating, reviewCount } = params;
+  const { id, name, address, rating, reviewCount } = params;
   const router = useRouter();
   const { user, login, token, refreshUser } = useAuth();
   const { showToast } = useToast();
@@ -32,7 +33,6 @@ export default function ShopDetailsScreen() {
     _id: id,
     name,
     address,
-    image,
     rating: Number(rating) || 0,
     reviewCount: Number(reviewCount) || 0
   } : null);
@@ -403,7 +403,7 @@ export default function ShopDetailsScreen() {
       {/* --- STEP 1 HEADER --- */}
       {step === 1 && (
         <View style={styles.headerImageContainer}>
-             <Image source={{ uri: shop?.image }} style={styles.headerImage} />
+             <RemoteImage uri={shop?.image} style={styles.headerImage} resizeMode="cover" />
              <View style={styles.overlay} />
              
              <TouchableOpacity style={styles.backBtnAbsolute} onPress={() => router.back()}>
@@ -733,7 +733,7 @@ export default function ShopDetailsScreen() {
                                     style={[styles.galleryItem, { borderColor: colors.border }]}
                                     onPress={() => setViewingImage(img)}
                                 >
-                                    <Image source={{ uri: img }} style={styles.galleryImage} />
+                                    <RemoteImage uri={img} style={styles.galleryImage} resizeMode="cover" />
                                 </TouchableOpacity>
                             ))}
                         </View>

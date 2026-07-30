@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Image, StyleSheet, ViewStyle } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
@@ -33,8 +33,13 @@ export function UserAvatar({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const radius = borderRadius ?? size / 2;
-  const avatarSeed = seed || name?.trim() || "hairone-user";
-  const imageUri = uri || getGeneratedAvatarUri(avatarSeed, size, isDark);
+  const avatarSeed = seed || name?.trim() || 'hairone-user';
+  const generatedUri = getGeneratedAvatarUri(avatarSeed, size, isDark);
+  const [imageUri, setImageUri] = useState(uri || generatedUri);
+
+  useEffect(() => {
+    setImageUri(uri || generatedUri);
+  }, [uri, generatedUri]);
 
   return (
     <View
@@ -54,6 +59,11 @@ export function UserAvatar({
       <Image
         source={{ uri: imageUri }}
         style={{ width: size, height: size, borderRadius: radius }}
+        onError={() => {
+          if (imageUri !== generatedUri) {
+            setImageUri(generatedUri);
+          }
+        }}
       />
     </View>
   );

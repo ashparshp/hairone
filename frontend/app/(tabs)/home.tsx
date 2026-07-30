@@ -221,7 +221,6 @@ export default function HomeScreen() {
                 id: item._id,
                 name: item.name,
                 address: item.address,
-                image: item.image,
                 rating: String(item.rating ?? 0),
                 reviewCount: String(item.reviewCount || 0),
               },
