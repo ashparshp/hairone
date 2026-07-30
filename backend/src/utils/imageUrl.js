@@ -7,25 +7,44 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
 const isPlaceholderUrl = (url) =>
   typeof url === 'string' && url.includes('placeholder.com');
 
-const extractS3Key = (url) => {
+const parseObjectUrl = (url) => {
   if (!url || typeof url !== 'string' || isPlaceholderUrl(url)) return null;
 
   try {
     const parsed = new URL(url);
-    const bucket = process.env.DO_SPACES_BUCKET;
-    if (!bucket) return null;
-
     const keyFromPath = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
     if (!keyFromPath) return null;
 
-    // Virtual-hosted style: https://bucket.region.digitaloceanspaces.com/key
-    if (parsed.hostname.startsWith(`${bucket}.`)) {
-      return keyFromPath;
+    // AWS virtual-hosted: bucket.s3.region.amazonaws.com
+    const awsVirtual = parsed.hostname.match(/^(.+)\.s3[.-][a-z0-9-]+\.amazonaws\.com$/i);
+    if (awsVirtual) {
+      return { bucket: awsVirtual[1], key: keyFromPath };
     }
 
-    // Path-style: https://region.digitaloceanspaces.com/bucket/key
-    if (keyFromPath.startsWith(`${bucket}/`)) {
-      return keyFromPath.slice(bucket.length + 1);
+    // AWS legacy virtual-hosted: bucket.s3.amazonaws.com
+    const awsLegacy = parsed.hostname.match(/^(.+)\.s3\.amazonaws\.com$/i);
+    if (awsLegacy) {
+      return { bucket: awsLegacy[1], key: keyFromPath };
+    }
+
+    // DigitalOcean Spaces virtual-hosted: bucket.region.digitaloceanspaces.com
+    const doVirtual = parsed.hostname.match(/^(.+)\.[a-z0-9-]+\.digitaloceanspaces\.com$/i);
+    if (doVirtual) {
+      return { bucket: doVirtual[1], key: keyFromPath };
+    }
+
+    const configuredBucket = process.env.DO_SPACES_BUCKET;
+    if (configuredBucket) {
+      if (parsed.hostname.startsWith(`${configuredBucket}.`)) {
+        return { bucket: configuredBucket, key: keyFromPath };
+      }
+
+      if (keyFromPath.startsWith(`${configuredBucket}/`)) {
+        return {
+          bucket: configuredBucket,
+          key: keyFromPath.slice(configuredBucket.length + 1),
+        };
+      }
     }
 
     return null;
@@ -38,13 +57,13 @@ const signImageUrl = async (url) => {
   if (!url || isPlaceholderUrl(url)) return null;
   if (!isStorageConfigured()) return url;
 
-  const key = extractS3Key(url);
-  if (!key) return url;
+  const location = parseObjectUrl(url);
+  if (!location) return url;
 
   try {
     const command = new GetObjectCommand({
-      Bucket: process.env.DO_SPACES_BUCKET,
-      Key: key,
+      Bucket: location.bucket,
+      Key: location.key,
     });
 
     return await getSignedUrl(s3, command, {
@@ -86,6 +105,7 @@ const withSignedUserAvatar = async (user) => {
 
 module.exports = {
   signImageUrl,
+  parseObjectUrl,
   withSignedShopImages,
   withSignedUserAvatar,
 };

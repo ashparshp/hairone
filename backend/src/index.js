@@ -37,7 +37,6 @@ const bootstrap = async () => {
 
   const storageConfigured = Boolean(
     process.env.DO_SPACES_BUCKET &&
-      process.env.DO_SPACES_ENDPOINT &&
       process.env.DO_SPACES_KEY &&
       process.env.DO_SPACES_SECRET &&
       process.env.DO_SPACES_KEY !== "your_spaces_access_key",
@@ -50,7 +49,12 @@ const bootstrap = async () => {
       dbHost,
       version: require("../package.json").version,
       storage: storageConfigured
-        ? { label: "digitalocean spaces", ok: true }
+        ? {
+            label: process.env.DO_SPACES_ENDPOINT?.includes("digitaloceanspaces.com")
+              ? "digitalocean spaces"
+              : "aws s3",
+            ok: true,
+          }
         : { label: "not configured", ok: false },
       mockOtp:
         process.env.NODE_ENV !== "production" &&

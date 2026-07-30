@@ -72,10 +72,15 @@ const compressAndUpload = (folder = 'shops') => async (req, res, next) => {
         // Use URL object to parse endpoint.
 
         let fileUrl;
-        const endpointUrl = new URL(process.env.DO_SPACES_ENDPOINT);
-        // Assuming endpoint is like https://blr1.digitaloceanspaces.com
+        const endpoint = process.env.DO_SPACES_ENDPOINT;
+        const region = process.env.DO_SPACES_REGION || 'us-east-1';
 
-        fileUrl = `https://${process.env.DO_SPACES_BUCKET}.${endpointUrl.hostname}/${filename}`;
+        if (endpoint?.includes('digitaloceanspaces.com')) {
+            const endpointUrl = new URL(endpoint);
+            fileUrl = `https://${process.env.DO_SPACES_BUCKET}.${endpointUrl.hostname}/${filename}`;
+        } else {
+            fileUrl = `https://${process.env.DO_SPACES_BUCKET}.s3.${region}.amazonaws.com/${filename}`;
+        }
 
         // Attach location to req.file so controllers work as before
         req.file.location = fileUrl;
