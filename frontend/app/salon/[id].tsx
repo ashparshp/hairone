@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { SlideInView } from '../../components/AnimatedViews'; 
 import { UserAvatar } from '../../components/UserAvatar';
 import { RemoteImage } from '../../components/RemoteImage';
+import { ShopDetailTabSkeleton } from '../../components/ShopDetailSkeleton';
 import api, { getShopReviews } from '../../services/api';
 import { openRazorpayCheckout } from '../../services/razorpay';
 import {
@@ -41,6 +42,7 @@ export default function ShopDetailsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
   // If we have partial data (name), don't show full page loading spinner
   const [loading, setLoading] = useState(!name);
+  const [detailsLoading, setDetailsLoading] = useState(true);
   const [config, setConfig] = useState({ userDiscountRate: 0, onlinePaymentsEnabled: false, razorpayKeyId: null as string | null });
 
   // --- WIZARD STATE ---
@@ -147,6 +149,7 @@ export default function ShopDetailsScreen() {
   }, [slots, bookingType, isSlotValid]);
 
   const fetchShopDetails = async () => {
+    setDetailsLoading(true);
     try {
       const res = await api.get(`/shops/${id}`);
       // Merge full details with existing partial state to avoid flicker
@@ -161,6 +164,7 @@ export default function ShopDetailsScreen() {
       showToast("Could not load shop details.", "error");
     } finally {
       setLoading(false);
+      setDetailsLoading(false);
     }
   };
 
@@ -487,6 +491,10 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'services' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Services</Text>
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="services" />
+                    ) : (
+                    <>
                     {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === service._id);
                         
@@ -554,7 +562,11 @@ export default function ShopDetailsScreen() {
                             </TouchableOpacity>
                         );
                     })}
-                    {(!shop?.services || shop.services.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No services available.</Text>}
+                    {(!shop?.services || shop.services.filter((s: any) => s.isAvailable !== false).length === 0) && (
+                        <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No services available.</Text>
+                    )}
+                    </>
+                    )}
                     </>
                 )}
 
@@ -562,6 +574,10 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'combos' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Exclusive Packages</Text>
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="combos" />
+                    ) : (
+                    <>
                     {shop?.combos && shop.combos.filter((c: any) => c.isAvailable !== false).map((combo: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === combo._id);
                         
@@ -681,7 +697,11 @@ export default function ShopDetailsScreen() {
                             </TouchableOpacity>
                         );
                     })}
-                    {(!shop?.combos || shop.combos.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No combos available.</Text>}
+                    {(!shop?.combos || shop.combos.filter((c: any) => c.isAvailable !== false).length === 0) && (
+                        <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No combos available.</Text>
+                    )}
+                    </>
+                    )}
                     </>
                 )}
 
@@ -689,6 +709,10 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'reviews' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Customer Reviews</Text>
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="reviews" />
+                    ) : (
+                    <>
                     {reviews.map((rev, index) => (
                         <View key={index} style={[styles.reviewCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
                             <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
@@ -718,6 +742,8 @@ export default function ShopDetailsScreen() {
                         </View>
                     )}
                     </>
+                    )}
+                    </>
                 )}
 
                 {/* GALLERY LIST */}
@@ -725,7 +751,9 @@ export default function ShopDetailsScreen() {
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Shop Portfolio</Text>
 
-                    {shop?.gallery && shop.gallery.length > 0 ? (
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="gallery" />
+                    ) : shop?.gallery && shop.gallery.length > 0 ? (
                         <View style={styles.galleryGrid}>
                             {shop.gallery.map((img: string, idx: number) => (
                                 <TouchableOpacity
