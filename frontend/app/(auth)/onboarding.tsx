@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Mail, User } from 'lucide-react-native';
@@ -22,6 +23,7 @@ import api from '../../services/api';
 
 export default function OnboardingScreen() {
   const { user, token, login, dismissOnboarding } = useAuth();
+  const router = useRouter();
   const { colors, theme } = useTheme();
   const { showToast } = useToast();
 
@@ -31,6 +33,18 @@ export default function OnboardingScreen() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [skipping, setSkipping] = useState(false);
+
+  const goToApp = () => {
+    if (user?.role === 'admin') {
+      router.replace('/admin/(tabs)' as any);
+      return;
+    }
+    if (user?.role === 'owner') {
+      router.replace('/(tabs)/dashboard');
+      return;
+    }
+    router.replace('/(tabs)/home');
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -49,6 +63,10 @@ export default function OnboardingScreen() {
     setSkipping(true);
     try {
       await dismissOnboarding();
+      goToApp();
+    } catch (e) {
+      console.log(e);
+      showToast('Could not skip setup', 'error');
     } finally {
       setSkipping(false);
     }
@@ -88,6 +106,7 @@ export default function OnboardingScreen() {
       if (token) {
         await login(token, { ...user, ...res.data });
       }
+      goToApp();
     } catch (e) {
       console.log(e);
       showToast('Failed to save profile', 'error');

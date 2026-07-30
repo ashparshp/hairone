@@ -6,6 +6,7 @@ import { User } from '../types';
 import api, { setupAuthInterceptor } from '../services/api';
 import {
   getOnboardingSkipped,
+  getUserId,
   needsProfileOnboarding,
   setOnboardingSkipped,
 } from '../utils/onboarding';
@@ -87,7 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user?._id) {
+    const userId = getUserId(user);
+    if (!userId) {
       setOnboardingDismissed(false);
       setOnboardingCheckDone(true);
       return;
@@ -95,9 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let mounted = true;
     setOnboardingCheckDone(false);
-    getOnboardingSkipped(user._id).then((skipped) => {
+    getOnboardingSkipped(userId).then((skipped) => {
       if (mounted) {
-        setOnboardingDismissed(skipped);
+        setOnboardingDismissed((current) => current || skipped);
         setOnboardingCheckDone(true);
       }
     });
@@ -105,13 +107,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [user?._id]);
+  }, [user?._id, user?.id]);
 
   const dismissOnboarding = React.useCallback(async () => {
-    if (!user?._id) return;
-    await setOnboardingSkipped(user._id);
+    const userId = getUserId(user);
+    if (!userId) return;
+
     setOnboardingDismissed(true);
-  }, [user?._id]);
+    try {
+      await setOnboardingSkipped(userId);
+    } catch (e) {
+      console.log('Failed to persist onboarding skip', e);
+    }
+  }, [user]);
 
   const needsOnboarding = needsProfileOnboarding(user, onboardingDismissed);
 

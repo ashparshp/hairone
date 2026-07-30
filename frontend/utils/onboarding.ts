@@ -5,6 +5,12 @@ const prefix = 'onboarding_skipped_';
 
 const storageKey = (userId: string) => `${prefix}${userId}`;
 
+export function getUserId(user: { _id?: string; id?: string } | null | undefined): string | null {
+  if (!user) return null;
+  const id = user._id ?? user.id;
+  return id ? String(id) : null;
+}
+
 export async function getOnboardingSkipped(userId: string): Promise<boolean> {
   const key = storageKey(userId);
   if (Platform.OS === 'web') {
