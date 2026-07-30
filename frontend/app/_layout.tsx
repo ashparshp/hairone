@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import SplashScreenComponent from '../components/SplashScreen';
+import { checkForAppUpdate } from '../utils/updates';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,11 +25,11 @@ function AppContent() {
     }
 
     if (!isLoading) {
-      // Keep splash visible for at least a moment or until loading finishes
       const timer = setTimeout(async () => {
         await SplashScreen.hideAsync();
         setIsSplashVisible(false);
-      }, 500); // Reduced splash time for faster open
+        checkForAppUpdate();
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [isLoading]);

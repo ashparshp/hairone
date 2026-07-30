@@ -1,9 +1,20 @@
 {
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "release-apk": {
+      "channel": "production",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://hairone.duckdns.org/api"
+      }
+    },
+    "preview-apk": {
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -11,5 +22,8 @@
         "EXPO_PUBLIC_API_URL": "https://hairone.duckdns.org/api"
       }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
