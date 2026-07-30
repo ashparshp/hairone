@@ -46,3 +46,5 @@ frontend/android/local.properties
 *.key
 *.mobileprovision
 *.orig.*
+
+hairone-server.pem
