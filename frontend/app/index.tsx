@@ -3,9 +3,9 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
 export default function Index() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, onboardingReady, needsOnboarding } = useAuth();
 
-  if (isLoading) {
+  if (isLoading || (user && !onboardingReady)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
@@ -15,6 +15,10 @@ export default function Index() {
 
   if (!user) {
     return <Redirect href="/(auth)/login" />;
+  }
+
+  if (needsOnboarding) {
+    return <Redirect href="/(auth)/onboarding" />;
   }
 
   if (user.role === 'admin') {

@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -21,7 +20,6 @@ import api from "../../services/api";
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const router = useRouter();
   const { colors } = useTheme();
   const { showToast } = useToast();
 
@@ -95,11 +93,6 @@ export default function LoginScreen() {
       const { token, user } = res.data;
 
       await login(token, user);
-
-      if (user.role === "admin") router.replace("/admin/(tabs)" as any);
-      else if (user.role === "owner")
-        router.replace("/(tabs)/dashboard" as any);
-      else router.replace("/(tabs)/home" as any);
     } catch (e: any) {
       console.log("Login Error", e);
       setOtp("");
