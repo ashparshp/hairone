@@ -122,9 +122,7 @@ exports.createShop = async (req, res) => {
 
     const ownerId = req.user.id;
 
-    let imageUrl = req.file
-      ? req.file.location
-      : "https://via.placeholder.com/150";
+    let imageUrl = req.file ? req.file.location : null;
 
     const resolvedName = (name || req.user.businessName || "").trim();
     if (!resolvedName) {

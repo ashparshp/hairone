@@ -13,6 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
+import { RemoteImage } from '../../components/RemoteImage';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 import { ChevronLeft, Trash2, Plus, Image as ImageIcon } from 'lucide-react-native';
@@ -139,7 +140,7 @@ export default function ManageGalleryScreen() {
       style={[styles.imageCard, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => setSelectedImage(item)}
     >
-      <Image source={{ uri: item }} style={styles.thumbnail} />
+      <RemoteImage uri={item} style={styles.thumbnail} resizeMode="cover" />
       <TouchableOpacity
         style={styles.deleteBtn}
         onPress={() => handleDeleteImage(item)}

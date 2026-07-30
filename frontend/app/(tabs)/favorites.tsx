@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Star, MapPin, HeartOff } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
+import { RemoteImage } from '../../components/RemoteImage';
 import api from '../../services/api';
 
 export default function FavoritesScreen() {
@@ -35,7 +36,7 @@ export default function FavoritesScreen() {
       style={[styles.card, {backgroundColor: colors.card, borderColor: colors.border}]}
       onPress={() => router.push(`/salon/${item._id}`)}
     >
-      <Image source={{ uri: item.image }} style={styles.image} />
+      <RemoteImage uri={item.image} style={styles.image} resizeMode="cover" />
       <View style={styles.info}>
          <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
             <Text style={[styles.name, {color: colors.text}]}>{item.name}</Text>
