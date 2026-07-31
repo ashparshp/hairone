@@ -7,6 +7,7 @@ const { initializeCron } = require("./jobs/settlementJob");
 const { initializeBackupJob } = require("./jobs/backupJob");
 const runAutoCancelJob = require("./jobs/autoCancelJob");
 const mongoose = require("mongoose");
+const { printStartupBanner } = require("./utils/logger");
 
 // Security Packages
 const helmet = require("helmet");
@@ -14,7 +15,7 @@ const rateLimit = require("express-rate-limit");
 const hpp = require("hpp");
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const { getJwtSecret } = require("./config/jwt");
 
@@ -26,13 +27,46 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-// Connect to MongoDB
-connectDB().then(() => {
-  initConfig();
-  initializeCron(); // Start the scheduler
-  initializeBackupJob(); // Start the backup scheduler
-  runAutoCancelJob(); // Start Auto Cancel Job
-});
+// Connect to MongoDB and start background jobs after routes are configured
+const bootstrap = async () => {
+  const dbHost = await connectDB();
+  await initConfig();
+  initializeCron();
+  initializeBackupJob();
+  runAutoCancelJob();
+
+  const storageConfigured = Boolean(
+    process.env.DO_SPACES_BUCKET &&
+      process.env.DO_SPACES_KEY &&
+      process.env.DO_SPACES_SECRET &&
+      process.env.DO_SPACES_KEY !== "your_spaces_access_key",
+  );
+
+  app.listen(PORT, "0.0.0.0", () => {
+    printStartupBanner({
+      port: PORT,
+      env: process.env.NODE_ENV || "development",
+      dbHost,
+      version: require("../package.json").version,
+      storage: storageConfigured
+        ? {
+            label: process.env.DO_SPACES_ENDPOINT?.includes("digitaloceanspaces.com")
+              ? "digitalocean spaces"
+              : "aws s3",
+            ok: true,
+          }
+        : { label: "not configured", ok: false },
+      mockOtp:
+        process.env.NODE_ENV !== "production" &&
+        process.env.MOCK_OTP === "true",
+      jobs: [
+        { name: "settlement", schedule: "daily at 00:00" },
+        { name: "db backup", schedule: "daily at 02:00" },
+        { name: "auto no-show", schedule: "every 30 min" },
+      ],
+    });
+  });
+};
 
 const app = express();
 
@@ -146,8 +180,4 @@ app.use("/api/wallet", require("./routes/walletRoutes"));
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;
 
-// Listen on all network interfaces for mobile access
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`☁️  Cloud Storage: DigitalOcean Spaces Active`);
-});
+bootstrap();

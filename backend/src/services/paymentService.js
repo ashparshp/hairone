@@ -73,7 +73,7 @@ const creditCapturedPaymentToWallet = async (paymentOrder, note) => {
         walletCreditedAmount: creditAmount,
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   );
 
   if (!claimed) {
@@ -310,7 +310,7 @@ const tryClaimPaymentOrderForFulfillment = async (paymentOrder) => {
         processingAt: new Date(),
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   );
 
   if (!claimed) {

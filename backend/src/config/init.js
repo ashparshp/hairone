@@ -10,7 +10,6 @@ const initConfig = async () => {
         userDiscountRate: 0,
         isPaymentTestMode: false
       });
-      console.log('⚙️  System Config Initialized');
     }
   } catch (error) {
     console.error('Failed to init config:', error);

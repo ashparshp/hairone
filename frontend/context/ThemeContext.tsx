@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useColorScheme, Platform } from "react-native";
+import * as SystemUI from "expo-system-ui";
 import { LightColors, DarkColors, AppColors } from "../constants/Colors";
 import * as SecureStore from "expo-secure-store";
 
@@ -61,6 +62,11 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const colors = theme === "dark" ? DarkColors : LightColors;
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => {});
+  }, [colors.background]);
 
   return (
     <ThemeContext.Provider value={{ theme, colors, toggleTheme, setTheme }}>

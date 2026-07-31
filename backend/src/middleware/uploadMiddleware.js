@@ -1,17 +1,7 @@
 const multer = require('multer');
 const sharp = require('sharp');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const path = require('path');
-
-// 1. DigitalOcean Spaces Configuration from ENV (re-using existing env vars)
-const s3 = new S3Client({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: "blr1", // Using region from existing code
-    credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY,
-        secretAccessKey: process.env.DO_SPACES_SECRET,
-    }
-});
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { s3 } = require('../config/s3');
 
 // 2. Multer Configuration (Memory Storage)
 const upload = multer({
@@ -28,9 +18,12 @@ const upload = multer({
     }
 });
 
-// 3. Compression and Upload Middleware
-const compressAndUpload = async (req, res, next) => {
+const compressAndUpload = (folder = 'shops') => async (req, res, next) => {
     if (!req.file) return next();
+
+    if (!process.env.DO_SPACES_BUCKET) {
+        return res.status(503).json({ message: 'File uploads are not configured (DO_SPACES_BUCKET missing)' });
+    }
 
     try {
         // Sanitize filename
@@ -39,7 +32,7 @@ const compressAndUpload = async (req, res, next) => {
         // 3. Ensure uniqueness with timestamp
         const originalName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '-');
         const timestamp = Date.now();
-        const filename = `shops/${timestamp}-${originalName}`;
+        const filename = `${folder}/${timestamp}-${originalName}`;
 
         // Compress image
         const compressedBuffer = await sharp(req.file.buffer)
@@ -50,13 +43,12 @@ const compressAndUpload = async (req, res, next) => {
             .jpeg({ quality: 80, mozjpeg: true }) // Convert to JPEG, 80% quality
             .toBuffer();
 
-        // Upload to S3
+        // Upload to S3 (no ACL — bucket uses owner-enforced object ownership)
         const command = new PutObjectCommand({
             Bucket: process.env.DO_SPACES_BUCKET,
             Key: filename,
             Body: compressedBuffer,
-            ACL: 'public-read',
-            ContentType: 'image/jpeg' // We converted to jpeg
+            ContentType: 'image/jpeg',
         });
 
         await s3.send(command);
@@ -80,10 +72,15 @@ const compressAndUpload = async (req, res, next) => {
         // Use URL object to parse endpoint.
 
         let fileUrl;
-        const endpointUrl = new URL(process.env.DO_SPACES_ENDPOINT);
-        // Assuming endpoint is like https://blr1.digitaloceanspaces.com
+        const endpoint = process.env.DO_SPACES_ENDPOINT;
+        const region = process.env.DO_SPACES_REGION || 'us-east-1';
 
-        fileUrl = `https://${process.env.DO_SPACES_BUCKET}.${endpointUrl.hostname}/${filename}`;
+        if (endpoint?.includes('digitaloceanspaces.com')) {
+            const endpointUrl = new URL(endpoint);
+            fileUrl = `https://${process.env.DO_SPACES_BUCKET}.${endpointUrl.hostname}/${filename}`;
+        } else {
+            fileUrl = `https://${process.env.DO_SPACES_BUCKET}.s3.${region}.amazonaws.com/${filename}`;
+        }
 
         // Attach location to req.file so controllers work as before
         req.file.location = fileUrl;

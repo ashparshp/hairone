@@ -44,7 +44,7 @@ const runAutoCancelJob = () => {
             activeBooking: true,
           },
           { $set: { status: "no-show", activeBooking: false } },
-          { new: true },
+          { returnDocument: 'after' },
         );
 
         if (!claimed) continue;

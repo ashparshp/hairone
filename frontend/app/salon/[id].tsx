@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
 import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext'; 
 import { SlideInView } from '../../components/AnimatedViews'; 
+import { UserAvatar } from '../../components/UserAvatar';
+import { RemoteImage } from '../../components/RemoteImage';
+import { ShopDetailTabSkeleton } from '../../components/ShopDetailSkeleton';
 import api, { getShopReviews } from '../../services/api';
 import { openRazorpayCheckout } from '../../services/razorpay';
 import {
@@ -17,7 +20,7 @@ import { formatLocalDate } from '../../utils/date';
 
 export default function ShopDetailsScreen() {
   const params = useLocalSearchParams();
-  const { id, name, address, image, rating, reviewCount } = params;
+  const { id, name, address, rating, reviewCount } = params;
   const router = useRouter();
   const { user, login, token, refreshUser } = useAuth();
   const { showToast } = useToast();
@@ -31,7 +34,6 @@ export default function ShopDetailsScreen() {
     _id: id,
     name,
     address,
-    image,
     rating: Number(rating) || 0,
     reviewCount: Number(reviewCount) || 0
   } : null);
@@ -40,6 +42,7 @@ export default function ShopDetailsScreen() {
   const [reviews, setReviews] = useState<any[]>([]);
   // If we have partial data (name), don't show full page loading spinner
   const [loading, setLoading] = useState(!name);
+  const [detailsLoading, setDetailsLoading] = useState(true);
   const [config, setConfig] = useState({ userDiscountRate: 0, onlinePaymentsEnabled: false, razorpayKeyId: null as string | null });
 
   // --- WIZARD STATE ---
@@ -146,6 +149,7 @@ export default function ShopDetailsScreen() {
   }, [slots, bookingType, isSlotValid]);
 
   const fetchShopDetails = async () => {
+    setDetailsLoading(true);
     try {
       const res = await api.get(`/shops/${id}`);
       // Merge full details with existing partial state to avoid flicker
@@ -160,6 +164,7 @@ export default function ShopDetailsScreen() {
       showToast("Could not load shop details.", "error");
     } finally {
       setLoading(false);
+      setDetailsLoading(false);
     }
   };
 
@@ -194,6 +199,7 @@ export default function ShopDetailsScreen() {
     ? Math.min(walletBalance, discountedTotal)
     : 0;
   const amountDuePreview = Math.max(0, discountedTotal - walletCreditPreview);
+  const requiresPayment = amountDuePreview > 0;
 
   const fetchSlots = async () => {
     setLoadingSlots(true);
@@ -271,7 +277,33 @@ export default function ShopDetailsScreen() {
     try {
         setLoading(true);
 
-        if (paymentMethod === 'online') {
+        if (!requiresPayment) {
+            if (config.onlinePaymentsEnabled && config.razorpayKeyId) {
+                const orderResponse = await createBookingPaymentOrder(bookingPayload);
+                if (!orderResponse.walletOnly) {
+                    throw new Error('Unexpected payment required');
+                }
+                await refreshUser();
+                showToast(
+                  orderResponse.summary.walletCreditApplied
+                    ? `Booking confirmed — ₹${orderResponse.summary.walletCreditApplied.toFixed(2)} account credit used`
+                    : "Booking confirmed!",
+                  "success",
+                );
+            } else {
+                await api.post('/bookings', {
+                    ...bookingPayload,
+                    paymentMethod: 'CASH',
+                });
+                await refreshUser();
+                showToast(
+                  walletCreditPreview > 0
+                    ? `Booking confirmed — ₹${walletCreditPreview.toFixed(2)} account credit used`
+                    : "Booking confirmed!",
+                  "success",
+                );
+            }
+        } else if (paymentMethod === 'online') {
             if (!config.onlinePaymentsEnabled || !config.razorpayKeyId) {
                 return showToast("Online payments are not available right now", "error");
             }
@@ -375,7 +407,7 @@ export default function ShopDetailsScreen() {
       {/* --- STEP 1 HEADER --- */}
       {step === 1 && (
         <View style={styles.headerImageContainer}>
-             <Image source={{ uri: shop?.image }} style={styles.headerImage} />
+             <RemoteImage uri={shop?.image} style={styles.headerImage} resizeMode="cover" />
              <View style={styles.overlay} />
              
              <TouchableOpacity style={styles.backBtnAbsolute} onPress={() => router.back()}>
@@ -459,6 +491,10 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'services' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Services</Text>
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="services" />
+                    ) : (
+                    <>
                     {shop?.services && shop.services.filter((s: any) => s.isAvailable !== false).map((service: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === service._id);
                         
@@ -526,7 +562,11 @@ export default function ShopDetailsScreen() {
                             </TouchableOpacity>
                         );
                     })}
-                    {(!shop?.services || shop.services.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No services available.</Text>}
+                    {(!shop?.services || shop.services.filter((s: any) => s.isAvailable !== false).length === 0) && (
+                        <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No services available.</Text>
+                    )}
+                    </>
+                    )}
                     </>
                 )}
 
@@ -534,6 +574,10 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'combos' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Exclusive Packages</Text>
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="combos" />
+                    ) : (
+                    <>
                     {shop?.combos && shop.combos.filter((c: any) => c.isAvailable !== false).map((combo: any, index: number) => {
                         const isSelected = selectedServices.find(s => s._id === combo._id);
                         
@@ -653,7 +697,11 @@ export default function ShopDetailsScreen() {
                             </TouchableOpacity>
                         );
                     })}
-                    {(!shop?.combos || shop.combos.length === 0) && <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No combos available.</Text>}
+                    {(!shop?.combos || shop.combos.filter((c: any) => c.isAvailable !== false).length === 0) && (
+                        <Text style={{color: colors.textMuted, fontStyle: 'italic'}}>No combos available.</Text>
+                    )}
+                    </>
+                    )}
                     </>
                 )}
 
@@ -661,10 +709,19 @@ export default function ShopDetailsScreen() {
                 {activeTab === 'reviews' && (
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Customer Reviews</Text>
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="reviews" />
+                    ) : (
+                    <>
                     {reviews.map((rev, index) => (
                         <View key={index} style={[styles.reviewCard, {backgroundColor: colors.card, borderColor: colors.border}]}>
                             <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 8}}>
-                                <Image source={{uri: rev.userId?.avatar || `https://ui-avatars.com/api/?name=${rev.userId?.name || 'User'}`}} style={{width: 32, height: 32, borderRadius: 16, marginRight: 8}} />
+                                <UserAvatar
+                                  uri={rev.userId?.avatar}
+                                  name={rev.userId?.name || 'User'}
+                                  size={32}
+                                  style={{ marginRight: 8 }}
+                                />
                                 <View>
                                     <Text style={{color: colors.text, fontWeight: 'bold'}}>{rev.userId?.name || 'User'}</Text>
                                     <View style={{flexDirection: 'row'}}>
@@ -685,6 +742,8 @@ export default function ShopDetailsScreen() {
                         </View>
                     )}
                     </>
+                    )}
+                    </>
                 )}
 
                 {/* GALLERY LIST */}
@@ -692,7 +751,9 @@ export default function ShopDetailsScreen() {
                     <>
                     <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 0}]}>Shop Portfolio</Text>
 
-                    {shop?.gallery && shop.gallery.length > 0 ? (
+                    {detailsLoading ? (
+                        <ShopDetailTabSkeleton variant="gallery" />
+                    ) : shop?.gallery && shop.gallery.length > 0 ? (
                         <View style={styles.galleryGrid}>
                             {shop.gallery.map((img: string, idx: number) => (
                                 <TouchableOpacity
@@ -700,7 +761,7 @@ export default function ShopDetailsScreen() {
                                     style={[styles.galleryItem, { borderColor: colors.border }]}
                                     onPress={() => setViewingImage(img)}
                                 >
-                                    <Image source={{ uri: img }} style={styles.galleryImage} />
+                                    <RemoteImage uri={img} style={styles.galleryImage} resizeMode="cover" />
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -931,7 +992,11 @@ export default function ShopDetailsScreen() {
                     )}
                     <View style={[styles.receiptRowBetween, {marginTop: 8}]}>
                         <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 16}}>
-                          {paymentMethod === 'cash' ? 'Pay at salon' : 'Pay now'}
+                          {!requiresPayment
+                            ? 'Total'
+                            : paymentMethod === 'cash'
+                              ? 'Pay at salon'
+                              : 'Pay now'}
                         </Text>
                         <Text style={{color: isDark ? '#facc15' : '#0f172a', fontWeight: 'bold', fontSize: 20}}>
                             ₹{amountDuePreview.toFixed(2)}
@@ -940,81 +1005,84 @@ export default function ShopDetailsScreen() {
                 </View>
             </View>
 
-            {/* Payment Section */}
-            <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 24}]}>Payment Method</Text>
+            {requiresPayment && (
+              <>
+                <Text style={[styles.sectionTitle, {color: colors.textMuted, marginTop: 24}]}>Payment Method</Text>
 
-            <TouchableOpacity 
-                activeOpacity={cashLimits.remaining > 0 ? 0.9 : 1}
-                style={[
-                    styles.payOption, 
-                    {
-                        backgroundColor: isDark ? '#18181b' : '#ffffff', 
-                        borderColor: paymentMethod === 'cash' ? '#10b981' : (isDark ? '#27272a' : '#e2e8f0'),
-                        borderWidth: paymentMethod === 'cash' ? 2 : 1,
-                        opacity: cashLimits.remaining > 0 ? 1 : 0.5,
-                    }
-                ]} 
-                onPress={() => {
-                  if (cashLimits.remaining > 0) setPaymentMethod('cash');
-                }}
-                disabled={cashLimits.remaining <= 0}
-            >
-                <View style={styles.payIconBg}>
-                    <Banknote size={20} color={isDark ? '#eab308' : '#ca8a04'} />
-                </View>
-                <View style={{flex: 1}}>
-                    <Text style={[styles.payTitle, {color: colors.text}]}>Pay at Salon</Text>
-                    {cashLimitsError ? (
-                      <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>
-                        Could not verify cash booking limits. Online payment recommended.
-                      </Text>
-                    ) : (
-                      <Text style={[styles.paySub, {color: colors.textMuted}]}>
-                      {cashLimits.remaining > 0
-                        ? `Pay at the salon after service (${cashLimits.remaining}/${cashLimits.limit} cash bookings left this month)`
-                        : `Monthly cash booking limit reached (${cashLimits.limit}/${cashLimits.limit})`}
-                      </Text>
-                    )}
-                </View>
-                <View style={[styles.radioCircle, {borderColor: paymentMethod === 'cash' ? '#10b981' : colors.textMuted}]}>
-                    {paymentMethod === 'cash' && <View style={styles.radioDot} />}
-                </View>
-            </TouchableOpacity>
-
-            {config.onlinePaymentsEnabled ? (
-                <TouchableOpacity
-                   activeOpacity={0.9}
-                   style={[
+                <TouchableOpacity 
+                    activeOpacity={cashLimits.remaining > 0 ? 0.9 : 1}
+                    style={[
                         styles.payOption, 
                         {
                             backgroundColor: isDark ? '#18181b' : '#ffffff', 
-                            borderColor: paymentMethod === 'online' ? '#10b981' : (isDark ? '#27272a' : '#e2e8f0'),
-                            borderWidth: paymentMethod === 'online' ? 2 : 1
+                            borderColor: paymentMethod === 'cash' ? '#10b981' : (isDark ? '#27272a' : '#e2e8f0'),
+                            borderWidth: paymentMethod === 'cash' ? 2 : 1,
+                            opacity: cashLimits.remaining > 0 ? 1 : 0.5,
                         }
-                   ]}
-                   onPress={() => setPaymentMethod('online')}
+                    ]} 
+                    onPress={() => {
+                      if (cashLimits.remaining > 0) setPaymentMethod('cash');
+                    }}
+                    disabled={cashLimits.remaining <= 0}
                 >
                     <View style={styles.payIconBg}>
-                        <CreditCard size={20} color={isDark ? '#eab308' : '#ca8a04'} />
+                        <Banknote size={20} color={isDark ? '#eab308' : '#ca8a04'} />
                     </View>
                     <View style={{flex: 1}}>
-                        <Text style={[styles.payTitle, {color: colors.text}]}>Pay Online</Text>
-                        <Text style={[styles.paySub, {color: colors.textMuted}]}>UPI, cards & wallets via Razorpay</Text>
+                        <Text style={[styles.payTitle, {color: colors.text}]}>Pay at Salon</Text>
+                        {cashLimitsError ? (
+                          <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>
+                            Could not verify cash booking limits. Online payment recommended.
+                          </Text>
+                        ) : (
+                          <Text style={[styles.paySub, {color: colors.textMuted}]}>
+                          {cashLimits.remaining > 0
+                            ? `Pay at the salon after service (${cashLimits.remaining}/${cashLimits.limit} cash bookings left this month)`
+                            : `Monthly cash booking limit reached (${cashLimits.limit}/${cashLimits.limit})`}
+                          </Text>
+                        )}
                     </View>
-                    <View style={[styles.radioCircle, {borderColor: paymentMethod === 'online' ? '#10b981' : colors.textMuted}]}>
-                        {paymentMethod === 'online' && <View style={styles.radioDot} />}
+                    <View style={[styles.radioCircle, {borderColor: paymentMethod === 'cash' ? '#10b981' : colors.textMuted}]}>
+                        {paymentMethod === 'cash' && <View style={styles.radioDot} />}
                     </View>
                 </TouchableOpacity>
-            ) : (
-                <View style={[styles.payOption, {backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0', opacity: 0.5}]}>
-                    <View style={[styles.payIconBg, {backgroundColor: isDark ? '#27272a' : '#f1f5f9'}]}>
-                        <CreditCard size={20} color={colors.textMuted} />
+
+                {config.onlinePaymentsEnabled ? (
+                    <TouchableOpacity
+                       activeOpacity={0.9}
+                       style={[
+                            styles.payOption, 
+                            {
+                                backgroundColor: isDark ? '#18181b' : '#ffffff', 
+                                borderColor: paymentMethod === 'online' ? '#10b981' : (isDark ? '#27272a' : '#e2e8f0'),
+                                borderWidth: paymentMethod === 'online' ? 2 : 1
+                            }
+                       ]}
+                       onPress={() => setPaymentMethod('online')}
+                    >
+                        <View style={styles.payIconBg}>
+                            <CreditCard size={20} color={isDark ? '#eab308' : '#ca8a04'} />
+                        </View>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.payTitle, {color: colors.text}]}>Pay Online</Text>
+                            <Text style={[styles.paySub, {color: colors.textMuted}]}>UPI, cards & wallets via Razorpay</Text>
+                        </View>
+                        <View style={[styles.radioCircle, {borderColor: paymentMethod === 'online' ? '#10b981' : colors.textMuted}]}>
+                            {paymentMethod === 'online' && <View style={styles.radioDot} />}
+                        </View>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={[styles.payOption, {backgroundColor: isDark ? '#18181b' : '#ffffff', borderColor: isDark ? '#27272a' : '#e2e8f0', opacity: 0.5}]}>
+                        <View style={[styles.payIconBg, {backgroundColor: isDark ? '#27272a' : '#f1f5f9'}]}>
+                            <CreditCard size={20} color={colors.textMuted} />
+                        </View>
+                        <View style={{flex: 1}}>
+                            <Text style={[styles.payTitle, {color: colors.textMuted}]}>UPI / Online</Text>
+                            <Text style={[styles.paySub, {color: colors.textMuted}]}>Coming Soon</Text>
+                        </View>
                     </View>
-                    <View style={{flex: 1}}>
-                        <Text style={[styles.payTitle, {color: colors.textMuted}]}>UPI / Online</Text>
-                        <Text style={[styles.paySub, {color: colors.textMuted}]}>Coming Soon</Text>
-                    </View>
-                </View>
+                )}
+              </>
             )}
 
          </ScrollView>

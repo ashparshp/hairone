@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
-  Image,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import api from "../../../services/api";
 import { Ban, ShoppingBag, ShieldAlert, PlayCircle } from "lucide-react-native";
 import { FadeInView } from "../../../components/AnimatedViews";
+import { RemoteImage } from "../../../components/RemoteImage";
 
 export default function AdminShops() {
   const { colors } = useTheme();
@@ -101,9 +101,10 @@ export default function AdminShops() {
         onPress={() => router.push(`/admin/shop/${item._id}` as any)}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Image
-            source={{ uri: item.image || "https://via.placeholder.com/100" }}
+          <RemoteImage
+            uri={item.image}
             style={{ width: 50, height: 50, borderRadius: 8 }}
+            resizeMode="cover"
           />
           <View style={{ flex: 1 }}>
             <Text style={[styles.bizName, { color: colors.text }]}>

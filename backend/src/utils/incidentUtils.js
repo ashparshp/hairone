@@ -48,7 +48,7 @@ const maybeFlagUser = async (user, session = null) => {
 
 const incrementCancellationCount = async (userId, session = null) => {
   await resetIncidentCountsIfNewYear(userId, session);
-  const updateOpts = { new: true };
+  const updateOpts = { returnDocument: 'after' };
   if (session) updateOpts.session = session;
   const user = await User.findByIdAndUpdate(
     userId,
@@ -61,7 +61,7 @@ const incrementCancellationCount = async (userId, session = null) => {
 
 const incrementNoShowCount = async (userId, session = null) => {
   await resetIncidentCountsIfNewYear(userId, session);
-  const updateOpts = { new: true };
+  const updateOpts = { returnDocument: 'after' };
   if (session) updateOpts.session = session;
   const user = await User.findByIdAndUpdate(
     userId,

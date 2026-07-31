@@ -3,6 +3,7 @@ const Barber = require("../models/Barber");
 const User = require("../models/User");
 const Booking = require("../models/Booking");
 const mongoose = require("mongoose");
+const { withSignedShopImages } = require("../utils/imageUrl");
 const { getISTTime } = require("../utils/dateUtils");
 const {
   timeToMinutes,
@@ -121,9 +122,7 @@ exports.createShop = async (req, res) => {
 
     const ownerId = req.user.id;
 
-    let imageUrl = req.file
-      ? req.file.location
-      : "https://via.placeholder.com/150";
+    let imageUrl = req.file ? req.file.location : null;
 
     const resolvedName = (name || req.user.businessName || "").trim();
     if (!resolvedName) {
@@ -192,7 +191,7 @@ exports.createShop = async (req, res) => {
               suspensionReason: 1,
             },
           },
-          { session, new: true },
+          { session, returnDocument: 'after' },
         );
 
         if (!updatedOwner) {
@@ -211,7 +210,7 @@ exports.createShop = async (req, res) => {
       session.endSession();
     }
 
-    res.status(201).json(shop);
+    res.status(201).json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to create shop" });
@@ -266,11 +265,11 @@ exports.updateShop = async (req, res) => {
       updates.image = req.file.location;
     }
 
-    const shop = await Shop.findByIdAndUpdate(id, updates, { new: true });
+    const shop = await Shop.findByIdAndUpdate(id, updates, { returnDocument: 'after' });
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    res.json(shop);
+    res.json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Update failed" });
@@ -368,7 +367,7 @@ exports.getAllShops = async (req, res) => {
       });
     }
 
-    res.json(filteredShops);
+    res.json(await Promise.all(filteredShops.map(withSignedShopImages)));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Server Error" });
@@ -483,7 +482,7 @@ exports.getShopDetails = async (req, res) => {
     if (shop.isDisabled)
       return res.status(404).json({ message: "Shop not found" });
     const barbers = await Barber.find({ shopId: shop._id });
-    res.json({ shop, barbers });
+    res.json({ shop: await withSignedShopImages(shop), barbers });
   } catch (e) {
     res.status(500).json({ message: "Server Error" });
   }
@@ -560,7 +559,7 @@ exports.updateBarber = async (req, res) => {
         weeklySchedule,
         specialHours,
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(barber);
   } catch (e) {
@@ -772,7 +771,7 @@ exports.addShopService = async (req, res) => {
           },
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -797,7 +796,7 @@ exports.deleteShopService = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $pull: { services: { _id: serviceId } } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -834,7 +833,7 @@ exports.updateShopService = async (req, res) => {
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "services._id": serviceId },
       { $set: updateQuery },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!shop)
@@ -876,7 +875,7 @@ exports.addShopCombo = async (req, res) => {
           },
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -902,7 +901,7 @@ exports.deleteShopCombo = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $pull: { combos: { _id: comboId } } },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -942,7 +941,7 @@ exports.updateShopCombo = async (req, res) => {
     const shop = await Shop.findOneAndUpdate(
       { _id: id, "combos._id": comboId },
       { $set: updateQuery },
-      { new: true },
+      { returnDocument: 'after' },
     );
     res.json(shop);
   } catch (e) {
@@ -956,7 +955,8 @@ exports.getUserFavorites = async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId).populate("favorites");
-    res.json(user.favorites || []);
+    const favorites = user?.favorites || [];
+    res.json(await Promise.all(favorites.map(withSignedShopImages)));
   } catch (e) {
     res.status(500).json({ message: "Failed to fetch favorites" });
   }
@@ -1175,12 +1175,12 @@ exports.addGalleryImage = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $push: { gallery: imageUrl } },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    res.json(shop);
+    res.json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to upload gallery image" });
@@ -1213,12 +1213,12 @@ exports.deleteGalleryImage = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       id,
       { $pull: { gallery: imageUrl } },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    res.json(shop);
+    res.json(await withSignedShopImages(shop));
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: "Failed to delete gallery image" });

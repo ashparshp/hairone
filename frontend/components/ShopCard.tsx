@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Heart, Star, MapPin, Clock } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { ScalePress } from './ScalePress';
 import { Spacing } from '../constants/Spacing';
-
-const { width } = Dimensions.get('window');
+import { RemoteImage } from './RemoteImage';
 
 interface ShopCardProps {
   shop: any;
@@ -31,8 +30,8 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
       >
         {/* Compact Shop Image */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: shop.image || 'https://via.placeholder.com/400' }}
+          <RemoteImage
+            uri={shop.image}
             style={styles.image}
             resizeMode="cover"
           />

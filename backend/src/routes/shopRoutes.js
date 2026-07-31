@@ -30,7 +30,7 @@ router.get('/config', getPublicConfig);
 router.get('/', getAllShops);
 router.get('/favorites', protect, getUserFavorites);
 router.get('/:id', getShopDetails);
-router.post('/', protect, blockSuspendedOwner, upload.single('image'), compressAndUpload, createShop);
+router.post('/', protect, blockSuspendedOwner, upload.single('image'), compressAndUpload(), createShop);
 router.post('/barbers', protect, blockSuspendedOwner, addBarber);
 router.put('/barbers/:id', protect, blockSuspendedOwner, updateBarber);
 router.post('/slots', getShopSlots);
@@ -40,11 +40,11 @@ router.put('/:id/services/:serviceId', protect, blockSuspendedOwner, updateShopS
 router.post('/:id/combos', protect, blockSuspendedOwner, addShopCombo);
 router.delete('/:id/combos/:comboId', protect, blockSuspendedOwner, deleteShopCombo);
 router.put('/:id/combos/:comboId', protect, blockSuspendedOwner, updateShopCombo);
-router.put('/:id', protect, blockSuspendedOwner, upload.single('image'), compressAndUpload, updateShop);
+router.put('/:id', protect, blockSuspendedOwner, upload.single('image'), compressAndUpload(), updateShop);
 router.get('/:id/revenue', protect, blockSuspendedOwner, getShopRevenue);
 
 // GALLERY ROUTES
-router.post('/:id/gallery', protect, blockSuspendedOwner, upload.single('image'), compressAndUpload, addGalleryImage);
+router.post('/:id/gallery', protect, blockSuspendedOwner, upload.single('image'), compressAndUpload(), addGalleryImage);
 router.delete('/:id/gallery', protect, blockSuspendedOwner, deleteGalleryImage);
 
 // NEW FINANCE ROUTES

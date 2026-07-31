@@ -7,7 +7,7 @@ const checkRateLimit = async (key, maxAttempts, windowMs) => {
   const active = await RateLimit.findOneAndUpdate(
     { key, resetAt: { $gt: now } },
     { $inc: { count: 1 } },
-    { new: true },
+    { returnDocument: 'after' },
   );
 
   if (active) {

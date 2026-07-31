@@ -4,6 +4,13 @@
     "slug": "hairone",
     "version": "1.0.0",
     "orientation": "portrait",
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/65519ff2-2bb0-408b-92bb-491e8d6f8ee1"
+    },
     "icon": "./assets/images/icon.png",
     "scheme": "hairone",
     "userInterfaceStyle": "automatic",
@@ -32,6 +39,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-updates",
       [
         "expo-splash-screen",
         {
@@ -51,8 +59,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "167612eb-70fc-4433-a6ab-833e323c983a"
+        "projectId": "65519ff2-2bb0-408b-92bb-491e8d6f8ee1"
       }
-    }
+    },
+    "owner": "ashparshp"
   }
 }

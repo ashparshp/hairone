@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { FadeInView } from "../../components/AnimatedViews";
 import Logo from "../../components/Logo";
 import { useAuth } from "../../context/AuthContext";
@@ -20,7 +20,6 @@ import api from "../../services/api";
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const router = useRouter();
   const { colors } = useTheme();
   const { showToast } = useToast();
 
@@ -94,11 +93,6 @@ export default function LoginScreen() {
       const { token, user } = res.data;
 
       await login(token, user);
-
-      if (user.role === "admin") router.replace("/admin/(tabs)" as any);
-      else if (user.role === "owner")
-        router.replace("/(tabs)/dashboard" as any);
-      else router.replace("/(tabs)/home" as any);
     } catch (e: any) {
       console.log("Login Error", e);
       setOtp("");
@@ -141,11 +135,13 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <FadeInView>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.keyboardView}
+        >
+          <FadeInView style={styles.content}>
         <View style={{ alignItems: "center", marginBottom: 40 }}>
           <Logo width={280} height={110} />
           <Text style={[styles.tagline, { color: colors.text }]}>
@@ -181,12 +177,15 @@ export default function LoginScreen() {
             />
 
             <TouchableOpacity
-              style={[styles.btn, { backgroundColor: colors.tint }]}
+              style={[
+                styles.btn,
+                { backgroundColor: colors.tint, opacity: loading ? 0.85 : 1 },
+              ]}
               onPress={() => handleSendOtp(false)}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#f59e0b" />
+                <ActivityIndicator color={colors.actionPrimaryText} />
               ) : (
                 <Text style={styles.btnText}>Continue</Text>
               )}
@@ -229,12 +228,18 @@ export default function LoginScreen() {
 
             <View style={{ width: "100%" }}>
               <TouchableOpacity
-                style={[styles.btn, { backgroundColor: colors.tint }]}
+                style={[
+                  styles.btn,
+                  {
+                    backgroundColor: colors.tint,
+                    opacity: loading || otp.length !== 4 ? 0.85 : 1,
+                  },
+                ]}
                 onPress={handleLogin}
                 disabled={loading || otp.length !== 4}
               >
                 {loading ? (
-                  <ActivityIndicator color="#000" />
+                  <ActivityIndicator color={colors.actionPrimaryText} />
                 ) : (
                   <Text style={styles.btnText}>Verify & Login</Text>
                 )}
@@ -265,13 +270,28 @@ export default function LoginScreen() {
             </View>
           </View>
         )}
-      </FadeInView>
-    </KeyboardAvoidingView>
+          </FadeInView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24 },
+  root: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 24,
+  },
 
   tagline: {
     fontSize: 18,
@@ -305,7 +325,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
     width: "100%",
+    minHeight: 52,
   },
   btnText: { fontWeight: "600", color: "#000000", fontSize: 16 },
 

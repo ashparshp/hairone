@@ -10,7 +10,7 @@ const gzip = promisify(zlib.gzip);
 // assuming env vars are globally available.
 const s3 = new S3Client({
     endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: "blr1", // Using region from existing code
+    region: process.env.DO_SPACES_REGION || 'us-east-1',
     credentials: {
         accessKeyId: process.env.DO_SPACES_KEY,
         secretAccessKey: process.env.DO_SPACES_SECRET,
@@ -51,8 +51,7 @@ const performBackup = async () => {
             Bucket: targetBucket,
             Key: filename,
             Body: compressedData,
-            ACL: 'private', // Backups should be private
-            ContentType: 'application/gzip'
+            ContentType: 'application/gzip',
         });
 
         await s3.send(command);

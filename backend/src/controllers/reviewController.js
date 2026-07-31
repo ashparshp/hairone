@@ -1,6 +1,7 @@
 const Review = require('../models/Review');
 const Booking = require('../models/Booking');
 const Shop = require('../models/Shop');
+const { signImageUrl } = require('../utils/imageUrl');
 
 /**
  * =================================================================================================
@@ -105,10 +106,20 @@ exports.getShopReviews = async (req, res) => {
       .limit(limit)
       .populate('userId', 'name avatar'); // Assuming User has name and avatar
 
+    const signedReviews = await Promise.all(
+      reviews.map(async (review) => {
+        const data = review.toObject();
+        if (data.userId?.avatar) {
+          data.userId.avatar = await signImageUrl(data.userId.avatar);
+        }
+        return data;
+      }),
+    );
+
     const total = await Review.countDocuments({ shopId });
 
     res.json({
-      reviews,
+      reviews: signedReviews,
       currentPage: page,
       totalPages: Math.ceil(total / limit),
       totalReviews: total

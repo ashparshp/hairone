@@ -3,6 +3,7 @@ const Shop = require("../models/Shop");
 const Booking = require("../models/Booking");
 const mongoose = require("mongoose");
 const { cancelBookingRecord } = require("../services/bookingCancellationService");
+const { withSignedShopImages } = require("../utils/imageUrl");
 
 const trimText = (value, max = 120) => {
   if (typeof value !== "string") return undefined;
@@ -138,7 +139,7 @@ exports.submitApplication = async (req, res) => {
     };
 
     const user = await User.findByIdAndUpdate(userId, updateData, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
     res.json(user);
@@ -204,7 +205,7 @@ exports.processApplication = async (req, res) => {
             "Untitled Shop",
           $inc: { tokenVersion: 1 },
         },
-        { new: true },
+        { returnDocument: 'after' },
       );
       // If shop exists (re-approval), enable it
       if (user.myShopId) {
@@ -248,7 +249,7 @@ exports.suspendShop = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       shopId,
       { isDisabled: true },
-      { new: true, session },
+      { returnDocument: 'after', session },
     );
     if (!shop) {
       await session.abortTransaction();
@@ -301,7 +302,7 @@ exports.reactivateShop = async (req, res) => {
     const shop = await Shop.findByIdAndUpdate(
       shopId,
       { isDisabled: false },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
@@ -360,7 +361,7 @@ exports.reapply = async (req, res) => {
           updatedAt: new Date(),
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     res.json({ message: "Re-application submitted", user });
@@ -426,7 +427,7 @@ exports.saveMyApplicationDraft = async (req, res) => {
     }
 
     const user = await User.findByIdAndUpdate(req.user.id, update, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }).select("name businessName partnerDraft");
 
@@ -451,7 +452,7 @@ exports.getAllShops = async (req, res) => {
       .find()
       .populate("ownerId", "name email phone")
       .sort({ createdAt: -1 });
-    res.json(shops);
+    res.json(await Promise.all(shops.map(withSignedShopImages)));
   } catch (e) {
     res.status(500).json({ message: "Failed to fetch shops" });
   }
@@ -568,7 +569,7 @@ exports.updateSystemConfig = async (req, res) => {
     const config = await SystemConfig.findOneAndUpdate(
       { key: "global" },
       updates,
-      { new: true, upsert: true },
+      { returnDocument: 'after', upsert: true },
     );
     res.json(config);
   } catch (e) {

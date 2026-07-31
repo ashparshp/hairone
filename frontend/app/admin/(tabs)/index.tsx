@@ -12,6 +12,7 @@ import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
 import api from "../../../services/api";
 import { FadeInView } from "../../../components/AnimatedViews";
+import { UserAvatar } from "../../../components/UserAvatar";
 import {
   DollarSign,
   ShoppingBag,
@@ -179,17 +180,7 @@ export default function AdminHome() {
             Admin command center for operations and finance.
           </Text>
         </View>
-        <View style={[styles.avatar, { backgroundColor: colors.tint }]}>
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "bold",
-              color: colors.actionPrimaryText,
-            }}
-          >
-            {user?.name?.charAt(0)}
-          </Text>
-        </View>
+        <UserAvatar uri={user?.avatar} name={user?.name} size={48} />
       </View>
 
       <ScrollView
@@ -284,13 +275,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 28, fontWeight: "bold" },
   subtitle: { fontSize: 14, marginTop: 4 },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
   financeBanner: {
     flexDirection: "row",

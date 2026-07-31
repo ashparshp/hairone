@@ -8,8 +8,6 @@ const initializeBackupJob = () => {
     console.log('Running scheduled daily database backup...');
     await performBackup();
   });
-
-  console.log('📅 Database backup job scheduled for 02:00 AM daily.');
 };
 
 module.exports = { initializeBackupJob };
