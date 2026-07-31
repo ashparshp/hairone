@@ -1,25 +1,3 @@
-# HairOne
-
-## Getting Started
-
-### Backend
-
-```bash
-cd backend
-cp .env.example .env
-npm install
-npm run dev
-```
-
-### Frontend
-
-```bash
-cd frontend
-cp .env.example .env
-npm install
-npx expo start
-```
-
 ## Test Login
 
 For testing purposes, use the following OTP:
