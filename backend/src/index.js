@@ -180,6 +180,8 @@ app.get("/api/ping", (req, res) => {
   res.json({
     ok: true,
     dbStatus: statusMap[dbStatus] || "unknown",
+    // Bump when verifying CD; safe to leave.
+    deploy: "ci-cd-ok-2026-08-08",
   });
 });
 
