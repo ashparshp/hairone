@@ -8,7 +8,6 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
-  Image,
   Switch
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -16,6 +15,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { RemoteImage } from '../../components/RemoteImage';
 import api from '../../services/api';
 import { MapPin, Save, Store, Camera, Image as ImageIcon } from 'lucide-react-native';
 import {
@@ -206,7 +206,7 @@ export default function ShopDetailsScreen() {
                 <Text style={[styles.label, {color: colors.textMuted}]}>Shop Image</Text>
                 <TouchableOpacity style={[styles.imagePicker, {backgroundColor: colors.surfaceSoft, borderColor: colors.border}]} onPress={pickImage}>
                   {image ? (
-                    <Image source={{ uri: image }} style={styles.previewImage} />
+                    <RemoteImage uri={image} style={styles.previewImage} resizeMode="cover" />
                   ) : (
                     <View style={styles.placeholderImage}>
                       <Camera size={32} color={colors.textMuted} />
