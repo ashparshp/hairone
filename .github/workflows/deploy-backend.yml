@@ -9,7 +9,7 @@
 #   SSH_USER              default ec2-user
 #   SSH_PORT              default 22
 #   BACKEND_DEPLOY_PATH   default /home/ec2-user/hairone/backend
-#   PM2_APP_NAME          default hairone
+#   PM2_APP_NAME          default hairone-backend
 #
 # Server must already have: Node, npm, pm2, and a working .env in BACKEND_DEPLOY_PATH.
 # This workflow never uploads .env.
@@ -38,7 +38,7 @@ jobs:
       SSH_USER: ${{ vars.SSH_USER || 'ec2-user' }}
       SSH_PORT: ${{ vars.SSH_PORT || '22' }}
       DEPLOY_PATH: ${{ vars.BACKEND_DEPLOY_PATH || '/home/ec2-user/hairone/backend' }}
-      PM2_APP_NAME: ${{ vars.PM2_APP_NAME || 'hairone' }}
+      PM2_APP_NAME: ${{ vars.PM2_APP_NAME || 'hairone-backend' }}
     steps:
       - uses: actions/checkout@v4
 
