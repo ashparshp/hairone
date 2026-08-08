@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
-const { PAYMENT_ORDER_STATUS } = require("../constants/paymentStatus");
+const {
+  PAYMENT_ORDER_STATUS,
+  PAYMENT_DISPUTE_STATUS,
+} = require("../constants/paymentStatus");
 
 const pricingSnapshotSchema = new mongoose.Schema(
   {
@@ -68,6 +71,17 @@ const paymentOrderSchema = new mongoose.Schema(
       type: String,
       enum: ["client_verify", "webhook"],
     },
+    // Refund / dispute tracking (populated from Razorpay webhooks)
+    refundedAt: Date,
+    razorpayRefundId: String,
+    amountRefundedPaise: { type: Number, default: 0 },
+    disputeId: String,
+    disputeStatus: {
+      type: String,
+      enum: Object.values(PAYMENT_DISPUTE_STATUS),
+    },
+    lastWebhookEvent: String,
+    lastWebhookAt: Date,
   },
   { timestamps: true },
 );
