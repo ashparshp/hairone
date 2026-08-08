@@ -1,0 +1,16 @@
+/** Canonical Indian mobile: 10 digits starting with 6–9. */
+export const normalizeIndianPhone = (input: string): string | null => {
+  const digits = String(input || "").replace(/\D/g, "");
+  if (!digits) return null;
+
+  let candidate = digits;
+  if (candidate.length === 12 && candidate.startsWith("91")) {
+    candidate = candidate.slice(2);
+  } else if (candidate.length === 11 && candidate.startsWith("0")) {
+    candidate = candidate.slice(1);
+  }
+
+  if (candidate.length !== 10) return null;
+  if (!/^[6-9]\d{9}$/.test(candidate)) return null;
+  return candidate;
+};
