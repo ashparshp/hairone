@@ -1,38 +1,31 @@
-# Deploy backend to EC2 over SSH.
+# Single backend pipeline: syntax check → deploy to EC2.
 #
-# GitHub → Settings → Secrets and variables → Actions → Secrets tab
-# Add under "Repository secrets" (NOT Environment secrets):
-#   SSH_PRIVATE_KEY  = full contents of hairone-server.pem
+# Repository secret (required):
+#   SSH_PRIVATE_KEY  = contents of hairone-server.pem
 #
-# Variables tab (optional overrides):
-#   SSH_HOST              default 3.85.219.147
-#   SSH_USER              default ec2-user
-#   SSH_PORT              default 22
-#   BACKEND_DEPLOY_PATH   default /home/ec2-user/hairone/backend
-#   PM2_APP_NAME          default hairone-backend
+# Optional variables:
+#   SSH_HOST, SSH_USER, SSH_PORT, BACKEND_DEPLOY_PATH, PM2_APP_NAME
 #
-# Server must already have: Node, npm, pm2, and a working .env in BACKEND_DEPLOY_PATH.
-# This workflow never uploads .env.
+# Never uploads .env (must already exist on the server).
 
-name: Deploy Backend
+name: Backend
 
 on:
   push:
     branches: [main, master]
     paths:
       - "backend/**"
-      - ".github/workflows/deploy-backend.yml"
+      - ".github/workflows/backend.yml"
   workflow_dispatch:
 
 concurrency:
-  group: deploy-backend
+  group: backend
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to EC2
+    name: Check and deploy
     runs-on: ubuntu-latest
-    # No `environment:` — uses Repository secrets (not Environment secrets)
     env:
       SSH_HOST: ${{ vars.SSH_HOST || '3.85.219.147' }}
       SSH_USER: ${{ vars.SSH_USER || 'ec2-user' }}
@@ -41,6 +34,20 @@ jobs:
       PM2_APP_NAME: ${{ vars.PM2_APP_NAME || 'hairone-backend' }}
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install (CI)
+        working-directory: backend
+        run: npm ci
+
+      - name: Syntax check
+        working-directory: backend
+        run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
 
       - name: Setup SSH key
         run: |
