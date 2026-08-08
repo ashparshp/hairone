@@ -7,7 +7,11 @@ const { initializeCron } = require("./jobs/settlementJob");
 const { initializeBackupJob } = require("./jobs/backupJob");
 const runAutoCancelJob = require("./jobs/autoCancelJob");
 const mongoose = require("mongoose");
-const { printStartupBanner } = require("./utils/logger");
+const {
+  printStartupBanner,
+  requestLoggingMiddleware,
+  logger,
+} = require("./utils/logger");
 
 // Security Packages
 const helmet = require("helmet");
@@ -92,6 +96,9 @@ if (process.env.NODE_ENV === "production") {
 } else {
   app.use(cors());
 }
+
+app.use(requestLoggingMiddleware);
+
 // Webhook must use raw body for signature verification
 const { handleWebhook } = require("./controllers/paymentController");
 app.post(
@@ -159,10 +166,10 @@ app.get("/api/ping", (req, res) => {
     2: "connecting",
     3: "disconnecting",
   };
-  console.log(`PING HIT - DB Status: ${statusMap[dbStatus]}`);
+  logger.debug("ping", { dbStatus: statusMap[dbStatus] || "unknown" });
   res.json({
     ok: true,
-    dbStatus: statusMap[dbStatus] || "unknown"
+    dbStatus: statusMap[dbStatus] || "unknown",
   });
 });
 

@@ -1,11 +1,11 @@
-const cron = require('node-cron');
-const { performBackup } = require('../services/backupService');
+const cron = require("node-cron");
+const { performBackup } = require("../services/backupService");
+const { logger } = require("../utils/logger");
 
 const initializeBackupJob = () => {
-  // Schedule the backup to run at 2:00 AM every day
-  // Cron syntax: 0 2 * * * (minute hour day-of-month month day-of-week)
-  cron.schedule('0 2 * * *', async () => {
-    console.log('Running scheduled daily database backup...');
+  // Daily at 02:00 server time
+  cron.schedule("0 2 * * *", async () => {
+    logger.info("backup_job_triggered");
     await performBackup();
   });
 };
