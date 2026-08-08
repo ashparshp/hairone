@@ -8,7 +8,6 @@ const initConfig = async () => {
         key: 'global',
         adminCommissionRate: 10,
         userDiscountRate: 0,
-        isPaymentTestMode: false
       });
     }
   } catch (error) {

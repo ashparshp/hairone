@@ -53,7 +53,7 @@ export default function ShopDetailsScreen() {
   const [selectedBarberId, setSelectedBarberId] = useState<string>('any'); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'online'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
   const [bookingType, setBookingType] = useState<'earliest' | 'schedule'>('earliest'); 
 
   // TABS
@@ -107,7 +107,9 @@ export default function ShopDetailsScreen() {
      try {
          const res = await api.get('/shops/config');
          if(res.data) setConfig(res.data);
-     } catch(e) { console.log('Config fetch error', e); }
+     } catch(e) {
+         if (__DEV__) console.log('Config fetch error', e);
+     }
   };
 
   useEffect(() => {
@@ -160,9 +162,12 @@ export default function ShopDetailsScreen() {
       try {
         const reviewsRes = await getShopReviews(id as string);
         setReviews(reviewsRes.reviews);
-      } catch (err) { console.log('Reviews fetch error', err); }
+      } catch (err) {
+        if (__DEV__) console.log('Reviews fetch error', err);
+        showToast("Could not load reviews", "error");
+      }
     } catch (e) {
-      console.log(e);
+      if (__DEV__) console.log(e);
       showToast("Could not load shop details.", "error");
     } finally {
       setLoading(false);
@@ -179,7 +184,7 @@ export default function ShopDetailsScreen() {
       const updatedUser = { ...user, favorites };
       if (token) login(token, updatedUser);
     } catch (e) {
-      console.log("Fav Error", e);
+      if (__DEV__) console.log("Fav Error", e);
       showToast("Could not update favorites", "error");
     }
   };
@@ -218,8 +223,8 @@ export default function ShopDetailsScreen() {
         });
         setSlots(res.data);
     } catch (e) {
-        console.log("Fetch Slots Error:", e);
-        showToast("Could not load slots.", "error");
+        if (__DEV__) console.log("Fetch Slots Error:", e);
+        showToast("Could not load available times", "error");
     } finally {
         setLoadingSlots(false);
     }

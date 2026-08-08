@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Pressable, Animated, ViewStyle, StyleProp } from 'react-native';
+import { Pressable, Animated, ViewStyle, StyleProp, AccessibilityRole } from 'react-native';
 
 interface ScalePressProps {
   children: React.ReactNode;
@@ -7,6 +7,9 @@ interface ScalePressProps {
   style?: StyleProp<ViewStyle>;
   scaleTo?: number;
   disabled?: boolean;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityLabel?: string;
+  accessibilityState?: { selected?: boolean; disabled?: boolean };
 }
 
 /**
@@ -17,7 +20,10 @@ export const ScalePress = ({
   onPress,
   style,
   scaleTo = 0.96,
-  disabled = false
+  disabled = false,
+  accessibilityRole,
+  accessibilityLabel,
+  accessibilityState,
 }: ScalePressProps) => {
   const scaleValue = useRef(new Animated.Value(1)).current;
 
@@ -44,6 +50,9 @@ export const ScalePress = ({
       onPressIn={!disabled ? onPressIn : undefined}
       onPressOut={!disabled ? onPressOut : undefined}
       onPress={!disabled ? onPress : undefined}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={accessibilityState}
     >
       <Animated.View style={[style, { transform: [{ scale: scaleValue }] }]}>
         {children}

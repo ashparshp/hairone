@@ -69,6 +69,9 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
               onPress={onPress}
               style={styles.tabBtn}
               activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityLabel={item.label}
+              accessibilityState={{ selected: isActive }}
             >
               <View style={[
                 styles.activeIndicator,

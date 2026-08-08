@@ -389,86 +389,125 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// Helper for Home Screen Card Slot
+// Helper for Home Screen Card Slot — shortest available service + overnight spillover
 const findEarliestSlotForShop = async (shop, minTimeStr = "00:00") => {
   const { date, minutes: currentISTMinutes } = getISTTime();
-  const serviceDuration = 30;
   const bufferTime = shop.bufferTime || 0;
+
+  const availableServices = (shop.services || []).filter(
+    (s) => s.isAvailable !== false && Number(s.duration) > 0,
+  );
+  const serviceDuration = availableServices.length
+    ? Math.min(...availableServices.map((s) => Number(s.duration)))
+    : 30;
 
   const barbers = await Barber.find({ shopId: shop._id, isAvailable: true });
   if (barbers.length === 0) return null;
 
-  // For home screen, we just check TODAY's slots roughly
-  // This might need the same overnight logic, but for simplicity/performance
-  // we might keep it simple or apply the same fix if needed.
-  // Let's stick to simple logic for now, or the same logic as getShopSlots but simplified.
+  const prevDateObj = subDays(new Date(date), 1);
+  const prevDate = format(prevDateObj, "yyyy-MM-dd");
 
-  // Actually, to avoid inconsistency, we should probably check overnight too.
-  // But let's leave it for now to focus on the main booking flow.
-  // ...
-
-  // Reverting to simple logic for finding ANY slot today
-  // ... Restoring original logic ...
   const bookings = await Booking.find({
     barberId: { $in: barbers.map((b) => b._id) },
-    date: date,
+    date: { $in: [date, prevDate] },
     activeBooking: true,
   });
 
   const bookingsMap = {};
+  barbers.forEach((b) => {
+    bookingsMap[b._id] = { today: [], yesterday: [] };
+  });
   bookings.forEach((b) => {
-    if (!bookingsMap[b.barberId]) bookingsMap[b.barberId] = [];
-    bookingsMap[b.barberId].push({
+    const entry = {
       start: timeToMinutes(b.startTime),
       end: timeToMinutes(b.endTime) + bufferTime,
-    });
+    };
+    const bucket = bookingsMap[b.barberId];
+    if (!bucket) return;
+    if (b.date === date) bucket.today.push(entry);
+    else if (b.date === prevDate) bucket.yesterday.push(entry);
   });
 
   let minStart = 24 * 60;
   let maxEnd = 0;
-
   const barberSchedules = {};
+
   barbers.forEach((b) => {
-    const schedule = getBarberScheduleForDate(b, date);
-    barberSchedules[b._id] = schedule;
-    if (schedule.isOpen) {
-      if (schedule.start < minStart) minStart = schedule.start;
-      if (schedule.end > maxEnd) maxEnd = schedule.end;
+    const today = getBarberScheduleForDate(b, date);
+    const yesterday = getBarberScheduleForDate(b, prevDate);
+    barberSchedules[b._id] = { today, yesterday };
+
+    if (today.isOpen) {
+      if (today.start < minStart) minStart = today.start;
+      if (today.end > maxEnd) maxEnd = today.end;
+    }
+    if (yesterday.isOpen && yesterday.end > 1440) {
+      minStart = 0;
+      const spillOver = yesterday.end - 1440;
+      if (spillOver > maxEnd) maxEnd = spillOver;
     }
   });
 
-  if (minStart >= maxEnd) return null;
+  if (minStart >= maxEnd && maxEnd === 0) return null;
 
   const minFilter = timeToMinutes(minTimeStr);
   let current = Math.max(minStart, minFilter);
 
-  // Constraint: Strictly respect minBookingNotice + bufferTime
-  // Frontend uses: cutoff = currentTime + minBookingNotice + bufferTime
-  // We need strictly greater: slotTime > cutoff
   const earliestAllowed =
-    currentISTMinutes + (shop.minBookingNotice || 0) + (shop.bufferTime || 0);
+    currentISTMinutes + (shop.minBookingNotice || 0) + bufferTime;
 
   if (current <= earliestAllowed) {
     const diff = earliestAllowed - current;
-    // Align to next 15-minute slot that is > earliestAllowed
     const steps = Math.floor(diff / 15) + 1;
     current += steps * 15;
   }
 
-  while (current + serviceDuration <= maxEnd) {
+  const isAvailableAt = (time) => {
     for (const barber of barbers) {
-      const schedule = barberSchedules[barber._id];
-      if (
-        isBarberFree(
-          schedule,
-          current,
-          serviceDuration + bufferTime,
-          bookingsMap[barber._id] || [],
-        )
-      ) {
-        return minutesToTime(current);
+      const { today, yesterday } = barberSchedules[barber._id];
+      const bBookings = bookingsMap[barber._id];
+
+      if (today.isOpen) {
+        const busyToday = [
+          ...bBookings.today,
+          ...bBookings.yesterday.map((r) => ({
+            start: r.start - 1440,
+            end: r.end - 1440,
+          })),
+        ];
+        if (
+          isBarberFree(today, time, serviceDuration + bufferTime, busyToday)
+        ) {
+          return true;
+        }
+      }
+
+      if (yesterday.isOpen && yesterday.end > 1440) {
+        const timeInYesterday = time + 1440;
+        const busyYesterday = [
+          ...bBookings.yesterday,
+          ...bBookings.today.map((r) => ({
+            start: r.start + 1440,
+            end: r.end + 1440,
+          })),
+        ];
+        if (
+          isBarberFree(
+            yesterday,
+            timeInYesterday,
+            serviceDuration + bufferTime,
+            busyYesterday,
+          )
+        ) {
+          return true;
+        }
       }
     }
+    return false;
+  };
+
+  while (current + serviceDuration <= maxEnd) {
+    if (isAvailableAt(current)) return minutesToTime(current);
     current += 15;
   }
   return null;

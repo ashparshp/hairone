@@ -12,7 +12,7 @@ import {
   User,
   UserPlus,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -77,10 +77,6 @@ export default function DashboardScreen() {
       fetchShopData();
     }, [fetchShopData, refreshUser]),
   );
-
-  useEffect(() => {
-    fetchShopData();
-  }, [fetchShopData]);
 
   const onRefresh = () => {
     setRefreshing(true);

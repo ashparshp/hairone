@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import Colors from '../constants/Colors';
 import { CheckCircle, AlertCircle, X, Info } from 'lucide-react-native';
+import { useTheme } from './ThemeContext';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -15,12 +15,23 @@ const ToastContext = createContext<ToastContextData>({} as ToastContextData);
 export const useToast = () => useContext(ToastContext);
 
 export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
+  const { colors } = useTheme();
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
   const [type, setType] = useState<ToastType>('success');
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hideToast = useCallback(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setVisible(false);
+    });
+  }, [fadeAnim]);
 
   const showToast = useCallback((msg: string, t: ToastType = 'success') => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -38,31 +49,22 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
     timeoutRef.current = setTimeout(() => {
       hideToast();
     }, 3000);
-  }, []);
+  }, [fadeAnim, hideToast]);
 
-  const hideToast = useCallback(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setVisible(false);
-    });
-  }, []);
-
+  const iconColor = colors.white;
   const getIcon = () => {
     switch (type) {
-      case 'success': return <CheckCircle size={24} color="white" />;
-      case 'error': return <AlertCircle size={24} color="white" />;
-      default: return <Info size={24} color="white" />;
+      case 'success': return <CheckCircle size={24} color={iconColor} />;
+      case 'error': return <AlertCircle size={24} color={iconColor} />;
+      default: return <Info size={24} color={iconColor} />;
     }
   };
 
   const getBgColor = () => {
     switch (type) {
-      case 'success': return Colors.success || '#10b981';
-      case 'error': return Colors.error || '#ef4444';
-      default: return Colors.primary;
+      case 'success': return colors.statusSuccess;
+      case 'error': return colors.statusDanger;
+      default: return colors.statusInfo;
     }
   };
 
@@ -73,10 +75,14 @@ export const ToastProvider = ({ children }: { children: React.ReactNode }) => {
         <Animated.View style={[styles.toastContainer, { opacity: fadeAnim, backgroundColor: getBgColor() }]}>
           <View style={styles.content}>
              {getIcon()}
-             <Text style={styles.text}>{message}</Text>
+             <Text style={[styles.text, { color: colors.white }]}>{message}</Text>
           </View>
-          <TouchableOpacity onPress={hideToast}>
-            <X size={20} color="white" style={{opacity: 0.8}} />
+          <TouchableOpacity
+            onPress={hideToast}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss notification"
+          >
+            <X size={20} color={colors.white} style={{opacity: 0.8}} />
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -109,7 +115,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   text: {
-    color: 'white',
     fontWeight: '600',
     fontSize: 14,
     flex: 1,

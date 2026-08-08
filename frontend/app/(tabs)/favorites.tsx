@@ -13,28 +13,34 @@ import { Star, MapPin, HeartOff } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { FadeInView } from "../../components/AnimatedViews";
 import { RemoteImage } from "../../components/RemoteImage";
+import { useToast } from "../../context/ToastContext";
 import { getFavoriteShops } from "../../services/favorites";
 import { Shop } from "../../types";
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { showToast } = useToast();
   const [favorites, setFavorites] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchFavorites = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const shops = await getFavoriteShops();
       setFavorites(shops);
+      setLoadError(false);
     } catch (e) {
-      console.log("Error fetching favorites:", e);
+      if (__DEV__) console.log("Error fetching favorites:", e);
+      setLoadError(true);
+      showToast("Could not load favorites", "error");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [showToast]);
 
   useFocusEffect(
     useCallback(() => {
@@ -109,13 +115,21 @@ export default function FavoritesScreen() {
             <View style={styles.empty}>
               <HeartOff size={48} color={colors.textMuted} />
               <Text style={[styles.emptyTitle, { color: colors.textMuted }]}>
-                No favorites yet
+                {loadError ? "Could not load favorites" : "No favorites yet"}
               </Text>
               <TouchableOpacity
                 style={[styles.browseBtn, { backgroundColor: colors.tint }]}
-                onPress={() => router.push("/(tabs)/home")}
+                onPress={() =>
+                  loadError ? fetchFavorites() : router.push("/(tabs)/home")
+                }
+                accessibilityRole="button"
+                accessibilityLabel={
+                  loadError ? "Retry loading favorites" : "Browse salons"
+                }
               >
-                <Text style={styles.browseBtnText}>Browse salons</Text>
+                <Text style={styles.browseBtnText}>
+                  {loadError ? "Retry" : "Browse salons"}
+                </Text>
               </TouchableOpacity>
             </View>
           }

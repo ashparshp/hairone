@@ -7,7 +7,7 @@ const { initializeCron } = require("./jobs/settlementJob");
 const { initializeBackupJob } = require("./jobs/backupJob");
 const runAutoCancelJob = require("./jobs/autoCancelJob");
 const mongoose = require("mongoose");
-const { printStartupBanner } = require("./utils/logger");
+const { printStartupBanner, error: logError } = require("./utils/logger");
 
 // Security Packages
 const helmet = require("helmet");
@@ -130,16 +130,20 @@ const sanitizeMongo = (req, res, next) => {
 app.use(sanitizeMongo);
 app.use(hpp()); // Prevent HTTP Parameter Pollution
 
-// Rate Limiting
+// Rate Limiting — general budget sized for mobile tab polling / shop list refresh
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.API_RATE_LIMIT_MAX) || 400,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: "Too many requests from this IP, please try again later.",
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 requests per windowMs for auth routes
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: "Too many login attempts from this IP, please try again later.",
 });
 
@@ -176,6 +180,23 @@ app.use("/api/reviews", require("./routes/reviewRoutes"));
 app.use("/api/finance", require("./routes/financeRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
 app.use("/api/wallet", require("./routes/walletRoutes"));
+
+// 404 + global error handler (must be after routes)
+app.use((req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  logError(err.message || "Unhandled error", err);
+  res.status(status).json({
+    message:
+      status >= 500
+        ? "Internal server error"
+        : err.message || "Request failed",
+  });
+});
 
 // Server Port Configuration
 const PORT = process.env.PORT || 8000;
