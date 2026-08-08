@@ -25,6 +25,7 @@ import { ScalePress } from "../../components/ScalePress";
 import Logo from "../../components/Logo";
 import { UserAvatar } from "../../components/UserAvatar";
 import api from "../../services/api";
+import { toggleFavoriteShop } from "../../services/favorites";
 
 const { width } = Dimensions.get('window');
 
@@ -98,11 +99,11 @@ export default function HomeScreen() {
   }, [searchText, activeCategory]);
 
   const toggleFavorite = async (shopId: string) => {
-    if (!user) return; // or show toast
+    if (!user) return;
 
     try {
-      const res = await api.post('/auth/favorites', { shopId });
-      const updatedUser = { ...user, favorites: res.data };
+      const favorites = await toggleFavoriteShop(shopId);
+      const updatedUser = { ...user, favorites };
       if (token) login(token, updatedUser);
     } catch (e) {
       console.log("Error toggling favorite:", e);

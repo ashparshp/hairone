@@ -283,14 +283,32 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
-  const StatBox = ({ label, value }: any) => (
-    <View style={styles.statBox}>
-      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-        {label}
-      </Text>
-    </View>
-  );
+  const StatBox = ({
+    label,
+    value,
+    onPress,
+  }: {
+    label: string;
+    value: string | number;
+    onPress?: () => void;
+  }) => {
+    const content = (
+      <>
+        <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+        <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+          {label}
+        </Text>
+      </>
+    );
+    if (onPress) {
+      return (
+        <TouchableOpacity style={styles.statBox} onPress={onPress}>
+          {content}
+        </TouchableOpacity>
+      );
+    }
+    return <View style={styles.statBox}>{content}</View>;
+  };
 
   return (
     <ScrollView
@@ -353,7 +371,11 @@ export default function ProfileScreen() {
       <View style={styles.statsRow}>
         {user?.role === "user" && (
           <>
-            <StatBox value={user?.favorites?.length || 0} label="Favorites" />
+            <StatBox
+              value={user?.favorites?.length || 0}
+              label="Favorites"
+              onPress={() => router.push("/(tabs)/favorites" as any)}
+            />
             <View
               style={[styles.statDivider, { backgroundColor: colors.border }]}
             />
@@ -593,7 +615,7 @@ export default function ProfileScreen() {
             icon={Heart}
             label="My Favorites"
             subLabel={`${user?.favorites?.length || 0} saved shops`}
-            onPress={() => router.push("/salon/favorites" as any)}
+            onPress={() => router.push("/(tabs)/favorites" as any)}
           />
         )}
 
