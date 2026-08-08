@@ -1,4 +1,4 @@
-# Single backend pipeline: syntax check → deploy to EC2.
+# Syntax check → deploy backend to EC2.
 #
 # Repository secret (required):
 #   SSH_PRIVATE_KEY  = contents of hairone-server.pem
@@ -8,23 +8,23 @@
 #
 # Never uploads .env (must already exist on the server).
 
-name: Backend
+name: Deploy
 
 on:
   push:
     branches: [main, master]
     paths:
       - "backend/**"
-      - ".github/workflows/backend.yml"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 concurrency:
-  group: backend
+  group: deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Check and deploy
+    name: Deploy
     runs-on: ubuntu-latest
     env:
       SSH_HOST: ${{ vars.SSH_HOST || '3.85.219.147' }}
@@ -41,7 +41,7 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install (CI)
+      - name: Install
         working-directory: backend
         run: npm ci
 
