@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import api from '../../services/api';
+import { getMyShopId } from '../../utils/shop';
 import { ChevronLeft, Trash2, Calendar, Plus } from 'lucide-react-native';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -39,10 +40,9 @@ export default function ManageBarberScreen() {
   const [fetching, setFetching] = useState(!!barberId);
 
   useEffect(() => {
-    // @ts-ignore
-    if (barberId && user?.myShopId) {
-      // @ts-ignore
-      api.get(`/shops/${user.myShopId}`).then(res => {
+    const shopId = getMyShopId(user);
+    if (barberId && shopId) {
+      api.get(`/shops/${shopId}`).then(res => {
         const barber = res.data.barbers.find((b: any) => b._id === barberId);
         if (barber) {
           setName(barber.name);
@@ -71,8 +71,8 @@ export default function ManageBarberScreen() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // @ts-ignore
-      if (!user?.myShopId) {
+      const shopId = getMyShopId(user);
+      if (!shopId) {
          showToast("Shop ID missing", "error");
          return;
       }
@@ -98,8 +98,7 @@ export default function ManageBarberScreen() {
         await api.put(`/shops/barbers/${barberId}`, payload);
         showToast("Barber schedule updated!", "success");
       } else {
-        // @ts-ignore
-        await api.post('/shops/barbers', { ...payload, shopId: user.myShopId });
+        await api.post('/shops/barbers', { ...payload, shopId });
         showToast("New barber added!", "success");
       }
       router.back();

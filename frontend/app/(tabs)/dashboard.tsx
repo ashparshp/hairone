@@ -40,6 +40,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { Spacing } from "../../constants/Spacing";
 import api from "../../services/api";
 import type { Barber } from "../../types";
+import { getMyShopId } from "../../utils/shop";
 
 export default function DashboardScreen() {
   const { user, refreshUser } = useAuth();
@@ -51,8 +52,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchShopData = useCallback(async () => {
-    const shopId =
-      typeof user?.myShopId === "object" ? user?.myShopId?._id : user?.myShopId;
+    const shopId = getMyShopId(user);
 
     if (!shopId) {
       setLoading(false);

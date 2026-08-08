@@ -76,12 +76,14 @@ const isBarberFree = (
   return !hasConflict;
 };
 
+const { userOwnsShop } = require("../utils/shopUtils");
+
 const isAdmin = (user) => user && user.role === "admin";
 
 const canManageShop = (user, shop) => {
   if (!user || !shop) return false;
   if (isAdmin(user)) return true;
-  return !!user.myShopId && user.myShopId.toString() === shop._id.toString();
+  return userOwnsShop(user, shop._id);
 };
 
 const parseBoolField = (val, defaultVal) => {
@@ -1010,17 +1012,10 @@ exports.getShopRevenue = async (req, res) => {
     const shop = await Shop.findById(id);
     if (!shop) return res.status(404).json({ message: "Shop not found" });
 
-    // Check permission: Owner or Admin
-    if (req.user.role !== "admin" && req.user.myShopId !== id) {
-      // Also check if myShopId is an object or string, safe comparison:
-      if (String(req.user.myShopId) !== String(id)) {
-        // Additional check: req.user.myShopId might be undefined if not owner role
-        // Let's assume protect middleware populates req.user correctly
-        // But strict check:
-        return res
-          .status(403)
-          .json({ message: "Not authorized to view this shop's revenue" });
-      }
+    if (req.user.role !== "admin" && !userOwnsShop(req.user, id)) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to view this shop's revenue" });
     }
 
     // Use current time in server's timezone for "Weekly/Monthly/Yearly" buckets
@@ -1193,17 +1188,10 @@ exports.addGalleryImage = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Authorization Check
-    if (req.user.role !== "admin") {
-      const myShopId =
-        req.user.myShopId && req.user.myShopId._id
-          ? req.user.myShopId._id.toString()
-          : req.user.myShopId?.toString();
-      if (myShopId !== id) {
-        return res
-          .status(403)
-          .json({ message: "Not authorized to manage this shop's gallery" });
-      }
+    if (req.user.role !== "admin" && !userOwnsShop(req.user, id)) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to manage this shop's gallery" });
     }
 
     if (!req.file)
@@ -1231,17 +1219,10 @@ exports.deleteGalleryImage = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Authorization Check
-    if (req.user.role !== "admin") {
-      const myShopId =
-        req.user.myShopId && req.user.myShopId._id
-          ? req.user.myShopId._id.toString()
-          : req.user.myShopId?.toString();
-      if (myShopId !== id) {
-        return res
-          .status(403)
-          .json({ message: "Not authorized to manage this shop's gallery" });
-      }
+    if (req.user.role !== "admin" && !userOwnsShop(req.user, id)) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to manage this shop's gallery" });
     }
 
     const { imageUrl } = req.body;

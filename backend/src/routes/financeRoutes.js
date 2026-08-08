@@ -4,6 +4,7 @@ const { runSettlementJob } = require('../jobs/settlementJob');
 const Settlement = require('../models/Settlement');
 const User = require('../models/User');
 const { protect, blockSuspendedOwner } = require('../middleware/authMiddleware');
+const { resolveMyShopId, userOwnsShop } = require('../utils/shopUtils');
 
 /**
  * =================================================================================================
@@ -55,12 +56,11 @@ router.get('/settlements', protect, blockSuspendedOwner, async (req, res) => {
         const query = {};
 
         if (req.user.role !== 'admin') {
-            // If User is Shop Owner, find their shopId
-            // The User model has `myShopId`.
-            if (!req.user.myShopId) {
+            const shopId = resolveMyShopId(req.user.myShopId);
+            if (!shopId) {
                 return res.status(400).json({ message: "User is not a shop owner." });
             }
-            query.shopId = req.user.myShopId;
+            query.shopId = shopId;
         }
 
         const settlements = await Settlement.find(query)
@@ -85,9 +85,9 @@ router.get('/settlements/:id', protect, blockSuspendedOwner, async (req, res) =>
 
         if (!settlement) return res.status(404).json({ message: "Settlement not found" });
 
-        // Access Check
         if (req.user.role !== 'admin') {
-             if (settlement.shopId._id.toString() !== req.user.myShopId?.toString()) {
+             const settlementShopId = settlement.shopId._id || settlement.shopId;
+             if (!userOwnsShop(req.user, settlementShopId)) {
                  return res.status(403).json({ message: "Unauthorized" });
              }
         }
@@ -105,9 +105,8 @@ router.post('/settlements/:id/pay', protect, blockSuspendedOwner, async (req, re
         const settlement = await Settlement.findById(req.params.id);
         if (!settlement) return res.status(404).json({ message: "Settlement not found" });
 
-        // Security: Ensure user owns this shop
         if (req.user.role !== 'admin') {
-             if (settlement.shopId.toString() !== req.user.myShopId?.toString()) {
+             if (!userOwnsShop(req.user, settlement.shopId)) {
                  return res.status(403).json({ message: "Unauthorized" });
              }
         }
