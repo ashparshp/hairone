@@ -6,6 +6,9 @@ const initConfig = require("./config/init");
 const { initializeCron } = require("./jobs/settlementJob");
 const { initializeBackupJob } = require("./jobs/backupJob");
 const runAutoCancelJob = require("./jobs/autoCancelJob");
+const {
+  initializePaymentOrderExpiryJob,
+} = require("./jobs/paymentOrderExpiryJob");
 const mongoose = require("mongoose");
 const {
   printStartupBanner,
@@ -39,6 +42,7 @@ const bootstrap = async () => {
   initializeCron();
   initializeBackupJob();
   runAutoCancelJob();
+  initializePaymentOrderExpiryJob();
 
   const storageConfigured = Boolean(
     process.env.DO_SPACES_BUCKET &&
@@ -68,6 +72,7 @@ const bootstrap = async () => {
         { name: "settlement", schedule: "daily at 00:00" },
         { name: "db backup", schedule: "daily at 02:00" },
         { name: "auto no-show", schedule: "every 30 min" },
+        { name: "pay order TTL", schedule: "every 5 min" },
       ],
     });
   });

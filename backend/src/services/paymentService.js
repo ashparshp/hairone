@@ -867,6 +867,57 @@ const processWebhookEvent = async (event) => {
   return result;
 };
 
+/**
+ * Bulk-expire abandoned checkout orders so fingerprint unique index slots free up.
+ * Safe to run often: only touches CREATED (and stuck PROCESSING past TTL) without bookingId.
+ */
+const expireStalePaymentOrders = async () => {
+  const now = new Date();
+  const staleProcessingBefore = new Date(
+    now.getTime() - PAYMENT_PROCESSING_STALE_MS,
+  );
+
+  const createdResult = await PaymentOrder.updateMany(
+    {
+      status: PAYMENT_ORDER_STATUS.CREATED,
+      expiresAt: { $lte: now },
+      bookingId: { $exists: false },
+    },
+    {
+      $set: {
+        status: PAYMENT_ORDER_STATUS.EXPIRED,
+        failureReason: "expired_by_sweeper",
+      },
+      $unset: { processingAt: 1 },
+    },
+  );
+
+  // Stuck fulfillment locks past order TTL — do not expire if a booking already exists
+  const processingResult = await PaymentOrder.updateMany(
+    {
+      status: PAYMENT_ORDER_STATUS.PROCESSING,
+      expiresAt: { $lte: now },
+      bookingId: { $exists: false },
+      $or: [
+        { processingAt: { $lte: staleProcessingBefore } },
+        { processingAt: { $exists: false } },
+      ],
+    },
+    {
+      $set: {
+        status: PAYMENT_ORDER_STATUS.EXPIRED,
+        failureReason: "expired_stale_processing",
+      },
+      $unset: { processingAt: 1 },
+    },
+  );
+
+  const created = createdResult.modifiedCount || 0;
+  const processing = processingResult.modifiedCount || 0;
+
+  return { created, processing, total: created + processing };
+};
+
 module.exports = {
   PaymentServiceError,
   getPaymentConfig,
@@ -875,4 +926,5 @@ module.exports = {
   verifyAndFulfillBookingPayment,
   processWebhookEvent,
   serializePaymentOrder,
+  expireStalePaymentOrders,
 };
