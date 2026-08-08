@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Home, CalendarDays, Heart, UserCircle, Briefcase } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Spacing } from '../constants/Spacing';
@@ -8,8 +8,11 @@ interface TabItem {
   id: string;
   label: string;
   icon: any;
-  path: string;
+  /** Route name registered in (tabs)/_layout.tsx */
+  routeName: string;
 }
+
+const routeNameForTab = (item: TabItem) => item.routeName;
 
 export const CustomTabBar = ({ state, navigation, user }: any) => {
   const { colors } = useTheme();
@@ -18,15 +21,15 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
 
   if (user?.role === 'owner') {
     tabs = [
-      { id: 'dashboard', label: 'My Shop', icon: Briefcase, path: '/(tabs)/dashboard' },
-      { id: 'profile', label: 'Profile', icon: UserCircle, path: '/(tabs)/profile' }
+      { id: 'dashboard', label: 'My Shop', icon: Briefcase, routeName: 'dashboard' },
+      { id: 'profile', label: 'Profile', icon: UserCircle, routeName: 'profile' },
     ];
   } else {
     tabs = [
-      { id: 'home', label: 'Home', icon: Home, path: '/(tabs)/home' },
-      { id: 'appts', label: 'Bookings', icon: CalendarDays, path: '/(tabs)/bookings' },
-      { id: 'favs', label: 'Saved', icon: Heart, path: '/(tabs)/favorites' },
-      { id: 'profile', label: 'Profile', icon: UserCircle, path: '/(tabs)/profile' },
+      { id: 'home', label: 'Home', icon: Home, routeName: 'home' },
+      { id: 'appts', label: 'Bookings', icon: CalendarDays, routeName: 'bookings' },
+      { id: 'favs', label: 'Saved', icon: Heart, routeName: 'favorites' },
+      { id: 'profile', label: 'Profile', icon: UserCircle, routeName: 'profile' },
     ];
   }
 
@@ -39,43 +42,19 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
       }
     ]}>
       <View style={styles.content}>
-        {tabs.map((item, index) => {
-          // Check active state based on route
-          // Simple check: does current pathname contain the item path?
-          // Or strictly equal? Expo router paths can be tricky.
-          // Let's use state.index if possible, but we are building a custom UI for standard tabs.
-          // Standard tab bar uses state.routes[state.index].name to determine active.
-
-          // However, since we are mapping arbitrary items to routes that might not exactly match the state routes order
-          // (e.g. Owner vs User), we need to be careful.
-          // Simplest is to map the 'name' in `_layout.tsx` to these IDs.
-
-          // Let's rely on the route names defined in _layout.tsx: 'home', 'bookings', 'profile', 'dashboard'
-          // We need to match `item.id` to the route name if possible.
-
-          // But wait, the list above uses 'appts' and 'favs'.
-          // 'bookings' screen is named 'bookings'.
-          // 'favorites' screen? We don't have one in tabs yet. We have 'bookings'.
-          // Let's stick to the route names in `_layout.tsx`: home, bookings, profile, dashboard.
-
-          const isActive = state.routes[state.index].name === item.id ||
-                           (item.id === 'appts' && state.routes[state.index].name === 'bookings') ||
-                           (item.id === 'favs' && state.routes[state.index].name === 'favorites'); // if exists
+        {tabs.map((item) => {
+          const routeName = routeNameForTab(item);
+          const isActive = state.routes[state.index].name === routeName;
 
           const onPress = () => {
+            const target = state.routes.find((r: any) => r.name === routeName);
             const event = navigation.emit({
               type: 'tabPress',
-              target: state.routes.find((r: any) => r.name === (item.id === 'appts' ? 'bookings' : item.id))?.key,
+              target: target?.key,
               canPreventDefault: true,
             });
 
             if (!isActive && !event.defaultPrevented) {
-              // Navigate
-              // Find the route name mapping
-              let routeName = item.id;
-              if (item.id === 'appts') routeName = 'bookings';
-              if (item.id === 'favs') routeName = 'favorites';
-
               navigation.navigate(routeName);
             }
           };
@@ -94,7 +73,7 @@ export const CustomTabBar = ({ state, navigation, user }: any) => {
               <View style={[
                 styles.activeIndicator,
                 isActive && {
-                  backgroundColor: colors.slotIconBackground, // Reusing a subtle background color
+                  backgroundColor: colors.slotIconBackground,
                   opacity: 1,
                   transform: [{ scale: 1 }]
                 }
@@ -129,7 +108,6 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxl : Spacing.sm,
     paddingTop: Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    // Blur effect is tricky in RN without Expo Blur, but background opacity works ok
   },
   content: {
     flexDirection: 'row',

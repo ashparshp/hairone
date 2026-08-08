@@ -15,6 +15,7 @@ import {
   createBookingPaymentOrder,
   verifyBookingPaymentWithRecovery,
 } from '../../services/payments';
+import { toggleFavoriteShop } from '../../services/favorites';
 import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
 import { getBookingId } from '../../utils/ticket';
@@ -174,13 +175,12 @@ export default function ShopDetailsScreen() {
   const toggleFavorite = async () => {
     if (!user) return showToast("Please login to save shops", "error");
     try {
-      const res = await api.post('/auth/favorites', { shopId: id });
-      const updatedUser = { ...user, favorites: res.data };
+      const favorites = await toggleFavoriteShop(id as string);
+      const updatedUser = { ...user, favorites };
       if (token) login(token, updatedUser);
-      // const isNowFav = updatedUser.favorites.includes(id as string);
-      // showToast(isNowFav ? "Added to favorites" : "Removed from favorites", "success");
     } catch (e) {
       console.log("Fav Error", e);
+      showToast("Could not update favorites", "error");
     }
   };
 
