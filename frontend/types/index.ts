@@ -85,7 +85,15 @@ export interface Booking {
   paymentMethod?: string;
   razorpayPaymentId?: string;
   paymentOrderId?: string;
-  status: "upcoming" | "completed" | "cancelled" | "pending";
+  status:
+    | "upcoming"
+    | "completed"
+    | "cancelled"
+    | "pending"
+    | "checked-in"
+    | "no-show"
+    | "missed"
+    | "blocked";
   bookingKey?: string;
   createdAt?: string;
 }

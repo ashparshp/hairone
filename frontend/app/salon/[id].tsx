@@ -17,6 +17,7 @@ import {
 } from '../../services/payments';
 import { ChevronLeft, Star, Clock, Check, Calendar, User, Banknote, CreditCard, Heart, MapPin, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
+import { getBookingId } from '../../utils/ticket';
 
 export default function ShopDetailsScreen() {
   const params = useLocalSearchParams();
@@ -276,6 +277,7 @@ export default function ShopDetailsScreen() {
 
     try {
         setLoading(true);
+        let confirmedBookingId: string | null = null;
 
         if (!requiresPayment) {
             if (config.onlinePaymentsEnabled && config.razorpayKeyId) {
@@ -283,6 +285,7 @@ export default function ShopDetailsScreen() {
                 if (!orderResponse.walletOnly) {
                     throw new Error('Unexpected payment required');
                 }
+                confirmedBookingId = getBookingId(orderResponse.booking);
                 await refreshUser();
                 showToast(
                   orderResponse.summary.walletCreditApplied
@@ -291,10 +294,11 @@ export default function ShopDetailsScreen() {
                   "success",
                 );
             } else {
-                await api.post('/bookings', {
+                const res = await api.post('/bookings', {
                     ...bookingPayload,
                     paymentMethod: 'CASH',
                 });
+                confirmedBookingId = getBookingId(res.data);
                 await refreshUser();
                 showToast(
                   walletCreditPreview > 0
@@ -314,6 +318,7 @@ export default function ShopDetailsScreen() {
             const orderResponse = await createBookingPaymentOrder(bookingPayload);
 
             if (orderResponse.walletOnly) {
+                confirmedBookingId = getBookingId(orderResponse.booking);
                 await refreshUser();
                 showToast(
                   orderResponse.summary.walletCreditApplied
@@ -343,12 +348,18 @@ export default function ShopDetailsScreen() {
                     throw new Error('Payment order mismatch');
                 }
 
-                await verifyBookingPaymentWithRecovery({
+                const verifyResponse = await verifyBookingPaymentWithRecovery({
                     paymentOrderId: paymentOrder!.id,
                     razorpayOrderId: paymentResult.razorpay_order_id,
                     razorpayPaymentId: paymentResult.razorpay_payment_id,
                     razorpaySignature: paymentResult.razorpay_signature,
                 });
+
+                confirmedBookingId =
+                  getBookingId(verifyResponse.booking) ||
+                  verifyResponse.bookingId ||
+                  verifyResponse.paymentOrder?.bookingId ||
+                  null;
 
                 await refreshUser();
                 const paidViaRazorpay = summary!.amountDue ?? summary!.finalPrice;
@@ -360,10 +371,11 @@ export default function ShopDetailsScreen() {
                 );
             }
         } else {
-            await api.post('/bookings', {
+            const res = await api.post('/bookings', {
                 ...bookingPayload,
                 paymentMethod: 'CASH',
             });
+            confirmedBookingId = getBookingId(res.data);
             await refreshUser();
             const cashDue = amountDuePreview;
             showToast(
@@ -375,6 +387,15 @@ export default function ShopDetailsScreen() {
         }
 
         if (fetchBookings) fetchBookings();
+
+        if (confirmedBookingId) {
+          router.replace({
+            pathname: "/salon/success",
+            params: { bookingId: confirmedBookingId },
+          } as any);
+          return;
+        }
+
         const homeRoute =
           user?.role === 'owner'
             ? '/(tabs)/dashboard'

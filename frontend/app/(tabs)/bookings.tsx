@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useBooking } from '../../context/BookingContext';
 import { useTheme } from '../../context/ThemeContext';
 import { FadeInView } from '../../components/AnimatedViews';
+import { BookingTicket } from '../../components/BookingTicket';
 import { UserAvatar } from '../../components/UserAvatar';
 import { formatLocalDate } from '../../utils/date';
 import { createReview } from '../../services/api';
@@ -43,9 +44,20 @@ export default function BookingsScreen() {
   // --- FIX: SAFE CHECK (myBookings || []) ---
   const safeBookings = myBookings || [];
 
-  // Exclude 'missed' from upcoming, Include 'missed' in history
-  const upcomingBookings = safeBookings.filter((b: any) => b.status === 'upcoming' || b.status === 'pending');
-  const pastBookings = safeBookings.filter((b: any) => b.status === 'completed' || b.status === 'cancelled' || b.status === 'missed');
+  // Active visit (checked-in) stays in upcoming; no-show/missed go to history
+  const upcomingBookings = safeBookings.filter(
+    (b: any) =>
+      b.status === 'upcoming' ||
+      b.status === 'pending' ||
+      b.status === 'checked-in',
+  );
+  const pastBookings = safeBookings.filter(
+    (b: any) =>
+      b.status === 'completed' ||
+      b.status === 'cancelled' ||
+      b.status === 'missed' ||
+      b.status === 'no-show',
+  );
   const displayList = activeTab === 'upcoming' ? upcomingBookings : pastBookings;
 
   const openReview = (booking: any) => {
@@ -370,11 +382,13 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         </View>
                         
                         <View style={{flexDirection: 'row', gap: 10}}>
-                            {(booking.status === 'upcoming' || booking.status === 'pending') ? (
+                            {(booking.status === 'upcoming' || booking.status === 'pending' || booking.status === 'checked-in') ? (
                                <>
-                                 <TouchableOpacity style={styles.cancelBtnSmall} onPress={() => initiateCancel(booking)}>
-                                    <Text style={{color: '#ffffff', fontSize: 12, fontWeight: 'bold'}}>Cancel</Text>
-                                 </TouchableOpacity>
+                                 {booking.status !== 'checked-in' && (
+                                   <TouchableOpacity style={styles.cancelBtnSmall} onPress={() => initiateCancel(booking)}>
+                                      <Text style={{color: '#ffffff', fontSize: 12, fontWeight: 'bold'}}>Cancel</Text>
+                                   </TouchableOpacity>
+                                 )}
                                  
                                  <TouchableOpacity style={[styles.primaryBtnSmall, {backgroundColor: colors.tint}]} onPress={() => openTicket(booking)}>
                                     <QrCode size={14} color="#020617" style={{marginRight: 4}}/>
@@ -416,16 +430,20 @@ const handleMap = (lat: number, lng: number, label: string) => {
                 <View style={{width: '100%', flexDirection: 'row', justifyContent: 'flex-end'}}>
                     <TouchableOpacity onPress={() => setTicketModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity>
                 </View>
-                <Text style={[styles.heading2, {color: colors.text}]}>E-Ticket</Text>
-                <Text style={{color: colors.textMuted, marginBottom: 20}}>Scan at counter</Text>
-                <View style={{backgroundColor: 'white', padding: 16, borderRadius: 16, marginBottom: 20}}>
-                    <QrCode size={150} color="black" />
-                </View>
-                <View style={styles.ticketInfoBox}>
-                    <Text style={{color: colors.textMuted, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1}}>Booking PIN</Text>
-                    <Text style={{color: colors.tint, fontSize: 32, fontWeight: 'bold', letterSpacing: 4, marginVertical: 4}}>{selectedBooking?.bookingKey || '####'}</Text>
-                </View>
-                <TouchableOpacity style={[styles.submitBtn, {backgroundColor: colors.tint}]} onPress={() => setTicketModalVisible(false)}>
+                <Text style={[styles.heading2, {color: colors.text, marginBottom: 4}]}>E-Ticket</Text>
+                <BookingTicket
+                  bookingId={selectedBooking?._id || selectedBooking?.id}
+                  bookingKey={selectedBooking?.bookingKey}
+                  shopName={
+                    typeof selectedBooking?.shopId === 'object'
+                      ? selectedBooking?.shopId?.name
+                      : undefined
+                  }
+                  date={selectedBooking?.date}
+                  startTime={selectedBooking?.startTime}
+                  compact
+                />
+                <TouchableOpacity style={[styles.submitBtn, {backgroundColor: colors.tint, marginTop: 8}]} onPress={() => setTicketModalVisible(false)}>
                     <Text style={{color: '#020617', fontWeight: 'bold'}}>Close Ticket</Text>
                 </TouchableOpacity>
             </View>
