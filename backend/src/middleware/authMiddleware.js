@@ -48,6 +48,12 @@ exports.protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, token expired or invalid' });
       }
 
+      if (req.user.applicationStatus === 'suspended') {
+        return res.status(403).json({
+          message: "You are suspended can't login contact support@hairone.in",
+        });
+      }
+
       next();
     } catch (error) {
       console.error(error);
@@ -69,10 +75,11 @@ exports.admin = (req, res, next) => {
 exports.blockSuspendedOwner = (req, res, next) => {
   if (
     req.user &&
-    req.user.role === 'owner' &&
     req.user.applicationStatus === 'suspended'
   ) {
-    return res.status(403).json({ message: 'Your account is suspended.' });
+    return res.status(403).json({
+      message: "You are suspended can't login contact support@hairone.in",
+    });
   }
   next();
 };

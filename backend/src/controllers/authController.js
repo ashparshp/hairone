@@ -6,6 +6,8 @@ const { withSignedUserAvatar } = require('../utils/imageUrl');
 
 const OTP_WINDOW_MS = 15 * 60 * 1000;
 const OTP_MAX_PER_PHONE = 5;
+const SUSPENDED_LOGIN_MESSAGE =
+  "You are suspended can't login contact support@hairone.in";
 
 const otpRateLimitKey = (phone) => `otp:${phone}`;
 
@@ -15,6 +17,9 @@ const isMockOtpAllowed = () =>
 const checkOtpRateLimit = async (phone) =>
   checkRateLimit(otpRateLimitKey(phone), OTP_MAX_PER_PHONE, OTP_WINDOW_MS);
 
+const isSuspendedAccount = (user) =>
+  Boolean(user && user.applicationStatus === 'suspended');
+
 exports.sendOTP = async (req, res) => {
   const { phone } = req.body;
   if (!phone) {
@@ -23,6 +28,16 @@ exports.sendOTP = async (req, res) => {
 
   if (!(await checkOtpRateLimit(phone))) {
     return res.status(429).json({ message: 'Too many OTP requests. Try again later.' });
+  }
+
+  try {
+    const existing = await User.findOne({ phone }).select('applicationStatus');
+    if (isSuspendedAccount(existing)) {
+      return res.status(403).json({ message: SUSPENDED_LOGIN_MESSAGE });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server Error' });
   }
 
   if (isMockOtpAllowed()) {
@@ -58,6 +73,10 @@ exports.verifyOTP = async (req, res) => {
         role: 'user',
         applicationStatus: 'none'
       });
+    }
+
+    if (isSuspendedAccount(user)) {
+      return res.status(403).json({ message: SUSPENDED_LOGIN_MESSAGE });
     }
 
     const token = jwt.sign(

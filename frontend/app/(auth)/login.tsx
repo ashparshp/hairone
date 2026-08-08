@@ -78,6 +78,7 @@ export default function LoginScreen() {
       if (e.response) msg = e.response.data.message || "Server Error";
       else if (e.request) msg = "Network Error.";
       showToast(msg, "error");
+      // Stay on phone step so suspended users can read the support message
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,15 @@ export default function LoginScreen() {
     } catch (e: any) {
       console.log("Login Error", e);
       setOtp("");
-      showToast(e.response?.data?.message || "Invalid OTP", "error");
+      const msg =
+        e.response?.data?.message || "Invalid OTP";
+      showToast(msg, "error");
+      if (
+        typeof msg === "string" &&
+        msg.toLowerCase().includes("suspended")
+      ) {
+        setStep(1);
+      }
     } finally {
       setLoading(false);
       verifyingRef.current = false;
