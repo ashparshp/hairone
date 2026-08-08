@@ -46,10 +46,9 @@ const NON_CANCELLABLE_STATUSES = [
 
 const isAdmin = (user) => user && user.role === "admin";
 
-const isOwnerOfShop = (user, shopId) => {
-  if (!user || !user.myShopId) return false;
-  return user.myShopId.toString() === shopId.toString();
-};
+const { userOwnsShop } = require("../utils/shopUtils");
+
+const isOwnerOfShop = (user, shopId) => userOwnsShop(user, shopId);
 
 const CHECKIN_MAX_ATTEMPTS = 5;
 const CHECKIN_WINDOW_MS = 15 * 60 * 1000;

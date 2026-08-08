@@ -19,6 +19,7 @@ import {
 import api from '../../services/api';
 import { Check, Clock, Plus, User, X, Calendar as CalendarIcon, Phone } from 'lucide-react-native';
 import { formatLocalDate } from '../../utils/date';
+import { getMyShopId } from '../../utils/shop';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Spacing } from '../../constants/Spacing';
 
@@ -62,11 +63,8 @@ export default function ShopScheduleScreen() {
 
   const todayStr = formatLocalDate(new Date());
 
-  // @ts-ignore
-  const getShopId = () => typeof user?.myShopId === 'object' ? user.myShopId._id : user?.myShopId;
-
   const fetchSchedule = async () => {
-    const shopId = getShopId();
+    const shopId = getMyShopId(user);
     if (!shopId) return;
 
     try {
@@ -117,8 +115,7 @@ export default function ShopScheduleScreen() {
 
       setSubmitting(true);
       try {
-          const shopId = getShopId();
-          // @ts-ignore
+          const shopId = getMyShopId(user);
           await api.post('/bookings', {
               shopId: shopId,
               barberId: selectedBarberId,

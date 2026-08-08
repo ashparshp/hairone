@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
+import { getMyShopId } from '../../utils/shop';
 import { Plus, Clock, IndianRupee, Scissors, Trash2, Edit, Layers, Check } from 'lucide-react-native';
 import {
   OwnerScreen,
@@ -74,15 +75,14 @@ export default function ManageServicesScreen() {
   }, [selectedComboServices, services]);
 
   const fetchShop = async () => {
-    // @ts-ignore
-    if (!user?.myShopId) {
+    const shopId = getMyShopId(user);
+    if (!shopId) {
       setLoading(false);
       router.replace('/(tabs)/dashboard');
       return;
     }
     try {
-      // @ts-ignore
-      const res = await api.get(`/shops/${user.myShopId}`);
+      const res = await api.get(`/shops/${shopId}`);
       const s = res.data.shop;
       setShop(s);
       setServices(s.services || []);

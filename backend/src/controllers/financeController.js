@@ -9,6 +9,7 @@ const {
     settleShopBookings,
     SettlementRaceError,
 } = require('../services/settlementService');
+const { userOwnsShop } = require('../utils/shopUtils');
 
 /**
  * =================================================================================================
@@ -106,8 +107,7 @@ exports.getMyShopPendingDetails = async (req, res) => {
     try {
         const { shopId } = req.params;
 
-        // Strict ownership check
-        if (req.user.myShopId?.toString() !== shopId) {
+        if (!userOwnsShop(req.user, shopId)) {
              return res.status(403).json({ message: 'Unauthorized' });
         }
 
@@ -248,8 +248,7 @@ exports.getSettlementDetails = async (req, res) => {
 exports.getShopFinanceSummary = async (req, res) => {
     try {
         const { shopId } = req.params;
-        // Check ownership
-        if (req.user.role !== 'admin' && req.user.myShopId?.toString() !== shopId) {
+        if (req.user.role !== 'admin' && !userOwnsShop(req.user, shopId)) {
              return res.status(403).json({ message: 'Unauthorized' });
         }
 
@@ -288,8 +287,7 @@ exports.getShopFinanceSummary = async (req, res) => {
 exports.getShopSettlements = async (req, res) => {
     try {
         const { shopId } = req.params;
-         // Check ownership
-         if (req.user.role !== 'admin' && req.user.myShopId?.toString() !== shopId) {
+         if (req.user.role !== 'admin' && !userOwnsShop(req.user, shopId)) {
             return res.status(403).json({ message: 'Unauthorized' });
        }
 

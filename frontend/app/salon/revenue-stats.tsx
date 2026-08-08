@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { getMyShopId } from '../../utils/shop';
 import {
   OwnerCard,
   OwnerScreen,
@@ -55,12 +56,12 @@ function RevenueOverview() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (user?.myShopId) fetchStats();
+        if (getMyShopId(user)) fetchStats();
     }, [user]);
 
     const fetchStats = async () => {
         try {
-            const shopId = typeof user?.myShopId === 'object' ? user.myShopId._id : user?.myShopId;
+            const shopId = getMyShopId(user);
             if (!shopId) return;
 
             // Fetch summary using existing shop routes if available

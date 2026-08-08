@@ -87,10 +87,9 @@ const resolveBookingServices = (shop, serviceNames) => {
 
 const isAdmin = (user) => user && user.role === "admin";
 
-const isOwnerOfShop = (user, shopId) => {
-  if (!user || !user.myShopId) return false;
-  return user.myShopId.toString() === shopId.toString();
-};
+const { userOwnsShop } = require("../utils/shopUtils");
+
+const isOwnerOfShop = (user, shopId) => userOwnsShop(user, shopId);
 
 const generateUniqueBookingKey = async (session) => {
   for (let attempt = 0; attempt < 10; attempt++) {

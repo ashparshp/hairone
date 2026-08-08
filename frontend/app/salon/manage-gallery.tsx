@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import { RemoteImage } from '../../components/RemoteImage';
 import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
+import { getTargetShopId } from '../../utils/shop';
 import { ChevronLeft, Trash2, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { FadeInView } from '../../components/AnimatedViews';
 
@@ -24,19 +25,7 @@ export default function ManageGalleryScreen() {
   const { user } = useAuth();
   const { colors, theme } = useTheme();
 
-  // Determine Target Shop ID: either passed via params (Admin) or from user profile (Owner)
-  const getTargetShopId = () => {
-    if (params.shopId) {
-      return Array.isArray(params.shopId) ? params.shopId[0] : params.shopId;
-    }
-    if (user?.myShopId) {
-      // @ts-ignore
-      return typeof user.myShopId === 'object' ? user.myShopId._id : user.myShopId;
-    }
-    return null;
-  };
-
-  const targetShopId = getTargetShopId();
+  const targetShopId = getTargetShopId(user, params.shopId as string | string[] | undefined);
 
   const [gallery, setGallery] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);

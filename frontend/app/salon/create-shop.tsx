@@ -19,6 +19,7 @@ import { useToast } from "../../context/ToastContext";
 import { useTheme } from "../../context/ThemeContext";
 import { FadeInView } from "../../components/AnimatedViews";
 import api from "../../services/api";
+import { getMyShopId } from "../../utils/shop";
 import {
   ChevronLeft,
   Plus,
@@ -93,8 +94,7 @@ export default function ManageServicesScreen() {
     if (!draftHydrated) return;
     if (shop) return;
 
-    const existingShopId =
-      typeof user?.myShopId === "object" ? user?.myShopId?._id : user?.myShopId;
+    const existingShopId = getMyShopId(user);
     if (existingShopId) return;
 
     const payload: any = {
@@ -151,8 +151,7 @@ export default function ManageServicesScreen() {
   ]);
 
   const fetchShop = async () => {
-    const shopId =
-      typeof user?.myShopId === "object" ? user?.myShopId?._id : user?.myShopId;
+    const shopId = getMyShopId(user);
 
     if (!shopId) {
       try {

@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { RemoteImage } from '../../components/RemoteImage';
 import api from '../../services/api';
+import { getMyShopId } from '../../utils/shop';
 import { MapPin, Save, Store, Camera, Image as ImageIcon } from 'lucide-react-native';
 import {
   OwnerCard,
@@ -54,14 +55,13 @@ export default function ShopDetailsScreen() {
   }, []);
 
   const fetchShop = async () => {
-    // @ts-ignore
-    if (!user?.myShopId) {
+    const shopId = getMyShopId(user);
+    if (!shopId) {
       setLoading(false);
       return;
     }
     try {
-      // @ts-ignore
-      const res = await api.get(`/shops/${user.myShopId}`);
+      const res = await api.get(`/shops/${shopId}`);
       const s = res.data.shop;
       setShop(s);
       setShopName(s.name || '');
