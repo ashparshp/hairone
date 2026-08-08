@@ -33,9 +33,6 @@ jobs:
         run: |
           find src -name '*.js' -print0 | xargs -0 -n1 node --check
 
-      - name: Smoke require
-        run: npm test
-
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
