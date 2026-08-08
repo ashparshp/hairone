@@ -389,10 +389,15 @@ const prepareBooking = async (user, body) => {
     config && typeof config.adminCommissionRate === "number"
       ? config.adminCommissionRate
       : 10;
-  const discountRate =
+  const configuredDiscountRate =
     config && typeof config.userDiscountRate === "number"
       ? config.userDiscountRate
       : 0;
+  // Discount is funded from admin commission — never exceed commission share.
+  const discountRate = Math.min(
+    Math.max(configuredDiscountRate, 0),
+    Math.max(adminRate, 0),
+  );
 
   const originalPrice = serverPrice;
   const discountAmount = roundMoney(originalPrice * (discountRate / 100));
@@ -420,7 +425,9 @@ const prepareBooking = async (user, body) => {
   }
 
   const adminCommission = roundMoney(originalPrice * (adminRate / 100));
-  const adminNetRevenue = roundMoney(adminCommission - discountAmount);
+  const adminNetRevenue = roundMoney(
+    Math.max(0, adminCommission - discountAmount),
+  );
   const barberNetRevenue = roundMoney(originalPrice - adminCommission);
   const collectedBy = isOnline ? "ADMIN" : "BARBER";
 

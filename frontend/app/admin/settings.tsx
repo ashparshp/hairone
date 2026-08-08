@@ -53,16 +53,34 @@ export default function AdminSettings() {
   };
 
   const handleSave = async () => {
+    const commission = parseFloat(adminCommission);
+    const discount = parseFloat(userDiscount);
+
+    if (
+      Number.isFinite(commission) &&
+      Number.isFinite(discount) &&
+      discount > commission
+    ) {
+      Alert.alert(
+        "Invalid rates",
+        "User discount cannot exceed admin commission. Discount is funded from commission.",
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       await api.put("/admin/config", {
-        adminCommissionRate: parseFloat(adminCommission),
-        userDiscountRate: parseFloat(userDiscount),
+        adminCommissionRate: commission,
+        userDiscountRate: discount,
         maxCashBookingsPerMonth: parseInt(maxCashBookings),
       });
       Alert.alert("Success", "Settings updated successfully");
-    } catch (e) {
-      Alert.alert("Error", "Failed to update settings");
+    } catch (e: any) {
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to update settings",
+      );
     } finally {
       setSaving(false);
     }
@@ -166,7 +184,7 @@ export default function AdminSettings() {
               />
             </View>
             <Text style={[styles.hint, { color: colors.textMuted }]}>
-              Subsidy given to user (Paid by Admin from Commission).
+              Subsidy funded from admin commission — cannot exceed commission %.
             </Text>
           </View>
         </View>
