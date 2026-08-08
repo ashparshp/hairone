@@ -21,20 +21,51 @@ const api = axios.create({
 });
 
 let logoutCallback: (() => void) | null = null;
+/** Single-flight gate so parallel 401s don't spam Session Expired alerts. */
+let handlingUnauthorized = false;
+
 export const setupAuthInterceptor = (callback: () => void) => {
   logoutCallback = callback;
+};
+
+/** Call after a successful login so future 401s can alert again. */
+export const resetUnauthorizedGate = () => {
+  handlingUnauthorized = false;
+};
+
+const isPublicAuthUrl = (url = "") =>
+  /\/auth\/(send-otp|verify-otp|logout)/i.test(url);
+
+const clearLocalSession = async () => {
+  if (Platform.OS === "web") {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+  } else {
+    await SecureStore.deleteItemAsync("token");
+    await SecureStore.deleteItemAsync("user");
+  }
+};
+
+const showSessionExpiredOnce = () => {
+  if (Platform.OS === "web") {
+    window.alert("Session expired. Please log in again.");
+  } else {
+    Alert.alert("Session Expired", "Please log in again.");
+  }
 };
 
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const url = config.url || "";
-    config.timeout = url.includes("/payments/") ? PAYMENT_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+    config.timeout = url.includes("/payments/")
+      ? PAYMENT_TIMEOUT_MS
+      : DEFAULT_TIMEOUT_MS;
 
     let token: string | null = null;
-    if (Platform.OS === 'web') {
-        token = localStorage.getItem("token");
+    if (Platform.OS === "web") {
+      token = localStorage.getItem("token");
     } else {
-        token = await SecureStore.getItemAsync("token");
+      token = await SecureStore.getItemAsync("token");
     }
 
     if (token) {
@@ -42,45 +73,48 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      if (logoutCallback) {
-        logoutCallback();
-        if (Platform.OS === 'web') {
-          window.alert("Session expired. Please log in again.");
-        } else {
-          Alert.alert("Session Expired", "Please log in again.");
+    const status = error.response?.status;
+    const url = error.config?.url || "";
+
+    if (status === 401 && !isPublicAuthUrl(url)) {
+      if (!handlingUnauthorized) {
+        handlingUnauthorized = true;
+        try {
+          if (logoutCallback) {
+            logoutCallback();
+          } else {
+            await clearLocalSession();
+          }
+          showSessionExpiredOnce();
+        } catch {
+          // Best-effort session clear; still reject below
         }
-      } else {
-        if (Platform.OS === 'web') {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-        } else {
-            await SecureStore.deleteItemAsync("token");
-            await SecureStore.deleteItemAsync("user");
-        }
-        Alert.alert("Session Expired", "Please log in again.");
       }
     }
 
-    if (error.code === "ECONNABORTED") {
+    if (error.code === "ECONNABORTED" && !handlingUnauthorized) {
       Alert.alert(
         "Connection Timeout",
-        "The server is taking too long to respond."
+        "The server is taking too long to respond.",
       );
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
-export const createReview = async (data: { bookingId: string; rating: number; comment?: string }) => {
-  const response = await api.post('/reviews', data);
+export const createReview = async (data: {
+  bookingId: string;
+  rating: number;
+  comment?: string;
+}) => {
+  const response = await api.post("/reviews", data);
   return response.data;
 };
 

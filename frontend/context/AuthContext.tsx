@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 import { User } from '../types';
-import api, { setupAuthInterceptor } from '../services/api';
+import api, { setupAuthInterceptor, resetUnauthorizedGate } from '../services/api';
 import {
   getOnboardingSkipped,
   getUserId,
@@ -150,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 3. Login Function (Saves to Storage)
   const login = React.useCallback(async (newToken: string, newUser: any) => {
+    resetUnauthorizedGate();
     setToken(newToken);
     setUser(newUser);
     
