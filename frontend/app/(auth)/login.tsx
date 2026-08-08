@@ -4,27 +4,36 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FadeInView } from "../../components/AnimatedViews";
+import { FadeInView, SlideInView } from "../../components/AnimatedViews";
+import OtpCodeInput from "../../components/auth/OtpCodeInput";
+import PhoneNumberField from "../../components/auth/PhoneNumberField";
 import Logo from "../../components/Logo";
+import { ScalePress } from "../../components/ScalePress";
+import { Spacing } from "../../constants/Spacing";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/ToastContext";
 import api from "../../services/api";
 import { normalizeIndianPhone } from "../../utils/phone";
 
+const formatPhoneDisplay = (phone: string) => {
+  if (phone.length !== 10) return phone;
+  return `${phone.slice(0, 5)} ${phone.slice(5)}`;
+};
+
 export default function LoginScreen() {
   const { login } = useAuth();
   const { colors } = useTheme();
   const { showToast } = useToast();
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,8 +41,8 @@ export default function LoginScreen() {
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
 
-  const otpInputRef = useRef<TextInput>(null);
   const verifyingRef = useRef(false);
+  const phoneValid = Boolean(normalizeIndianPhone(phone));
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -50,6 +59,15 @@ export default function LoginScreen() {
       handleLogin();
     }
   }, [otp, step]);
+
+  const handlePhoneChange = (text: string) => {
+    const normalized = normalizeIndianPhone(text);
+    if (normalized) {
+      setPhone(normalized);
+      return;
+    }
+    setPhone(text.replace(/\D/g, "").slice(0, 12));
+  };
 
   const handleSendOtp = async (isResend = false) => {
     const normalized = normalizeIndianPhone(phone);
@@ -70,17 +88,13 @@ export default function LoginScreen() {
       setOtp("");
 
       if (!isResend) setStep(2);
-
-      setTimeout(() => {
-        otpInputRef.current?.focus();
-      }, 150);
+      else showToast("Code resent", "success");
     } catch (e: any) {
       console.log("OTP Error:", e);
       let msg = "Something went wrong.";
       if (e.response) msg = e.response.data.message || "Server Error";
       else if (e.request) msg = "Network Error.";
       showToast(msg, "error");
-      // Stay on phone step so suspended users can read the support message
     } finally {
       setLoading(false);
     }
@@ -106,13 +120,9 @@ export default function LoginScreen() {
     } catch (e: any) {
       console.log("Login Error", e);
       setOtp("");
-      const msg =
-        e.response?.data?.message || "Invalid OTP";
+      const msg = e.response?.data?.message || "Invalid OTP";
       showToast(msg, "error");
-      if (
-        typeof msg === "string" &&
-        msg.toLowerCase().includes("suspended")
-      ) {
+      if (typeof msg === "string" && msg.toLowerCase().includes("suspended")) {
         setStep(1);
       }
     } finally {
@@ -125,31 +135,7 @@ export default function LoginScreen() {
     setStep(1);
     setOtp("");
     setTimer(30);
-  };
-
-  const renderOtpBoxes = () => {
-    const boxes = [0, 1, 2, 3];
-    return (
-      <View style={styles.otpContainer}>
-        {boxes.map((i) => (
-          <View
-            key={i}
-            style={[
-              styles.otpBox,
-              {
-                borderColor: otp.length === i ? colors.tint : colors.border,
-                backgroundColor: colors.card,
-                borderWidth: otp.length === i ? 2 : 1,
-              },
-            ]}
-          >
-            <Text style={[styles.otpText, { color: colors.text }]}>
-              {otp[i] || ""}
-            </Text>
-          </View>
-        ))}
-      </View>
-    );
+    setCanResend(false);
   };
 
   return (
@@ -159,144 +145,149 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
         >
-          <FadeInView style={styles.content}>
-        <View style={{ alignItems: "center", marginBottom: 40 }}>
-          <Logo width={280} height={110} />
-          <Text style={[styles.tagline, { color: colors.text }]}>
-            Book a haircut in{" "}
-            <Text style={[styles.highlight, { color: colors.tint }]}>
-              seconds.
-            </Text>
-          </Text>
-        </View>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <FadeInView style={styles.brand}>
+              <Logo width={220} height={86} />
+            </FadeInView>
 
-        {step === 1 ? (
-          <View style={{ width: "100%" }}>
-            <Text style={[styles.label, { color: colors.textMuted }]}>
-              Mobile Number
-            </Text>
-
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.card,
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="9876543210"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={(text) => {
-                const normalized = normalizeIndianPhone(text);
-                if (normalized) {
-                  setPhone(normalized);
-                  return;
-                }
-                // Allow progressive typing / paste of +91… before full normalize
-                setPhone(text.replace(/\D/g, "").slice(0, 12));
-              }}
-              maxLength={13}
-              editable={!loading}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.btn,
-                { backgroundColor: colors.tint, opacity: loading ? 0.85 : 1 },
-              ]}
-              onPress={() => handleSendOtp(false)}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.actionPrimaryText} />
-              ) : (
-                <Text style={styles.btnText}>Continue</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={{ width: "100%", alignItems: "center" }}>
-            <View style={{ flexDirection: "row", marginBottom: 20 }}>
-              <Text style={{ color: colors.textMuted }}>
-                Enter code sent to +91 {phone}{" "}
-              </Text>
-              <TouchableOpacity onPress={handleChangeNumber}>
-                <Text style={{ color: colors.tint, fontWeight: "700" }}>
-                  Edit
+            {step === 1 ? (
+              <SlideInView from="right" key="phone-step" style={styles.form}>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  Welcome back
                 </Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                  Enter your mobile number to receive a login code.
+                </Text>
 
-            <TextInput
-              ref={otpInputRef}
-              style={styles.hiddenInput}
-              keyboardType="number-pad"
-              value={otp}
-              onChangeText={(text) => {
-                if (text.length <= 4) setOtp(text.replace(/[^0-9]/g, ""));
-              }}
-              maxLength={4}
-              editable={!loading}
-              autoFocus={false}
-              caretHidden={true}
-            />
+                <Text style={[styles.label, { color: colors.textMuted }]}>
+                  Mobile Number
+                </Text>
+                <PhoneNumberField
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                  editable={!loading}
+                  autoFocus
+                  onSubmitEditing={() => {
+                    if (phoneValid && !loading) handleSendOtp(false);
+                  }}
+                />
 
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => otpInputRef.current?.focus()}
-              style={{ width: "100%", marginBottom: 30 }}
-            >
-              {renderOtpBoxes()}
-            </TouchableOpacity>
-
-            <View style={{ width: "100%" }}>
-              <TouchableOpacity
-                style={[
-                  styles.btn,
-                  {
-                    backgroundColor: colors.tint,
-                    opacity: loading || otp.length !== 4 ? 0.85 : 1,
-                  },
-                ]}
-                onPress={handleLogin}
-                disabled={loading || otp.length !== 4}
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.actionPrimaryText} />
-                ) : (
-                  <Text style={styles.btnText}>Verify & Login</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            <View style={{ marginTop: 20 }}>
-              {canResend ? (
-                <TouchableOpacity
-                  onPress={() => handleSendOtp(true)}
-                  disabled={loading}
+                <ScalePress
+                  onPress={() => handleSendOtp(false)}
+                  disabled={loading || !phoneValid}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue"
+                  accessibilityState={{ disabled: loading || !phoneValid }}
+                  style={[
+                    styles.btn,
+                    {
+                      backgroundColor: colors.tint,
+                      opacity: loading || !phoneValid ? 0.45 : 1,
+                    },
+                  ]}
                 >
-                  <Text
-                    style={{
-                      color: colors.tint,
-                      fontWeight: "700",
-                      textAlign: "center",
-                    }}
-                  >
-                    Resend Code
+                  {loading ? (
+                    <ActivityIndicator color={colors.actionPrimaryText} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.btnText,
+                        { color: colors.actionPrimaryText },
+                      ]}
+                    >
+                      Continue
+                    </Text>
+                  )}
+                </ScalePress>
+              </SlideInView>
+            ) : (
+              <SlideInView from="right" key="otp-step" style={styles.form}>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  Enter OTP
+                </Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                  We sent a 4-digit code to{" "}
+                  <Text style={{ color: colors.text, fontWeight: "700" }}>
+                    +91 {formatPhoneDisplay(phone)}
+                  </Text>
+                </Text>
+
+                <TouchableOpacity
+                  onPress={handleChangeNumber}
+                  disabled={loading}
+                  hitSlop={12}
+                  style={styles.editRow}
+                >
+                  <Text style={[styles.editText, { color: colors.tint }]}>
+                    Change number
                   </Text>
                 </TouchableOpacity>
-              ) : (
-                <Text style={{ color: colors.textMuted, textAlign: "center" }}>
-                  Resend in {timer}s
-                </Text>
-              )}
-            </View>
-          </View>
-        )}
-          </FadeInView>
+
+                <OtpCodeInput
+                  value={otp}
+                  onChangeText={setOtp}
+                  editable={!loading}
+                />
+
+                <ScalePress
+                  onPress={handleLogin}
+                  disabled={loading || otp.length !== 4}
+                  accessibilityRole="button"
+                  accessibilityLabel="Verify and login"
+                  accessibilityState={{
+                    disabled: loading || otp.length !== 4,
+                  }}
+                  style={[
+                    styles.btn,
+                    {
+                      backgroundColor: colors.tint,
+                      opacity: loading || otp.length !== 4 ? 0.45 : 1,
+                    },
+                  ]}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={colors.actionPrimaryText} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.btnText,
+                        { color: colors.actionPrimaryText },
+                      ]}
+                    >
+                      Verify & Login
+                    </Text>
+                  )}
+                </ScalePress>
+
+                <View style={styles.resendWrap}>
+                  {canResend ? (
+                    <TouchableOpacity
+                      onPress={() => handleSendOtp(true)}
+                      disabled={loading}
+                      hitSlop={10}
+                    >
+                      <Text
+                        style={[styles.resendAction, { color: colors.tint }]}
+                      >
+                        Resend code
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text
+                      style={[styles.resendWait, { color: colors.textMuted }]}
+                    >
+                      Resend code in {timer}s
+                    </Text>
+                  )}
+                </View>
+              </SlideInView>
+            )}
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -313,72 +304,68 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: Spacing.xxl,
+    paddingVertical: Spacing.xxl,
   },
-
-  tagline: {
-    fontSize: 18,
-    marginTop: 12,
-    fontWeight: "400",
-    letterSpacing: 0.5,
+  brand: {
+    alignItems: "center",
+    marginBottom: Spacing.xxl + Spacing.sm,
   },
-  highlight: {
+  form: {
+    width: "100%",
+  },
+  title: {
+    fontSize: 28,
     fontWeight: "700",
-    fontStyle: "italic",
+    letterSpacing: -0.3,
+    marginBottom: Spacing.sm,
   },
-
+  subtitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
   label: {
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
     fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-
-  input: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    fontSize: 16,
-    borderWidth: 1,
-    width: "100%",
-  },
-
   btn: {
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: Spacing.lg,
+    borderRadius: Spacing.round.lg,
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    minHeight: 52,
+    minHeight: 54,
   },
-  btnText: { fontWeight: "600", color: "#000000", fontSize: 16 },
-
-  hiddenInput: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    opacity: 0,
-  },
-  otpContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    paddingHorizontal: 10,
-  },
-  otpBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  otpText: {
-    fontSize: 24,
+  btnText: {
     fontWeight: "700",
+    fontSize: 16,
+  },
+  editRow: {
+    alignSelf: "flex-start",
+    marginTop: -Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  editText: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  resendWrap: {
+    marginTop: Spacing.xl,
+    alignItems: "center",
+    minHeight: 24,
+  },
+  resendAction: {
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  resendWait: {
+    fontSize: 14,
   },
 });
