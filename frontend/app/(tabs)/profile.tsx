@@ -37,6 +37,7 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react-native";
+import Constants from "expo-constants";
 import api from "../../services/api";
 import * as ImagePicker from "expo-image-picker";
 
@@ -647,7 +648,7 @@ export default function ProfileScreen() {
         />
       </View>
       <Text style={[styles.versionText, { color: colors.textMuted }]}>
-        Version 1.0.3
+        Version {Constants.expoConfig?.version ?? "—"}
       </Text>
 
       {/* Edit Profile Modal */}

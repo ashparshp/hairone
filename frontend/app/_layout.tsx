@@ -61,15 +61,15 @@ function AppContent() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <BookingProvider>
-        <ThemeProvider>
-          <LocationProvider>
-            <ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <BookingProvider>
+            <LocationProvider>
               <AppContent />
-            </ToastProvider>
-          </LocationProvider>
-        </ThemeProvider>
-      </BookingProvider>
+            </LocationProvider>
+          </BookingProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

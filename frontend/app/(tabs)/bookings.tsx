@@ -1,9 +1,10 @@
 import { AlertTriangle, Calendar, Clock, MapPin, Phone, QrCode, RefreshCw, Star, X, CheckCircle } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
-import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useBooking } from '../../context/BookingContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useToast } from '../../context/ToastContext';
 import { FadeInView } from '../../components/AnimatedViews';
 import { BookingTicket } from '../../components/BookingTicket';
 import { UserAvatar } from '../../components/UserAvatar';
@@ -13,16 +14,27 @@ import { createReview } from '../../services/api';
 export default function BookingsScreen() {
   const { myBookings, bookingsError, cancelBooking, fetchBookings } = useBooking();
   const { colors, theme } = useTheme();
+  const { showToast } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('upcoming');
   const [cancelling, setCancelling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Refresh when focused
   useFocusEffect(
     useCallback(() => {
         if(fetchBookings) fetchBookings();
-    }, [])
+    }, [fetchBookings])
   );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchBookings();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   
   // --- MODAL STATES ---
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
@@ -68,7 +80,7 @@ export default function BookingsScreen() {
   };
 
   const submitReview = async () => {
-    if (rating === 0) return alert('Please select a rating');
+    if (rating === 0) return showToast('Please select a rating', 'error');
     setSubmittingReview(true);
     try {
         await createReview({
@@ -78,9 +90,9 @@ export default function BookingsScreen() {
         });
         setReviewModalVisible(false);
         if(fetchBookings) fetchBookings(); // Refresh to hide Rate button
-        alert('Thanks for your feedback!');
+        showToast('Thanks for your feedback!', 'success');
     } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to submit review');
+        showToast(error.response?.data?.error || 'Failed to submit review', 'error');
     } finally {
         setSubmittingReview(false);
     }
@@ -188,7 +200,7 @@ export default function BookingsScreen() {
 // Dynamic Call Function
 const handleCall = (phoneNumber: string) => {
     if (!phoneNumber) {
-        alert("Phone number not available for this shop.");
+        showToast("Phone number not available for this shop.", "error");
         return;
     }
     Linking.openURL(`tel:${phoneNumber}`);
@@ -197,7 +209,7 @@ const handleCall = (phoneNumber: string) => {
 // Dynamic Map Function
 const handleMap = (lat: number, lng: number, label: string) => {
     if (!lat || !lng) {
-        alert("Location coordinates not available.");
+        showToast("Location coordinates not available.", "error");
         return;
     }
 
@@ -237,6 +249,9 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         }
                     ]}
                     onPress={() => setActiveTab('upcoming')}
+                    accessibilityRole="tab"
+                    accessibilityLabel="Upcoming bookings"
+                    accessibilityState={{ selected: activeTab === 'upcoming' }}
                 >
                     <Text style={[
                         styles.tabText, 
@@ -257,6 +272,9 @@ const handleMap = (lat: number, lng: number, label: string) => {
                         }
                     ]}
                     onPress={() => setActiveTab('history')}
+                    accessibilityRole="tab"
+                    accessibilityLabel="Booking history"
+                    accessibilityState={{ selected: activeTab === 'history' }}
                 >
                     <Text style={[
                         styles.tabText, 
@@ -268,7 +286,16 @@ const handleMap = (lat: number, lng: number, label: string) => {
         </View>
 
         {/* Added paddingBottom: 120 to allow scrolling past bottom nav */}
-        <ScrollView contentContainerStyle={{padding: 20, paddingBottom: 120}}>
+        <ScrollView
+          contentContainerStyle={{padding: 20, paddingBottom: 120}}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.tint}
+            />
+          }
+        >
             {bookingsError && (
               <Text style={{ color: '#ef4444', marginBottom: 12, textAlign: 'center' }}>
                 {bookingsError}

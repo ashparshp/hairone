@@ -33,7 +33,8 @@ export default function SupportListScreen() {
       const res = await api.get('/support/my');
       setTickets(res.data);
     } catch (e) {
-      // Error handled silently or via toast if needed
+      if (__DEV__) console.log('Support tickets fetch failed', e);
+      showToast('Could not load support tickets', 'error');
     } finally {
       setLoading(false);
     }

@@ -19,6 +19,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useLocation } from "../../context/LocationContext";
+import { useToast } from "../../context/ToastContext";
 import { ShopCard } from "../../components/ShopCard";
 import { ShopCardSkeleton } from "../../components/ShopCardSkeleton";
 import { ScalePress } from "../../components/ScalePress";
@@ -41,11 +42,13 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user, login, token } = useAuth(); // Destructure login & token for syncing
   const { colors, theme, toggleTheme } = useTheme();
+  const { showToast } = useToast();
   const isDark = theme === 'dark';
 
   const [rawShops, setRawShops] = useState([]); // Unfiltered API data
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const fetchSeq = React.useRef(0);
 
   // Filter States
   const [showFilters, setShowFilters] = useState(false);
@@ -81,22 +84,23 @@ export default function HomeScreen() {
     refreshLocation(); // Utilizes context caching
   }, []);
 
+  // Focus / location / filters — not search/category (those use the debounce effect below)
   useFocusEffect(
     useCallback(() => {
-      // Pass 'true' to fetch silently without showing full loading state
       fetchShops(true);
-    }, [location, distanceFilter, genderFilter, hasAttemptedLocation, activeCategory, searchText])
+    }, [location, distanceFilter, genderFilter, hasAttemptedLocation])
   );
 
   const shops = rawShops;
 
   useEffect(() => {
       const delayDebounceFn = setTimeout(() => {
-        fetchShops();
+        if (!hasAttemptedLocation) return;
+        fetchShops(true);
       }, 500);
 
       return () => clearTimeout(delayDebounceFn);
-  }, [searchText, activeCategory]);
+  }, [searchText, activeCategory, hasAttemptedLocation]);
 
   const toggleFavorite = async (shopId: string) => {
     if (!user) return;
@@ -106,7 +110,8 @@ export default function HomeScreen() {
       const updatedUser = { ...user, favorites };
       if (token) login(token, updatedUser);
     } catch (e) {
-      console.log("Error toggling favorite:", e);
+      if (__DEV__) console.log("Error toggling favorite:", e);
+      showToast("Could not update favorites", "error");
     }
   };
 
@@ -114,6 +119,7 @@ export default function HomeScreen() {
     // Only fetch if we have finished the initial location attempt
     if (!hasAttemptedLocation) return;
 
+    const seq = ++fetchSeq.current;
     if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -136,12 +142,17 @@ export default function HomeScreen() {
       }
 
       const res = await api.get(`/shops?${params.toString()}`);
+      if (seq !== fetchSeq.current) return;
       setRawShops(res.data);
     } catch (e) {
-      console.log("Error fetching shops:", e);
+      if (seq !== fetchSeq.current) return;
+      if (__DEV__) console.log("Error fetching shops:", e);
+      showToast("Could not load salons", "error");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (seq === fetchSeq.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -246,6 +257,7 @@ export default function HomeScreen() {
                   style={[styles.input, { color: isDark ? 'white' : '#0f172a' }]}
                   value={searchText}
                   onChangeText={setSearchText}
+                  accessibilityLabel="Search salons or services"
                 />
                 <ScalePress
                   onPress={() => setShowFilters(!showFilters)}

@@ -1,22 +1,8 @@
 const Booking = require("../models/Booking");
-const Barber = require("../models/Barber");
-const Shop = require("../models/Shop");
-const User = require("../models/User");
 const SystemConfig = require("../models/SystemConfig");
 const mongoose = require("mongoose");
 const {
-  addMinutes,
-  parse,
-  format,
-  differenceInDays,
-  subDays,
-  startOfMonth,
-  endOfMonth,
-} = require("date-fns");
-const {
   getISTTime,
-  buildBookingWindowUTC,
-  daysBetweenDateStrings,
   getMonthBoundsFromDateStr,
 } = require("../utils/dateUtils");
 const {
@@ -33,34 +19,15 @@ const {
   BookingServiceError,
   createBookingForUser,
 } = require("../services/bookingService");
-const {
-  timeToMinutes,
-  getBarberScheduleForDate,
-} = require("../utils/scheduleUtils");
 
 /**
  * =================================================================================================
  * BOOKING CONTROLLER
  * =================================================================================================
  *
- * Purpose:
- * This is the heart of the scheduling engine. It handles:
- * 1. Creating new bookings (with availability checks).
- * 2. Calculating the financial split (Commission, Discount, Net Revenue).
- * 3. Managing booking status transitions (Pending -> Confirmed -> Completed).
- *
- * Key Logic:
- * - "Availability Check": Complex logic to ensure slots don't overlap, considering Buffer Times and
- *   overnight shifts (spillover).
- * - "Financials": Calculated *at the time of booking* and stored permanently to ensure historical accuracy
- *   even if commission rates change later.
+ * Route handlers for bookings. Core create/availability/financial logic lives in bookingService.
  * =================================================================================================
  */
-
-// --- Helper: Round Money ---
-const roundMoney = (amount) => {
-  return Math.round((amount + Number.EPSILON) * 100) / 100;
-};
 
 const buildCashBookingCountQuery = (userId, monthStart, monthEnd) => ({
   userId,
@@ -76,54 +43,6 @@ const NON_CANCELLABLE_STATUSES = [
   "missed",
   "blocked",
 ];
-
-const matchComboByName = (shop, rawName) => {
-  for (const combo of shop.combos || []) {
-    if (combo.isAvailable === false) continue;
-    if (rawName === combo.name || rawName.startsWith(`${combo.name} (`)) {
-      return combo;
-    }
-  }
-  return null;
-};
-
-const resolveBookingServices = (shop, serviceNames) => {
-  if (!Array.isArray(serviceNames) || serviceNames.length === 0) {
-    return { error: "At least one service is required." };
-  }
-
-  let totalPrice = 0;
-  let totalDuration = 0;
-  const resolved = [];
-
-  for (const rawName of serviceNames) {
-    const combo = matchComboByName(shop, rawName);
-    if (combo) {
-      totalPrice += combo.price;
-      totalDuration += combo.duration;
-      resolved.push(rawName);
-      continue;
-    }
-
-    const service = (shop.services || []).find(
-      (s) => s.name === rawName && s.isAvailable !== false,
-    );
-    if (service) {
-      totalPrice += service.price;
-      totalDuration += service.duration;
-      resolved.push(rawName);
-      continue;
-    }
-
-    return { error: `Invalid or unavailable service: ${rawName}` };
-  }
-
-  return {
-    serviceNames: resolved,
-    totalPrice: roundMoney(totalPrice),
-    totalDuration,
-  };
-};
 
 const isAdmin = (user) => user && user.role === "admin";
 
@@ -144,114 +63,6 @@ const isCheckInRateLimited = async (bookingId) => {
     CHECKIN_WINDOW_MS,
   );
   return !allowed;
-};
-
-const generateUniqueBookingKey = async (session) => {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const key = Math.floor(1000 + Math.random() * 9000).toString();
-    const exists = await Booking.exists({ bookingKey: key }).session(session);
-    if (!exists) return key;
-  }
-  throw new Error("Failed to generate unique booking key");
-};
-
-// --- Helper: Availability Check ---
-const checkAvailability = async (
-  barber,
-  date,
-  startStr,
-  duration,
-  bufferTime = 0,
-  session = null,
-) => {
-  const start = timeToMinutes(startStr);
-  const end = start + duration + bufferTime;
-
-  // 1. Check Today's Schedule
-  const scheduleToday = getBarberScheduleForDate(barber, date);
-  let fitsToday = false;
-
-  if (scheduleToday.isOpen) {
-    if (start >= scheduleToday.start && end <= scheduleToday.end) {
-      let inBreak = false;
-      if (scheduleToday.breaks) {
-        for (const br of scheduleToday.breaks) {
-          if (start < br.end && end > br.start) {
-            inBreak = true;
-            break;
-          }
-        }
-      }
-      if (!inBreak) fitsToday = true;
-    }
-  }
-
-  // 2. Check Yesterday's Schedule (Overnight Spillover)
-  let fitsYesterday = false;
-  if (!fitsToday) {
-    const prevDateObj = subDays(new Date(date), 1);
-    const prevDate = format(prevDateObj, "yyyy-MM-dd");
-    const scheduleYesterday = getBarberScheduleForDate(barber, prevDate);
-
-    if (scheduleYesterday.isOpen && scheduleYesterday.end > 1440) {
-      const startY = start + 1440;
-      const endY = end + 1440;
-
-      if (startY >= scheduleYesterday.start && endY <= scheduleYesterday.end) {
-        let inBreak = false;
-        if (scheduleYesterday.breaks) {
-          for (const br of scheduleYesterday.breaks) {
-            if (startY < br.end && endY > br.start) {
-              inBreak = true;
-              break;
-            }
-          }
-        }
-        if (!inBreak) fitsYesterday = true;
-      }
-    }
-  }
-
-  if (!fitsToday && !fitsYesterday) return false;
-
-  const conflictQuery = (filter) => {
-    let q = Booking.find(filter);
-    if (session) q = q.session(session);
-    return q;
-  };
-
-  // 3. Check Conflicts with Existing Bookings
-  const conflictsToday = await conflictQuery({
-    barberId: barber._id,
-    date: date,
-    activeBooking: true,
-  });
-
-  for (const b of conflictsToday) {
-    const bStart = timeToMinutes(b.startTime);
-    const bEnd = timeToMinutes(b.endTime) + bufferTime;
-    if (start < bEnd && end > bStart) return false;
-  }
-
-  const prevDateObj = subDays(new Date(date), 1);
-  const prevDate = format(prevDateObj, "yyyy-MM-dd");
-
-  const conflictsYesterday = await conflictQuery({
-    barberId: barber._id,
-    date: prevDate,
-    activeBooking: true,
-  });
-
-  for (const b of conflictsYesterday) {
-    const bStart = timeToMinutes(b.startTime);
-    const bEnd = timeToMinutes(b.endTime) + bufferTime;
-    const bStartToday = bStart - 1440;
-    const bEndToday = bEnd - 1440;
-
-    if (start < bEndToday && end > bStartToday) return false;
-  }
-
-  return true;
 };
 
 // --- 1. Create Booking ---

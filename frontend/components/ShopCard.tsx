@@ -20,6 +20,8 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
   return (
     <ScalePress
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${shop.name}, ${shop.rating || "New"} rating. Book now`}
       style={[
         styles.card,
           {
@@ -38,6 +40,13 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
           <TouchableOpacity
             style={styles.heartButton}
             onPress={() => onToggleFavorite && onToggleFavorite(shop._id)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isFavorite
+                ? `Remove ${shop.name} from favorites`
+                : `Save ${shop.name} to favorites`
+            }
+            accessibilityState={{ selected: !!isFavorite }}
           >
             <Heart size={16} color={isFavorite ? colors.error : colors.white} fill={isFavorite ? colors.error : colors.transparent} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -87,6 +96,8 @@ export const ShopCard: React.FC<ShopCardProps> = ({ shop, onPress, index, isFavo
             <TouchableOpacity
               style={[styles.bookBtn, { backgroundColor: colors.buttonBackground }]}
               onPress={onPress}
+              accessibilityRole="button"
+              accessibilityLabel={`Book ${shop.name}`}
             >
               <Text style={[styles.bookBtnText, { color: colors.buttonText }]}>Book Now</Text>
             </TouchableOpacity>

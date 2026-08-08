@@ -546,7 +546,6 @@ exports.updateSystemConfig = async (req, res) => {
     const {
       adminCommissionRate,
       userDiscountRate,
-      isPaymentTestMode,
       maxCashBookingsPerMonth,
     } = req.body;
 
@@ -580,10 +579,6 @@ exports.updateSystemConfig = async (req, res) => {
     const maxCash = toNumberInRange(maxCashBookingsPerMonth, 0, 100);
     if (maxCash !== undefined) {
       updates.maxCashBookingsPerMonth = Math.round(maxCash);
-    }
-
-    if (typeof isPaymentTestMode === "boolean") {
-      updates.isPaymentTestMode = isPaymentTestMode;
     }
 
     const config = await SystemConfig.findOneAndUpdate(
