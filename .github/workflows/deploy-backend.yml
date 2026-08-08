@@ -1,0 +1,78 @@
+# Deploy backend to EC2 over SSH.
+#
+# GitHub → Settings → Secrets and variables → Actions → Secrets tab
+# Add under "Repository secrets" (NOT Environment secrets):
+#   SSH_PRIVATE_KEY  = full contents of hairone-server.pem
+#
+# Variables tab (optional overrides):
+#   SSH_HOST              default 3.85.219.147
+#   SSH_USER              default ec2-user
+#   SSH_PORT              default 22
+#   BACKEND_DEPLOY_PATH   default /home/ec2-user/hairone/backend
+#   PM2_APP_NAME          default hairone
+#
+# Server must already have: Node, npm, pm2, and a working .env in BACKEND_DEPLOY_PATH.
+# This workflow never uploads .env.
+
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    # No `environment:` — uses Repository secrets (not Environment secrets)
+    env:
+      SSH_HOST: ${{ vars.SSH_HOST || '3.85.219.147' }}
+      SSH_USER: ${{ vars.SSH_USER || 'ec2-user' }}
+      SSH_PORT: ${{ vars.SSH_PORT || '22' }}
+      DEPLOY_PATH: ${{ vars.BACKEND_DEPLOY_PATH || '/home/ec2-user/hairone/backend' }}
+      PM2_APP_NAME: ${{ vars.PM2_APP_NAME || 'hairone' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync backend (keep remote .env)
+        run: |
+          rsync -avz --delete \
+            --exclude node_modules \
+            --exclude .env \
+            --exclude .git \
+            --exclude '*.log' \
+            -e "ssh -i ~/.ssh/deploy_key -p $SSH_PORT" \
+            backend/ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
+
+      - name: Install deps and restart pm2
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" \
+            "set -e
+             cd '${DEPLOY_PATH}'
+             if [ ! -f .env ]; then
+               echo 'ERROR: missing .env on server at ${DEPLOY_PATH}/.env'
+               exit 1
+             fi
+             npm ci --omit=dev
+             if pm2 describe '${PM2_APP_NAME}' >/dev/null 2>&1; then
+               pm2 restart '${PM2_APP_NAME}' --update-env
+             else
+               pm2 start src/index.js --name '${PM2_APP_NAME}'
+             fi
+             pm2 save
+             pm2 status '${PM2_APP_NAME}'"

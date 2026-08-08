@@ -1,0 +1,58 @@
+# Manual CD: push an Expo OTA update (preview or production channel).
+# Requires GitHub secret: EXPO_TOKEN (from https://expo.dev/settings/access-tokens)
+#
+# Usage: Actions → EAS Update → Run workflow → pick channel.
+
+name: EAS Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: EAS update channel
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+      message:
+        description: Update message
+        required: false
+        default: "OTA update from CI"
+
+jobs:
+  update:
+    name: Publish OTA (${{ inputs.channel }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish update
+        run: |
+          eas update \
+            --channel "${{ inputs.channel }}" \
+            --message "${{ inputs.message }}" \
+            --non-interactive
