@@ -550,12 +550,32 @@ exports.updateSystemConfig = async (req, res) => {
       maxCashBookingsPerMonth,
     } = req.body;
 
+    const existing =
+      (await SystemConfig.findOne({ key: "global" })) ||
+      { adminCommissionRate: 10, userDiscountRate: 0 };
+
     const updates = {};
     const commission = toNumberInRange(adminCommissionRate, 0, 100);
     if (commission !== undefined) updates.adminCommissionRate = commission;
 
     const discount = toNumberInRange(userDiscountRate, 0, 100);
     if (discount !== undefined) updates.userDiscountRate = discount;
+
+    const nextCommission =
+      updates.adminCommissionRate !== undefined
+        ? updates.adminCommissionRate
+        : existing.adminCommissionRate ?? 10;
+    const nextDiscount =
+      updates.userDiscountRate !== undefined
+        ? updates.userDiscountRate
+        : existing.userDiscountRate ?? 0;
+
+    if (nextDiscount > nextCommission) {
+      return res.status(400).json({
+        message:
+          "User discount cannot exceed admin commission rate. Discount is funded from commission.",
+      });
+    }
 
     const maxCash = toNumberInRange(maxCashBookingsPerMonth, 0, 100);
     if (maxCash !== undefined) {
