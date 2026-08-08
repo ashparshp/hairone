@@ -48,3 +48,5 @@ frontend/android/local.properties
 *.orig.*
 
 hairone-server.pem
+
+text
