@@ -4,10 +4,12 @@ const WebhookEvent = require("../models/WebhookEvent");
 const { getRazorpayKeyId } = require("../config/razorpay");
 const {
   PAYMENT_ORDER_STATUS,
+  PAYMENT_DISPUTE_STATUS,
   PAYMENT_ORDER_TTL_MINUTES,
   PAYMENT_PROCESSING_STALE_MS,
   MIN_AMOUNT_PAISE,
 } = require("../constants/paymentStatus");
+const { warn: logWarn, info: logInfo } = require("../utils/logger");
 const {
   BookingServiceError,
   prepareBooking,
@@ -112,6 +114,10 @@ const serializePaymentOrder = (paymentOrder, extras = {}) => ({
   expiresAt: paymentOrder.expiresAt,
   bookingId: paymentOrder.bookingId || null,
   failureReason: paymentOrder.failureReason || null,
+  refundedAt: paymentOrder.refundedAt || null,
+  amountRefundedPaise: paymentOrder.amountRefundedPaise || 0,
+  disputeStatus: paymentOrder.disputeStatus || null,
+  disputeId: paymentOrder.disputeId || null,
   ...extras,
 });
 
@@ -535,57 +541,206 @@ const verifyAndFulfillBookingPayment = async (
   }
 };
 
-const processWebhookEvent = async (event) => {
-  const eventId = event?.id || `${event?.event}-${event?.created_at}`;
-  if (!eventId) {
-    throw new PaymentServiceError(400, "Invalid webhook payload.");
-  }
+const markWebhookProcessed = async (eventId, patch = {}) => {
+  await WebhookEvent.findOneAndUpdate(
+    { eventId },
+    { processed: true, processedAt: new Date(), ...patch },
+  );
+};
 
-  const existing = await WebhookEvent.findOne({ eventId });
-  if (existing?.processed) {
-    return { duplicate: true };
-  }
+const touchPaymentOrderWebhook = (paymentOrder, eventType) => {
+  paymentOrder.lastWebhookEvent = eventType;
+  paymentOrder.lastWebhookAt = new Date();
+};
 
-  if (!existing) {
-    await WebhookEvent.create({
-      eventId,
-      eventType: event.event,
-      razorpayOrderId: event?.payload?.payment?.entity?.order_id,
-      razorpayPaymentId: event?.payload?.payment?.entity?.id,
+const findPaymentOrderFromWebhook = async (event) => {
+  const payment = event?.payload?.payment?.entity;
+  const refund = event?.payload?.refund?.entity;
+  const dispute = event?.payload?.dispute?.entity;
+
+  if (payment?.order_id) {
+    const byOrder = await PaymentOrder.findOne({
+      razorpayOrderId: payment.order_id,
     });
+    if (byOrder) return { paymentOrder: byOrder, payment, refund, dispute };
   }
 
-  if (event.event !== "payment.captured") {
-    await WebhookEvent.findOneAndUpdate(
-      { eventId },
-      { processed: true, processedAt: new Date() },
+  const paymentId =
+    payment?.id || refund?.payment_id || dispute?.payment_id || null;
+
+  if (paymentId) {
+    const byPayment = await PaymentOrder.findOne({
+      razorpayPaymentId: paymentId,
+    });
+    if (byPayment) return { paymentOrder: byPayment, payment, refund, dispute };
+  }
+
+  return { paymentOrder: null, payment, refund, dispute };
+};
+
+const handlePaymentFailedWebhook = async (paymentOrder, payment, eventType) => {
+  touchPaymentOrderWebhook(paymentOrder, eventType);
+
+  // Don't downgrade a successful capture / refund
+  if (
+    paymentOrder.status === PAYMENT_ORDER_STATUS.PAID ||
+    paymentOrder.status === PAYMENT_ORDER_STATUS.REFUNDED
+  ) {
+    await paymentOrder.save();
+    return { handled: true, reason: "already_terminal", status: paymentOrder.status };
+  }
+
+  const reason =
+    payment?.error_description ||
+    payment?.error_reason ||
+    payment?.error_code ||
+    "Payment failed at gateway";
+
+  paymentOrder.status = PAYMENT_ORDER_STATUS.FAILED;
+  paymentOrder.failedAt = paymentOrder.failedAt || new Date();
+  paymentOrder.failureReason = reason;
+  paymentOrder.processingAt = undefined;
+  if (payment?.id && !paymentOrder.razorpayPaymentId) {
+    paymentOrder.razorpayPaymentId = payment.id;
+  }
+  await paymentOrder.save();
+
+  logInfo(`payment_failed webhook → order ${paymentOrder.referenceId}: ${reason}`);
+  return { handled: true, status: PAYMENT_ORDER_STATUS.FAILED };
+};
+
+const handlePaymentAuthorizedWebhook = async (paymentOrder, payment, eventType) => {
+  touchPaymentOrderWebhook(paymentOrder, eventType);
+  if (payment?.id && !paymentOrder.razorpayPaymentId) {
+    paymentOrder.razorpayPaymentId = payment.id;
+  }
+  await paymentOrder.save();
+  // Capture (or client verify) will fulfill — acknowledge only
+  return { handled: true, reason: "authorized_awaiting_capture" };
+};
+
+/**
+ * Refund policy (HairOne):
+ * - Customer refunds for cancel / unfulfilled bookings are wallet credits only.
+ * - We never initiate a Razorpay refund for amounts already (or about to be) wallet-credited.
+ * - refund.* webhooks are recorded for ops visibility; they must NEVER credit the wallet again.
+ */
+const handleRefundWebhook = async (paymentOrder, refund, eventType) => {
+  touchPaymentOrderWebhook(paymentOrder, eventType);
+
+  const refundId = refund?.id;
+  const amountRefunded = Number(refund?.amount) || 0;
+  const refundStatus = refund?.status; // created | processed | failed
+  const walletAlreadyCredited = Boolean(paymentOrder.walletCreditedAt);
+
+  if (eventType === "refund.failed") {
+    paymentOrder.failureReason = `refund_failed:${refundId || "unknown"}`;
+    await paymentOrder.save();
+    logWarn(
+      `refund_failed webhook for order ${paymentOrder.referenceId} refund=${refundId}`,
     );
-    return { handled: false, reason: "ignored_event_type" };
+    return { handled: true, reason: "refund_failed", refundId };
   }
 
-  const payment = event.payload?.payment?.entity;
-  if (!payment?.order_id || !payment?.id) {
-    throw new PaymentServiceError(400, "Incomplete payment webhook payload.");
-  }
-
-  const paymentOrder = await PaymentOrder.findOne({
-    razorpayOrderId: payment.order_id,
-  });
-
-  if (!paymentOrder) {
-    await WebhookEvent.findOneAndUpdate(
-      { eventId },
-      { processed: true, processedAt: new Date(), error: "order_not_found" },
+  if (refundId) paymentOrder.razorpayRefundId = refundId;
+  if (amountRefunded > 0) {
+    paymentOrder.amountRefundedPaise = Math.max(
+      paymentOrder.amountRefundedPaise || 0,
+      amountRefunded,
     );
-    return { handled: false, reason: "order_not_found" };
   }
 
+  if (
+    refundStatus === "processed" ||
+    eventType === "refund.processed" ||
+    eventType === "refund.created"
+  ) {
+    paymentOrder.refundedAt = paymentOrder.refundedAt || new Date();
+
+    if (walletAlreadyCredited) {
+      // Gateway refund + wallet credit = customer paid twice-back. Never wallet-credit here.
+      paymentOrder.failureReason = `gateway_refund_after_wallet_credit:${refundId || "unknown"}`;
+      await paymentOrder.save();
+      logWarn(
+        `DOUBLE PAYOUT RISK: gateway refund after wallet credit on ${paymentOrder.referenceId} refund=${refundId} wallet₹${paymentOrder.walletCreditedAmount}`,
+      );
+      return {
+        handled: true,
+        reason: "gateway_refund_after_wallet_credit",
+        alert: true,
+        refundId,
+        walletCreditedAmount: paymentOrder.walletCreditedAmount,
+      };
+    }
+
+    if (
+      paymentOrder.status === PAYMENT_ORDER_STATUS.PAID ||
+      paymentOrder.status === PAYMENT_ORDER_STATUS.FAILED
+    ) {
+      paymentOrder.status = PAYMENT_ORDER_STATUS.REFUNDED;
+    }
+    paymentOrder.failureReason =
+      paymentOrder.failureReason ||
+      `refunded_via_gateway:${refundId || "unknown"}`;
+  }
+
+  await paymentOrder.save();
+  logInfo(
+    `refund webhook ${eventType} → order ${paymentOrder.referenceId} refund=${refundId}`,
+  );
+  return {
+    handled: true,
+    status: paymentOrder.status,
+    refundId,
+    amountRefundedPaise: paymentOrder.amountRefundedPaise,
+  };
+};
+
+const mapDisputeEventToStatus = (eventType) => {
+  switch (eventType) {
+    case "payment.dispute.created":
+      return PAYMENT_DISPUTE_STATUS.OPEN;
+    case "payment.dispute.under_review":
+      return PAYMENT_DISPUTE_STATUS.UNDER_REVIEW;
+    case "payment.dispute.action_required":
+      return PAYMENT_DISPUTE_STATUS.ACTION_REQUIRED;
+    case "payment.dispute.won":
+      return PAYMENT_DISPUTE_STATUS.WON;
+    case "payment.dispute.lost":
+      return PAYMENT_DISPUTE_STATUS.LOST;
+    case "payment.dispute.closed":
+      return PAYMENT_DISPUTE_STATUS.CLOSED;
+    default:
+      return PAYMENT_DISPUTE_STATUS.OPEN;
+  }
+};
+
+const handleDisputeWebhook = async (paymentOrder, dispute, eventType) => {
+  touchPaymentOrderWebhook(paymentOrder, eventType);
+  paymentOrder.disputeId = dispute?.id || paymentOrder.disputeId;
+  paymentOrder.disputeStatus = mapDisputeEventToStatus(eventType);
+  await paymentOrder.save();
+
+  logWarn(
+    `dispute webhook ${eventType} → order ${paymentOrder.referenceId} dispute=${paymentOrder.disputeId} status=${paymentOrder.disputeStatus}`,
+  );
+
+  return {
+    handled: true,
+    disputeId: paymentOrder.disputeId,
+    disputeStatus: paymentOrder.disputeStatus,
+  };
+};
+
+const handlePaymentCapturedWebhook = async (eventId, paymentOrder, payment) => {
   if (paymentOrder.status === PAYMENT_ORDER_STATUS.PAID && paymentOrder.bookingId) {
-    await WebhookEvent.findOneAndUpdate(
-      { eventId },
-      { processed: true, processedAt: new Date() },
-    );
+    await markWebhookProcessed(eventId);
     return { duplicate: true, bookingId: paymentOrder.bookingId };
+  }
+
+  if (paymentOrder.status === PAYMENT_ORDER_STATUS.REFUNDED) {
+    await markWebhookProcessed(eventId, { error: "already_refunded" });
+    return { handled: false, reason: "already_refunded" };
   }
 
   const user = await require("../models/User").findById(paymentOrder.userId);
@@ -595,10 +750,7 @@ const processWebhookEvent = async (event) => {
 
   const claim = await tryClaimPaymentOrderForFulfillment(paymentOrder);
   if (claim.alreadyPaid) {
-    await WebhookEvent.findOneAndUpdate(
-      { eventId },
-      { processed: true, processedAt: new Date() },
-    );
+    await markWebhookProcessed(eventId);
     return { duplicate: true, bookingId: claim.paymentOrder.bookingId };
   }
 
@@ -611,6 +763,7 @@ const processWebhookEvent = async (event) => {
   }
 
   try {
+    touchPaymentOrderWebhook(claim.paymentOrder, "payment.captured");
     const booking = await fulfillPaymentOrder(
       claim.paymentOrder,
       payment.id,
@@ -618,11 +771,7 @@ const processWebhookEvent = async (event) => {
       "webhook",
     );
 
-    await WebhookEvent.findOneAndUpdate(
-      { eventId },
-      { processed: true, processedAt: new Date() },
-    );
-
+    await markWebhookProcessed(eventId);
     return { handled: true, bookingId: booking._id };
   } catch (error) {
     await handleFulfillmentError(claim.paymentOrder, error);
@@ -632,6 +781,90 @@ const processWebhookEvent = async (event) => {
     );
     throw error;
   }
+};
+
+const processWebhookEvent = async (event) => {
+  const eventId = event?.id || `${event?.event}-${event?.created_at}`;
+  if (!eventId || !event?.event) {
+    throw new PaymentServiceError(400, "Invalid webhook payload.");
+  }
+
+  const existing = await WebhookEvent.findOne({ eventId });
+  if (existing?.processed) {
+    return { duplicate: true };
+  }
+
+  const paymentEntity = event?.payload?.payment?.entity;
+  const refundEntity = event?.payload?.refund?.entity;
+  const disputeEntity = event?.payload?.dispute?.entity;
+
+  if (!existing) {
+    await WebhookEvent.create({
+      eventId,
+      eventType: event.event,
+      razorpayOrderId:
+        paymentEntity?.order_id || undefined,
+      razorpayPaymentId:
+        paymentEntity?.id ||
+        refundEntity?.payment_id ||
+        disputeEntity?.payment_id ||
+        undefined,
+    });
+  }
+
+  const eventType = event.event;
+  const { paymentOrder, payment, refund, dispute } =
+    await findPaymentOrderFromWebhook(event);
+
+  // Captured needs order_id on payment entity
+  if (eventType === "payment.captured") {
+    if (!payment?.order_id || !payment?.id) {
+      throw new PaymentServiceError(400, "Incomplete payment webhook payload.");
+    }
+    if (!paymentOrder) {
+      await markWebhookProcessed(eventId, { error: "order_not_found" });
+      return { handled: false, reason: "order_not_found" };
+    }
+    return handlePaymentCapturedWebhook(eventId, paymentOrder, payment);
+  }
+
+  if (!paymentOrder) {
+    await markWebhookProcessed(eventId, { error: "order_not_found" });
+    return { handled: false, reason: "order_not_found" };
+  }
+
+  let result;
+  switch (eventType) {
+    case "payment.failed":
+      result = await handlePaymentFailedWebhook(paymentOrder, payment, eventType);
+      break;
+    case "payment.authorized":
+      result = await handlePaymentAuthorizedWebhook(
+        paymentOrder,
+        payment,
+        eventType,
+      );
+      break;
+    case "refund.created":
+    case "refund.processed":
+    case "refund.failed":
+      result = await handleRefundWebhook(paymentOrder, refund, eventType);
+      break;
+    case "payment.dispute.created":
+    case "payment.dispute.under_review":
+    case "payment.dispute.action_required":
+    case "payment.dispute.won":
+    case "payment.dispute.lost":
+    case "payment.dispute.closed":
+      result = await handleDisputeWebhook(paymentOrder, dispute, eventType);
+      break;
+    default:
+      await markWebhookProcessed(eventId);
+      return { handled: false, reason: "ignored_event_type", eventType };
+  }
+
+  await markWebhookProcessed(eventId);
+  return result;
 };
 
 module.exports = {
