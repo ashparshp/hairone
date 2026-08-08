@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator , Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useBooking } from '../../context/BookingContext';
@@ -1155,7 +1155,7 @@ export default function ShopDetailsScreen() {
       {viewingImage && (
         <View style={styles.fullScreenViewer}>
              <TouchableOpacity style={styles.viewerCloseArea} onPress={() => setViewingImage(null)} />
-             <Image source={{ uri: viewingImage }} style={styles.viewerImage} resizeMode="contain" />
+             <RemoteImage uri={viewingImage} style={styles.viewerImage} resizeMode="contain" />
              <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewingImage(null)}>
                  <Text style={{color: 'white', fontWeight: 'bold'}}>Close</Text>
              </TouchableOpacity>

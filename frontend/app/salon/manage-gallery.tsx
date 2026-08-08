@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -199,7 +198,7 @@ export default function ManageGalleryScreen() {
           <TouchableOpacity style={styles.closeArea} onPress={() => setSelectedImage(null)} />
           
           <View style={styles.modalContent}>
-            <Image source={{ uri: selectedImage || '' }} style={styles.fullImage} resizeMode="contain" />
+            <RemoteImage uri={selectedImage} style={styles.fullImage} resizeMode="contain" />
           </View>
 
           <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedImage(null)}>

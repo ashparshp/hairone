@@ -17,6 +17,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useToast } from "../../context/ToastContext";
 import api from "../../services/api";
+import { normalizeIndianPhone } from "../../utils/phone";
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -51,17 +52,18 @@ export default function LoginScreen() {
   }, [otp, step]);
 
   const handleSendOtp = async (isResend = false) => {
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(phone)) {
+    const normalized = normalizeIndianPhone(phone);
+    if (!normalized) {
       showToast("Please enter a valid 10-digit mobile number", "error");
       return;
     }
 
+    setPhone(normalized);
     setLoading(true);
     Keyboard.dismiss();
 
     try {
-      await api.post("/auth/otp", { phone });
+      await api.post("/auth/otp", { phone: normalized });
 
       setTimer(30);
       setCanResend(false);
@@ -87,10 +89,17 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (otp.length !== 4 || verifyingRef.current) return;
 
+    const normalized = normalizeIndianPhone(phone);
+    if (!normalized) {
+      showToast("Please enter a valid 10-digit mobile number", "error");
+      setStep(1);
+      return;
+    }
+
     verifyingRef.current = true;
     setLoading(true);
     try {
-      const res = await api.post("/auth/verify", { phone, otp });
+      const res = await api.post("/auth/verify", { phone: normalized, otp });
       const { token, user } = res.data;
 
       await login(token, user);
@@ -178,10 +187,18 @@ export default function LoginScreen() {
               ]}
               placeholder="9876543210"
               placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
+              keyboardType="phone-pad"
               value={phone}
-              onChangeText={(text) => setPhone(text.replace(/[^0-9]/g, ""))}
-              maxLength={10}
+              onChangeText={(text) => {
+                const normalized = normalizeIndianPhone(text);
+                if (normalized) {
+                  setPhone(normalized);
+                  return;
+                }
+                // Allow progressive typing / paste of +91… before full normalize
+                setPhone(text.replace(/\D/g, "").slice(0, 12));
+              }}
+              maxLength={13}
               editable={!loading}
             />
 
