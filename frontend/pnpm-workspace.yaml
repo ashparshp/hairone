@@ -1,5 +1,5 @@
 allowBuilds:
-  unrs-resolver: set this to true or false
+  unrs-resolver: false
 # pnpm 11+ supply-chain policy (default ~1 day minimum package age).
 # EAS Build uses npm (package-lock.json); this only affects local pnpm installs.
 minimumReleaseAge: 0
