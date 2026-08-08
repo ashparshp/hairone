@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Phone } from "lucide-react-native";
 import { useTheme } from "../../context/ThemeContext";
 import { Spacing } from "../../constants/Spacing";
 
@@ -19,32 +20,26 @@ export default function PhoneNumberField({
   onSubmitEditing,
 }: PhoneNumberFieldProps) {
   const { colors } = useTheme();
-  const isValid = value.length === 10;
+  const [focused, setFocused] = useState(false);
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: colors.card,
-          borderColor: isValid ? colors.tint : colors.border,
+          borderBottomColor: focused ? colors.tint : colors.border,
         },
       ]}
     >
-      <View
-        style={[
-          styles.prefix,
-          {
-            borderRightColor: colors.border,
-            backgroundColor: colors.surfaceSoft,
-          },
-        ]}
-      >
-        <Text style={[styles.prefixText, { color: colors.text }]}>+91</Text>
-      </View>
+      <Phone
+        size={20}
+        color={focused ? colors.tint : colors.textMuted}
+        style={styles.icon}
+      />
+      <Text style={[styles.prefix, { color: colors.textMuted }]}>+91</Text>
       <TextInput
         style={[styles.input, { color: colors.text }]}
-        placeholder="98765 43210"
+        placeholder="Mobile number"
         placeholderTextColor={colors.textMuted}
         keyboardType="phone-pad"
         value={value}
@@ -54,6 +49,8 @@ export default function PhoneNumberField({
         autoFocus={autoFocus}
         returnKeyType="done"
         onSubmitEditing={onSubmitEditing}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         textContentType="telephoneNumber"
         autoComplete="tel"
         accessibilityLabel="Mobile number"
@@ -65,29 +62,23 @@ export default function PhoneNumberField({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    alignItems: "stretch",
-    borderWidth: 1.5,
-    borderRadius: Spacing.round.lg,
-    overflow: "hidden",
-    marginBottom: Spacing.xxl,
-    minHeight: 56,
+    alignItems: "center",
+    borderBottomWidth: 1.5,
+    minHeight: 52,
+    paddingBottom: Spacing.sm,
+  },
+  icon: {
+    marginRight: Spacing.md,
   },
   prefix: {
-    paddingHorizontal: Spacing.lg,
-    justifyContent: "center",
-    borderRightWidth: 1,
-  },
-  prefixText: {
     fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.3,
+    fontWeight: "600",
+    marginRight: Spacing.sm,
   },
   input: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    fontSize: 18,
-    fontWeight: "600",
-    letterSpacing: 1,
+    fontSize: 16,
+    fontWeight: "500",
+    paddingVertical: Spacing.sm,
   },
 });

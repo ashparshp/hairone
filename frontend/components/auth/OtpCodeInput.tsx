@@ -55,8 +55,6 @@ export default function OtpCodeInput({
       <Pressable
         onPress={() => inputRef.current?.focus()}
         style={styles.boxesRow}
-        accessibilityRole="button"
-        accessibilityLabel="Enter OTP"
       >
         {boxes.map((i) => {
           const filled = Boolean(value[i]);
@@ -67,24 +65,14 @@ export default function OtpCodeInput({
               style={[
                 styles.box,
                 {
-                  borderColor: active
-                    ? colors.tint
-                    : filled
-                      ? colors.borderSoft
-                      : colors.border,
-                  backgroundColor: colors.card,
-                  borderWidth: active ? 2 : 1.5,
+                  borderBottomColor:
+                    active || filled ? colors.tint : colors.border,
                 },
               ]}
             >
               <Text style={[styles.digit, { color: colors.text }]}>
                 {value[i] || ""}
               </Text>
-              {active && !filled ? (
-                <View
-                  style={[styles.caret, { backgroundColor: colors.tint }]}
-                />
-              ) : null}
             </View>
           );
         })}
@@ -96,7 +84,6 @@ export default function OtpCodeInput({
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
-    marginBottom: Spacing.xxl,
   },
   hiddenInput: {
     position: "absolute",
@@ -107,25 +94,17 @@ const styles = StyleSheet.create({
   boxesRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: Spacing.md,
+    gap: Spacing.lg,
   },
   box: {
     flex: 1,
-    aspectRatio: 1,
-    maxWidth: 72,
-    borderRadius: Spacing.round.lg,
+    height: 52,
+    borderBottomWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
   digit: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "700",
-  },
-  caret: {
-    position: "absolute",
-    width: 2,
-    height: 24,
-    borderRadius: 1,
-    opacity: 0.9,
   },
 });
