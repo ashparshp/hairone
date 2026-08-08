@@ -3,6 +3,10 @@ const jwt = require('jsonwebtoken');
 const { getJwtSecret } = require('../config/jwt');
 const { checkRateLimit } = require('../utils/rateLimitUtils');
 const { withSignedUserAvatar } = require('../utils/imageUrl');
+const {
+  normalizeIndianPhone,
+  phoneLookupVariants,
+} = require('../utils/phoneUtils');
 
 const OTP_WINDOW_MS = 15 * 60 * 1000;
 const OTP_MAX_PER_PHONE = 5;
@@ -20,10 +24,24 @@ const checkOtpRateLimit = async (phone) =>
 const isSuspendedAccount = (user) =>
   Boolean(user && user.applicationStatus === 'suspended');
 
+const findUserByPhone = async (normalizedPhone) => {
+  const variants = phoneLookupVariants(normalizedPhone);
+  return User.findOne({ phone: { $in: variants } });
+};
+
+const ensureCanonicalPhone = async (user, normalizedPhone) => {
+  if (!user || user.phone === normalizedPhone) return user;
+  user.phone = normalizedPhone;
+  await user.save();
+  return user;
+};
+
 exports.sendOTP = async (req, res) => {
-  const { phone } = req.body;
+  const phone = normalizeIndianPhone(req.body.phone);
   if (!phone) {
-    return res.status(400).json({ message: 'Phone number is required' });
+    return res.status(400).json({
+      message: 'Enter a valid 10-digit Indian mobile number',
+    });
   }
 
   if (!(await checkOtpRateLimit(phone))) {
@@ -31,7 +49,7 @@ exports.sendOTP = async (req, res) => {
   }
 
   try {
-    const existing = await User.findOne({ phone }).select('applicationStatus');
+    const existing = await findUserByPhone(phone);
     if (isSuspendedAccount(existing)) {
       return res.status(403).json({ message: SUSPENDED_LOGIN_MESSAGE });
     }
@@ -48,11 +66,16 @@ exports.sendOTP = async (req, res) => {
 };
 
 exports.verifyOTP = async (req, res) => {
-  const { phone, otp } = req.body;
+  const { otp } = req.body;
+  const phone = normalizeIndianPhone(req.body.phone);
 
   try {
     if (!phone || !otp) {
-      return res.status(400).json({ message: 'Phone and OTP are required' });
+      return res.status(400).json({
+        message: !phone
+          ? 'Enter a valid 10-digit Indian mobile number'
+          : 'Phone and OTP are required',
+      });
     }
 
     if (isMockOtpAllowed()) {
@@ -65,7 +88,7 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ message: 'OTP verification is disabled. Set MOCK_OTP=true for local dev.' });
     }
 
-    let user = await User.findOne({ phone });
+    let user = await findUserByPhone(phone);
 
     if (!user) {
       user = await User.create({
@@ -73,6 +96,8 @@ exports.verifyOTP = async (req, res) => {
         role: 'user',
         applicationStatus: 'none'
       });
+    } else {
+      user = await ensureCanonicalPhone(user, phone);
     }
 
     if (isSuspendedAccount(user)) {

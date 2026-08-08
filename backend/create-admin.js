@@ -2,17 +2,27 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
 const User = require("./src/models/User");
+const {
+  normalizeIndianPhone,
+  phoneLookupVariants,
+} = require("./src/utils/phoneUtils");
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/hairone";
 
-async function createAdmin(phone) {
+async function createAdmin(rawPhone) {
+  const phone = normalizeIndianPhone(rawPhone);
+  if (!phone) {
+    throw new Error(`Invalid phone: ${rawPhone}`);
+  }
+
   await mongoose.connect(MONGO_URI);
-  let user = await User.findOne({ phone });
+  let user = await User.findOne({ phone: { $in: phoneLookupVariants(phone) } });
   if (!user) {
     user = await User.create({ phone, role: "admin" });
     console.log("Admin user created:", user);
   } else {
     user.role = "admin";
+    user.phone = phone;
     await user.save();
     console.log("User updated to admin:", user);
   }
