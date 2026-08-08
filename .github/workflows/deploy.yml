@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: API
+    name: Backend
     runs-on: ubuntu-latest
     env:
       SSH_HOST: ${{ vars.SSH_HOST || '3.85.219.147' }}
